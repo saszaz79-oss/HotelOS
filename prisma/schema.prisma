@@ -3,13 +3,18 @@
 // docs/DECISIONS.md "Post-Pivot Consistency Review" for why this file is
 // ahead of the Phase-0 DATABASE_SCHEMA.md doc, which predates the pivot).
 
+// Prisma 7: no `url` here — connection URLs live in prisma.config.ts (for
+// the CLI/migrations) and are supplied to PrismaClient via a driver adapter
+// at runtime (see src/lib/prisma.ts). This is also what makes the client
+// Cloudflare Workers-compatible: Prisma 7 has no Rust query-engine binary
+// path anymore, only the driver-adapter path (Architecture, Cloudflare
+// deployment docs).
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ---------- Identity & Access ----------

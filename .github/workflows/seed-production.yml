@@ -1,0 +1,37 @@
+name: Seed Production Platform Owner
+
+# Manually triggered only, and safe to re-run: prisma/seed.ts's production
+# path (NODE_ENV=production) checks for an existing "admin" user and skips
+# creation entirely if one exists — it never overwrites a password on an
+# existing account. Intended to be run exactly once, on first production
+# setup (docs/CLOUDFLARE_DEPLOYMENT.md step 8).
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "seed" to confirm — creates ONE Platform Owner account with a random password if it does not already exist'
+        required: true
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'seed'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Seed production Platform Owner
+        run: NODE_ENV=production npx tsx prisma/seed.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+
+      # The temporary password is printed to this step's log, ONCE. GitHub
+      # Actions logs are visible to anyone with repo access — for a real
+      # company deployment, restrict who can view Actions runs, and change
+      # the password immediately after retrieving it (docs/PRODUCTION_ENVIRONMENT.md).

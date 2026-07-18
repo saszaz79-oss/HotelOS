@@ -12,6 +12,15 @@ The Intelligent Operating System for Hotels. See `/docs` for the full product an
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — architectural decision log
 - [`docs/PARSER_DOCUMENTATION.md`](docs/PARSER_DOCUMENTATION.md) — every extraction adapter: supported/unsupported layouts, assumptions, failure modes
 - [`docs/VALIDATION_REPORT.md`](docs/VALIDATION_REPORT.md) — honest engineering assessment of pipeline reliability (currently: **unmeasured against real data** — read this before trusting any extraction/scoring output)
+- [`docs/CLOUDFLARE_COMPATIBILITY_REPORT.md`](docs/CLOUDFLARE_COMPATIBILITY_REPORT.md) — what was and wasn't Workers-compatible, and what was fixed (**start here** for Cloudflare deployment)
+- [`docs/CLOUDFLARE_DEPLOYMENT.md`](docs/CLOUDFLARE_DEPLOYMENT.md) — step-by-step browser-only deployment guide
+- [`docs/SUPABASE_SETUP.md`](docs/SUPABASE_SETUP.md), [`docs/R2_SETUP.md`](docs/R2_SETUP.md), [`docs/PRODUCTION_ENVIRONMENT.md`](docs/PRODUCTION_ENVIRONMENT.md), [`docs/UPDATE_AND_ROLLBACK.md`](docs/UPDATE_AND_ROLLBACK.md) — the supporting deployment docs
+
+## Cloudflare Workers Deployment
+
+HotelOS is prepared to deploy as a full-stack app on Cloudflare Workers (`@opennextjs/cloudflare`, Postgres via Supabase + Hyperdrive, files via R2) — **not** a static export, **not** Cloudflare Pages Direct Upload. This required real changes, not just configuration: Next.js 14→15, Prisma 5→7 (driver adapters, no Rust engine), and replacing `pdf-parse` (bundles `node:worker_threads`, unsupported on Workers) with `unpdf`. See `docs/CLOUDFLARE_COMPATIBILITY_REPORT.md` for the full, evidence-based account of what was found and fixed.
+
+**Verified in this environment**: `tsc`, `eslint`, `next build`, and `opennextjs-cloudflare build` (the actual Worker bundle) all succeed — including catching and fixing a real bug (a filesystem read that would have failed at Worker request time, found by inspecting the compiled bundle, not by guessing). **Not verified**: an actual deployment. No Cloudflare, Supabase, or GitHub account exists in this environment — nothing has been deployed, and no deployment URL exists. `docs/CLOUDFLARE_DEPLOYMENT.md` is the exact browser-only path to take it from here.
 
 ## Platform Administration
 

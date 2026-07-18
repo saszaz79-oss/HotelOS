@@ -1,0 +1,42 @@
+name: Deploy to Cloudflare Workers (GitHub Actions fallback)
+
+# ALTERNATIVE to Cloudflare Workers Builds (docs/CLOUDFLARE_DEPLOYMENT.md
+# "Preference 1"). Disabled by default (see the `if: false` guard below) —
+# enable this only if you decide NOT to use Workers Builds' dashboard-based
+# GitHub connection, since running both would deploy on every push twice.
+# To enable: remove the `if: false` line below and set the two repository
+# secrets it references.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    if: false # remove this line to enable this workflow instead of Workers Builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Build for Cloudflare Workers
+        run: npm run cf:build
+        env:
+          # Build-time only. Runtime DB access goes through the Hyperdrive
+          # binding configured in wrangler.jsonc, not this variable.
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy

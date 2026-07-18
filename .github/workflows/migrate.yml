@@ -1,0 +1,36 @@
+name: Database Migration
+
+# Manually triggered only (workflow_dispatch) — never on every push. Schema
+# migrations are a deliberate, reviewed action (docs/UPDATE_AND_ROLLBACK.md),
+# not something that should run automatically just because code changed.
+# Runs `prisma migrate deploy`: applies pending, already-committed migrations
+# in order. It does NOT generate new migrations and does NOT reset/wipe
+# anything — see docs/CLOUDFLARE_DEPLOYMENT.md "Running Migrations Safely".
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "migrate" to confirm you want to apply pending migrations to production'
+        required: true
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'migrate'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - name: Apply pending migrations
+        run: npx prisma migrate deploy
+        env:
+          # Supabase's DIRECT (non-pooled) connection string — migrations
+          # need a direct connection, not the Hyperdrive-pooled one the
+          # Worker uses at runtime. Set this as a repository secret.
+          # See docs/SUPABASE_SETUP.md and docs/PRODUCTION_ENVIRONMENT.md.
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}

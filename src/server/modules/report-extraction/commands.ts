@@ -83,11 +83,21 @@ export async function processReportUpload(hotelId: string, reportUploadId: strin
   }
 }
 
+/**
+ * PDF text extraction via `unpdf` (not `pdf-parse`): `pdf-parse`'s bundled
+ * output references `node:worker_threads` in both its Node and browser
+ * builds, which Cloudflare Workers does not support even with
+ * `nodejs_compat` — confirmed by inspecting the installed package's
+ * compiled output during Cloudflare deployment prep. `unpdf` ships a
+ * "serverless build" of PDF.js specifically documented for Cloudflare
+ * Workers (worker inlined into the main bundle, no `worker_threads`).
+ */
 async function extractPdfContent(buffer: Buffer): Promise<{ fullText: string; pages: PdfPage[] }> {
-  const { PDFParse } = await import('pdf-parse');
-  const parser = new PDFParse({ data: buffer });
-  const result = await parser.getText();
-  return { fullText: result.text, pages: result.pages.map((p) => ({ num: p.num, text: p.text })) };
+  const { extractText, getDocumentProxy } = await import('unpdf');
+  const pdf = await getDocumentProxy(new Uint8Array(buffer));
+  const { text } = await extractText(pdf, { mergePages: false });
+  const pages: PdfPage[] = text.map((pageText, i) => ({ num: i + 1, text: pageText }));
+  return { fullText: text.join('\n'), pages };
 }
 
 /** Manual review corrections (PRD §4 review step) — a command, per CQRS convention (Architecture §28). */

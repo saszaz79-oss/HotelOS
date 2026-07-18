@@ -39,11 +39,11 @@ None yet *confirmed* against a real export. The adapter is built to a generic, p
 
 ### Known Assumptions
 
-1. **Label-before-value, same line**: the regex pattern is `label\s*[:\-]?\s*number`. A layout where the value appears on the line *after* the label (common in some table-rendered PDFs where `pdf-parse` linearizes columns unpredictably) will not match.
+1. **Label-before-value, same line**: the regex pattern is `label\s*[:\-]?\s*number`. A layout where the value appears on the line *after* the label (common in some table-rendered PDFs where the PDF.js text layer linearizes columns unpredictably) will not match.
 2. **Decimal/thousands format**: numbers are parsed as `[\d,]+(?:\.\d+)?` — comma as thousands separator, period as decimal separator (e.g., `1,234.56`). A layout using comma as the decimal separator (common in some European/Arabic-locale exports) would be misparsed.
 3. **Date format**: a `DD/MM/YYYY`-or-`MM/DD/YYYY`-shaped date is searched for anywhere in the text. When day/month order is ambiguous (both values ≤ 12), the parser deliberately returns no date rather than guessing — see `parseLooseDate` in the adapter file. This means many valid dates will require manual entry, by design.
 4. **Report-type detection**: primarily relies on finding the literal string "Manager's Flash" (or "Manager Flash") in the text; falls back to a weaker heuristic (fraction of known field labels found) if that marker is absent.
-5. **No table/column structure awareness**: `pdf-parse`'s `getText()` linearizes the PDF's text content; if the real Manager Flash layout uses a multi-column table (e.g., "Today | MTD | YTD" side by side), the adapter has no way to distinguish which column a matched number came from — it will grab whichever number appears first after the label, which may be the wrong column.
+5. **No table/column structure awareness**: `unpdf`'s text extraction linearizes the PDF's text content; if the real Manager Flash layout uses a multi-column table (e.g., "Today | MTD | YTD" side by side), the adapter has no way to distinguish which column a matched number came from — it will grab whichever number appears first after the label, which may be the wrong column.
 
 ### Failure Modes
 
@@ -55,7 +55,7 @@ None yet *confirmed* against a real export. The adapter is built to a generic, p
 ### Future Improvements
 
 1. Obtain a real Manager Flash sample (ideally several, across different Opera Cloud versions/regions) and calibrate every label pattern and the date parser against it — see Validation Report "Recommended Next Improvements."
-2. Add column-awareness if real exports turn out to be table-structured (would likely require switching from `getText()` to `pdf-parse`'s `getTable()` API, already available in the installed library).
+2. Add column-awareness if real exports turn out to be table-structured (would likely require switching to a position-aware text extraction approach (PDF.js exposes per-character coordinates; unpdf's default extractText() does not use them)).
 3. Support additional date formats once real samples show what's actually used.
 4. Add locale-aware number parsing if real exports use comma-decimal formatting.
 

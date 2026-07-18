@@ -29,10 +29,30 @@ import type { ConnectionOptions } from 'node:tls';
  * contains only a public key), but treated as a GitHub Actions secret here
  * for convenience alongside DATABASE_URL. See docs/SUPABASE_SETUP.md.
  */
+/**
+ * A correctly-pasted PEM already has real line breaks. If the secret was
+ * stored or passed through something that collapsed it to a single line
+ * with literal `\n` escape sequences instead (common when a multi-line
+ * value passes through JSON encoding, a shell variable, or a form that
+ * doesn't preserve line breaks), OpenSSL/Node's TLS can't parse it as a
+ * certificate at all — it just fails, with no certificate-related error
+ * text to point at the real cause. Normalize that back into real newlines.
+ * Real PEM bodies never legitimately contain a literal backslash-n
+ * sequence, so this is safe to apply whenever there are no real newlines
+ * already present.
+ */
+function normalizePem(value: string): string {
+  let normalized = value.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (!normalized.includes('\n') && normalized.includes('\\n')) {
+    normalized = normalized.replace(/\\n/g, '\n');
+  }
+  return normalized;
+}
+
 export function resolveDatabaseSsl(): boolean | ConnectionOptions {
-  const ca = process.env.DATABASE_CA_CERT;
-  if (ca && ca.trim().length > 0) {
-    return { ca, rejectUnauthorized: true };
+  const raw = process.env.DATABASE_CA_CERT;
+  if (raw && raw.trim().length > 0) {
+    return { ca: normalizePem(raw), rejectUnauthorized: true };
   }
   // No CA configured: keep Node's default strict verification (never
   // silently weaken it). This fails closed — the same error surfaces until

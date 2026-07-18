@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hotelos
+      POSTGRES_PASSWORD: hotelos
+      POSTGRES_DB: hotelos
+    ports:
+      - '5432:5432'
+    volumes:
+      - hotelos_postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    ports:
+      - '3000:3000'
+
+volumes:
+  hotelos_postgres_data:

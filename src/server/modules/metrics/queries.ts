@@ -1,0 +1,34 @@
+import { prisma } from '@/lib/prisma';
+
+/** CQRS convention (Architecture §28): reads only. */
+export async function getLatestMetricDate(hotelId: string): Promise<Date | null> {
+  const latest = await prisma.hotelMetric.findFirst({
+    where: { hotelId },
+    orderBy: { metricDate: 'desc' },
+    select: { metricDate: true },
+  });
+  return latest?.metricDate ?? null;
+}
+
+/**
+ * Metrics for a date, with provenance/quality joined in (Data Quality Engine,
+ * Architecture §33) — every value on Mission Control must be able to show
+ * its confidence, completeness, source report, and report date (PRD §6).
+ */
+export async function getMetricsForDate(hotelId: string, date: Date) {
+  return prisma.hotelMetric.findMany({
+    where: { hotelId, metricDate: date },
+    include: {
+      metricDefinition: true,
+      sourceReportDocument: { include: { reportUpload: { select: { originalFilename: true } } } },
+    },
+  });
+}
+
+export async function getMetricsForDateRange(hotelId: string, from: Date, to: Date) {
+  return prisma.hotelMetric.findMany({
+    where: { hotelId, metricDate: { gte: from, lte: to } },
+    include: { metricDefinition: true },
+    orderBy: { metricDate: 'asc' },
+  });
+}

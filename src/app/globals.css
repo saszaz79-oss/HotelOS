@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Placeholder token values (Phase 1, M1). Final palette/typography is
+ * finalized against Apple/Linear/Stripe/Tesla mission-control references
+ * before Mission Control screens are built out (DECISIONS.md D11).
+ */
+:root {
+  --surface: 40 20% 98%;
+  --surface-raised: 0 0% 100%;
+  --ink: 220 15% 15%;
+  --ink-muted: 220 10% 45%;
+  --accent: 205 60% 30%;
+  --status-positive: 150 45% 35%;
+  --status-warning: 38 80% 45%;
+  --status-critical: 5 65% 45%;
+  --status-info: 210 50% 45%;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: 220 20% 10%;
+    --surface-raised: 220 18% 14%;
+    --ink: 220 15% 95%;
+    --ink-muted: 220 10% 65%;
+  }
+}
+
+html,
+body {
+  background-color: hsl(var(--surface));
+  color: hsl(var(--ink));
+}
+
+[dir='rtl'] body {
+  font-family: var(--font-arabic);
+}
+
+[dir='ltr'] body {
+  font-family: var(--font-sans);
+}
+
+/* Tabular figures for all metric values (UX_SYSTEM.md §5). */
+.metric-value {
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hotelos-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "C:\\Users\\IT\\Desktop\\mostafa\\MOSTAFA\\HOTEL OS",
+      "port": 3000
+    }
+  ]
+}

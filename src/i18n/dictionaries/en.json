@@ -1,0 +1,233 @@
+{
+  "app": { "name": "HotelOS" },
+  "login": {
+    "title": "Sign in to HotelOS",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "forgotPassword": "Forgot password?",
+    "invalidCredentials": "Invalid username or password.",
+    "accountDisabled": "This account has been disabled. Contact your administrator."
+  },
+  "nav": {
+    "missionControl": "Mission Control",
+    "timeline": "Timeline",
+    "comparisons": "Comparisons",
+    "archive": "Archive",
+    "askAI": "Ask AI",
+    "reports": "Reports",
+    "comingSoon": "Coming soon"
+  },
+  "changePassword": {
+    "title": "Set a new password",
+    "temporaryNotice": "You're signing in with a temporary password. Choose a new password to continue.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "submit": "Update password",
+    "errors": {
+      "INVALID_CURRENT_PASSWORD": "Current password is incorrect.",
+      "PASSWORD_TOO_SHORT": "New password must be at least 8 characters.",
+      "MISMATCH": "New password and confirmation do not match."
+    }
+  },
+  "admin": {
+    "title": "Platform Administration",
+    "subtitle": "Platform Owner console — not part of the hotel-facing product",
+    "exit": "Exit",
+    "nav": {
+      "hotels": "Hotels",
+      "users": "Users",
+      "roles": "Roles & Permissions",
+      "featureFlags": "Feature Flags",
+      "audit": "Audit Log",
+      "system": "System Health",
+      "releaseNotes": "Release Notes",
+      "support": "Support Access",
+      "settings": "Platform Settings"
+    },
+    "hotels": {
+      "title": "Hotels",
+      "create": "Create Hotel",
+      "name": "Hotel Name",
+      "logo": "Logo URL",
+      "country": "Country",
+      "city": "City",
+      "currency": "Currency",
+      "timezone": "Timezone",
+      "totalRooms": "Total Rooms",
+      "pmsType": "PMS Type",
+      "licenseStart": "License Start",
+      "licenseExpiry": "License Expiry",
+      "subscriptionPlan": "Subscription Plan",
+      "status": "Status",
+      "adminSectionTitle": "Initial Hotel Admin",
+      "adminUsername": "Admin Username",
+      "adminDisplayName": "Admin Display Name",
+      "save": "Create Hotel & Admin",
+      "saveEdit": "Save changes",
+      "activate": "Activate",
+      "suspend": "Suspend",
+      "archive": "Archive",
+      "members": "Members",
+      "createdSuccess": "Hotel created. Share these credentials with the Hotel Admin securely — this password is shown only once:",
+      "usernameTaken": "That username is already taken."
+    },
+    "users": {
+      "title": "Users",
+      "create": "Create User",
+      "username": "Username",
+      "displayName": "Display Name",
+      "hotel": "Hotel",
+      "role": "Role",
+      "save": "Create User",
+      "resetPassword": "Reset Password",
+      "disable": "Disable",
+      "activate": "Activate",
+      "resetSuccess": "Password reset. Share this temporary password securely — shown only once:",
+      "createdSuccess": "User created. Share this temporary password securely — shown only once:",
+      "usernameTaken": "That username is already taken."
+    },
+    "roles": {
+      "title": "Roles & Permissions",
+      "note": "Roles are fixed in code for v0.1 (DECISIONS.md D10) — no custom role editor yet."
+    },
+    "featureFlags": {
+      "title": "Feature Flags",
+      "note": "Per-hotel module enablement. Unbuilt agent modules stay off until their full implementation ships.",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "toggle": "Toggle"
+    },
+    "audit": {
+      "title": "Audit Log",
+      "action": "Action",
+      "user": "User",
+      "hotel": "Hotel",
+      "timestamp": "Timestamp"
+    },
+    "system": {
+      "title": "System Health",
+      "database": "Database",
+      "storage": "Storage Driver",
+      "aiProvider": "AI Provider",
+      "notifications": "Notification Provider",
+      "version": "Deployment Version",
+      "environment": "Environment",
+      "connected": "Connected",
+      "unreachable": "Unreachable",
+      "configured": "Configured",
+      "notConfigured": "Not configured"
+    },
+    "support": {
+      "title": "Support Access",
+      "note": "Read-only support view of a hotel's current state — every access is audit-logged (Architecture §4 Super Admin path).",
+      "view": "View"
+    },
+    "settings": {
+      "title": "Platform Settings",
+      "note": "Non-secret operational configuration. Secrets are never displayed here."
+    }
+  },
+  "reportsUpload": {
+    "title": "Upload Opera Reports",
+    "description": "Manager Flash reports are fully processed in this build. Other report types are accepted and stored, but currently require manual entry (see README).",
+    "selectFiles": "Select PDF files",
+    "submit": "Upload",
+    "uploading": "Uploading…",
+    "recentUploads": "Recent uploads",
+    "noUploads": "No reports uploaded yet.",
+    "errors": {
+      "INVALID_FILE_TYPE": "Only PDF files are accepted.",
+      "FILE_TOO_LARGE": "File exceeds the 15MB limit.",
+      "EMPTY_FILE": "The file is empty.",
+      "DUPLICATE": "This exact file has already been uploaded.",
+      "MODULE_DISABLED": "Report uploads are not enabled for this hotel."
+    },
+    "success": "Uploaded successfully."
+  },
+  "reportsReview": {
+    "title": "Review Extracted Values",
+    "backToUploads": "Back to uploads",
+    "reportType": "Report type",
+    "detectedDate": "Detected date",
+    "completeness": "Completeness",
+    "confidence": "Confidence",
+    "validationStatus": "Validation status",
+    "field": "Field",
+    "value": "Value",
+    "confidenceCol": "Confidence",
+    "notFound": "Not found",
+    "save": "Save correction",
+    "saved": "Saved",
+    "qualityNotes": "Data quality notes",
+    "genericNotice": "This report type does not have a dedicated extraction adapter yet — no structured fields were extracted. Raw text is stored for reference. Manual entry only (see README).",
+    "processing": "Still processing — refresh in a moment.",
+    "errorState": "Extraction failed for this report. See the error below, or re-upload.",
+    "unvalidatedNotice": "Manager Flash extraction has not yet been validated against real Opera exports. Verify every value against the source PDF before relying on it.",
+    "confirmDate": "Confirm report date",
+    "finalize": "Finalize and save to metrics",
+    "finalized": "This report has been finalized. Metrics are now live on Mission Control.",
+    "status": {
+      "passed": "Passed",
+      "flagged": "Flagged for review",
+      "failed": "Failed validation"
+    },
+    "fieldStatus": {
+      "verified": "Verified",
+      "needs_review": "Needs review",
+      "unsupported": "Unsupported",
+      "missing": "Missing",
+      "ambiguous": "Ambiguous"
+    },
+    "sourcePage": "Page",
+    "parserWarnings": "Parser warnings"
+  },
+  "missionControl": {
+    "greeting": "Good day",
+    "noHotels": "You are not yet assigned to a hotel. Contact your administrator.",
+    "noReports": "No reports uploaded yet for this hotel. Upload your first report to see insights here.",
+    "notFinalized": "Reports have been uploaded but not yet finalized. Review and finalize a report to see metrics here.",
+    "demoDataBadge": "Demo data",
+    "healthScore": "Hotel Health Score",
+    "factorBreakdown": "Contributing factors",
+    "insufficientData": "insufficient data",
+    "keyMetrics": "Key Metrics",
+    "confidence": "Confidence",
+    "completeness": "Completeness",
+    "source": "Source",
+    "reportDate": "Report date",
+    "alerts": "Alerts",
+    "noAlerts": "No open alerts.",
+    "risksOpportunities": "Risks & Opportunities",
+    "noRecommendations": "No open recommendations.",
+    "why": "Why",
+    "supportingMetrics": "Supporting metrics",
+    "priority": "Priority",
+    "suggestedAction": "Suggested action",
+    "aiSummary": "Executive AI Summary",
+    "aiSummaryUnavailable": {
+      "NO_DATA": "No finalized metrics yet — upload and finalize a report to generate a summary.",
+      "NOT_CONFIGURED": "AI summary is not available — no AI provider is configured for this deployment.",
+      "PROVIDER_ERROR": "AI summary could not be generated right now. Try again shortly."
+    },
+    "citedFrom": "Based on"
+  },
+  "timeline": {
+    "title": "Mission Timeline",
+    "empty": "No activity yet for this hotel.",
+    "events": {
+      "report_uploaded": "Report uploaded",
+      "report_extracted": "Report processed — ready for review",
+      "report_finalized": "Report finalized",
+      "metric_corrected": "Metric corrected",
+      "alert_raised": "Alert raised",
+      "alert_resolved": "Alert resolved",
+      "recommendation_issued": "Recommendation issued",
+      "ai_conversation": "AI conversation",
+      "ai_summary_generated": "Executive AI summary generated",
+      "export_generated": "Report exported",
+      "decision_logged": "Decision logged"
+    }
+  }
+}

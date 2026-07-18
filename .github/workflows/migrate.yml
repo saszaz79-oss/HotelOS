@@ -17,6 +17,15 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'migrate'
+    env:
+      # Job-level (not step-level): `npm ci` triggers the `postinstall`
+      # script (`prisma generate`), which loads prisma.config.ts, which
+      # reads DATABASE_URL — so `npm ci` itself needs this set, not just the
+      # later `prisma migrate deploy` step. Supabase's DIRECT (non-pooled)
+      # connection string. Set this as a repository secret named exactly
+      # DATABASE_URL. See docs/SUPABASE_SETUP.md and
+      # docs/PRODUCTION_ENVIRONMENT.md.
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,13 +33,15 @@ jobs:
         with:
           node-version: 20
 
+      - name: Validate DATABASE_URL is set
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL is empty or not set. Add it as a repository secret (Settings -> Secrets and variables -> Actions -> New repository secret) named exactly DATABASE_URL, then re-run this workflow."
+            exit 1
+          fi
+          echo "DATABASE_URL is set."
+
       - run: npm ci
 
       - name: Apply pending migrations
         run: npx prisma migrate deploy
-        env:
-          # Supabase's DIRECT (non-pooled) connection string — migrations run
-          # DDL and need a direct connection, not a pooled one. Set this as
-          # a repository secret named exactly DATABASE_URL.
-          # See docs/SUPABASE_SETUP.md and docs/PRODUCTION_ENVIRONMENT.md.
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}

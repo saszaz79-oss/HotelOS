@@ -18,6 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'seed'
     environment: production
+    env:
+      # Job-level (not step-level): `npm ci` triggers the `postinstall`
+      # script (`prisma generate`), which loads prisma.config.ts, which
+      # reads DATABASE_URL — so `npm ci` itself needs this set, not just the
+      # later seed step.
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -25,12 +31,25 @@ jobs:
         with:
           node-version: 20
 
+      - name: Validate DATABASE_URL is set
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL is empty or not set. Add it as a repository secret (Settings -> Secrets and variables -> Actions -> New repository secret) named exactly DATABASE_URL, then re-run this workflow."
+            exit 1
+          fi
+          echo "DATABASE_URL is set."
+
       - run: npm ci
 
       - name: Seed production Platform Owner
-        run: NODE_ENV=production npx tsx prisma/seed.ts
+        run: npm run db:seed
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Deliberately scoped to this step only, not job-level: setting
+          # NODE_ENV=production during `npm ci` makes npm skip installing
+          # devDependencies (tsx, prisma), which this workflow needs —
+          # verified empirically. Only prisma/seed.ts's own process needs
+          # NODE_ENV=production, to pick its production (not dev-demo) path.
+          NODE_ENV: production
 
       # The temporary password is documented (prisma/seed.ts, README) rather
       # than randomly generated, because mustChangePassword=true makes the

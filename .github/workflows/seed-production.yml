@@ -24,6 +24,16 @@ jobs:
       # reads DATABASE_URL — so `npm ci` itself needs this set, not just the
       # later seed step.
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Supabase's Postgres presents a certificate chain rooted at a CA not
+      # in Node's default trust store — prisma/seed.ts's PrismaClient (via
+      # @prisma/adapter-pg, same as src/lib/prisma.ts) needs this to
+      # actually verify the connection, not just encrypt it. Only the seed
+      # step uses it (prisma generate/npm ci don't open a DB connection),
+      # but it's harmless earlier — not a secret in the confidentiality
+      # sense (a CA certificate has no private key), just kept alongside
+      # DATABASE_URL for convenience. See src/lib/db-ssl.ts and
+      # docs/SUPABASE_SETUP.md for where to get it.
+      DATABASE_CA_CERT: ${{ secrets.DATABASE_CA_CERT }}
     steps:
       - uses: actions/checkout@v4
 
@@ -31,13 +41,17 @@ jobs:
         with:
           node-version: 20
 
-      - name: Validate DATABASE_URL is set
+      - name: Validate required secrets are set
         run: |
           if [ -z "$DATABASE_URL" ]; then
             echo "::error::DATABASE_URL is empty or not set. Add it as a repository secret (Settings -> Secrets and variables -> Actions -> New repository secret) named exactly DATABASE_URL, then re-run this workflow."
             exit 1
           fi
-          echo "DATABASE_URL is set."
+          if [ -z "$DATABASE_CA_CERT" ]; then
+            echo "::error::DATABASE_CA_CERT is empty or not set. Add it as a repository secret (Settings -> Secrets and variables -> Actions -> New repository secret) named exactly DATABASE_CA_CERT, containing the PEM certificate from the Supabase dashboard (Project Settings -> Database -> SSL Configuration), then re-run this workflow."
+            exit 1
+          fi
+          echo "DATABASE_URL and DATABASE_CA_CERT are set."
 
       - run: npm ci
 

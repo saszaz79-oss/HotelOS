@@ -38,8 +38,11 @@ Used only by `prisma migrate deploy` and `prisma/seed.ts` — both run from a **
 | Secret name | Where | Value |
 |---|---|---|
 | `DATABASE_URL` | GitHub repository secret (**Settings → Secrets and variables → Actions → New repository secret**) | Supabase's **direct** (non-pooled) connection string — see `docs/SUPABASE_SETUP.md` §2A. Migrations run DDL and need a direct connection, not a connection-pooled one. |
+| `DATABASE_CA_CERT` | GitHub repository secret | Supabase's CA certificate PEM (**Project Settings → Database → SSL Configuration → Download certificate**). Only `seed-production.yml` needs this — `migrate.yml` doesn't (see `docs/SUPABASE_SETUP.md` §4 for why the two paths differ). Not confidential (a CA cert has no private key); kept as a secret only for convenience. |
 
-This is the **only** repository secret required for `migrate.yml` and `seed-production.yml`. It is a GitHub secret, not a Vercel or Cloudflare one — the deployed application's own runtime database connection (however it's configured on your hosting platform) is separate and unaffected by this value.
+These are the **only** repository secrets required for `migrate.yml` and `seed-production.yml`. They are GitHub secrets, not Vercel or Cloudflare ones.
+
+**Important if deployed anywhere other than Cloudflare Workers (e.g. Vercel)**: `src/lib/prisma.ts` only skips the `DATABASE_CA_CERT` requirement when running behind a Cloudflare Hyperdrive binding, which terminates TLS to Supabase itself. On any other host, the deployed application connects to Supabase the same way `prisma/seed.ts` does, and hits the identical `self-signed certificate in certificate chain` error on its first real query unless that host's own environment variables also include `DATABASE_URL` and `DATABASE_CA_CERT` — set those directly in that platform's dashboard (e.g. Vercel → Project → Settings → Environment Variables), separately from the GitHub secrets above, which only reach GitHub Actions runners.
 
 ### 4. Runtime database credentials
 

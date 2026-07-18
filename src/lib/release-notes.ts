@@ -24,6 +24,8 @@ export const RELEASE_NOTES: ReleaseNoteSection[] = [
       'Added prisma/migrations/ (baseline init migration) — generated from and verified against the authoritative prisma/schema.prisma.',
       'GitHub Actions workflows for prisma migrate deploy and production seeding now read a single DATABASE_URL repository secret.',
       'Production seed creates a superadmin Platform Owner with a fixed, documented temporary password and forced password change on first login — idempotent, safe to run more than once.',
+      'Fixed npm ci failing during postinstall in both workflows by moving DATABASE_URL to job-level scope, with a validation step that fails clearly (never printing the value) if secrets are missing.',
+      "Fixed the production seed failing with a certificate verification error against Supabase by trusting Supabase's actual CA certificate (DATABASE_CA_CERT) for real TLS verification, shared between the seed script and the app's own runtime client.",
     ],
   },
   {

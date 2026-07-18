@@ -21,13 +21,15 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
+import { resolveDatabaseSsl } from '../src/lib/db-ssl';
 
 // Prisma 7 requires a driver adapter for every PrismaClient — no more Rust
 // query-engine-binary fallback (see src/lib/prisma.ts, prisma/schema.prisma).
 // This script runs as a standalone Node process (tsx), never through the
-// app's lazy singleton, so it builds its own adapter directly from
-// DATABASE_URL.
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+// app's lazy singleton and never behind Cloudflare Hyperdrive, so it always
+// connects directly via DATABASE_URL — same SSL handling as
+// src/lib/prisma.ts's own DATABASE_URL fallback path (src/lib/db-ssl.ts).
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL, ssl: resolveDatabaseSsl() });
 const prisma = new PrismaClient({ adapter });
 const isProduction = process.env.NODE_ENV === 'production';
 const DEV_PASSWORD = 'ChangeMe123!';

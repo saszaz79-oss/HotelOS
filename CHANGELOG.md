@@ -8,6 +8,8 @@ Rendered in the Super Admin Console at `/admin/release-notes` via `src/lib/relea
 - `.github/workflows/migrate.yml` (already present) now reads a single `DATABASE_URL` repository secret, applying pending migrations only when manually triggered from the Actions tab.
 - `.github/workflows/seed-production.yml` (already present) now reads the same `DATABASE_URL` secret and seeds a `superadmin` Platform Owner account with a fixed, documented temporary password (`ChangeMe123!`) and forced password change on first login — idempotent, safe to run more than once.
 - `prisma/seed.ts`'s production path now creates username `superadmin` (previously `admin` with a random password) for consistency with the development seed's naming.
+- Fixed `npm ci` failing during `postinstall` in both workflows: `DATABASE_URL` was only reachable by the later migrate/seed step, not by `npm ci` itself (which runs `prisma generate`, which reads it). Moved to job-level `env`, and added a validation step that fails clearly if required secrets are missing, without ever printing their values.
+- Fixed `prisma/seed.ts` (and `src/lib/prisma.ts`'s non-Hyperdrive fallback) failing with `self-signed certificate in certificate chain` against Supabase: added `src/lib/db-ssl.ts`, a shared TLS config that trusts Supabase's actual CA certificate (`DATABASE_CA_CERT`) for real verification — never `rejectUnauthorized: false`, never disabled SSL. `prisma migrate deploy` was unaffected because Prisma's migration engine uses different, looser SSL semantics.
 
 ## Unreleased — Cloudflare Workers Deployment Preparation
 

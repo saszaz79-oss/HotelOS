@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
+import { resolveDatabaseSsl } from './db-ssl';
 
 /**
  * Prisma 7 requires a driver adapter for every PrismaClient — there is no
@@ -26,12 +27,19 @@ interface HyperdriveBinding {
   connectionString: string;
 }
 
-function resolveConnectionString(): string {
+/**
+ * Hyperdrive terminates TLS to Supabase on Cloudflare's own infrastructure
+ * — the binding's connection string is a Cloudflare-internal proxy target,
+ * not a direct Supabase endpoint, so the DATABASE_CA_CERT handling below
+ * (see src/lib/db-ssl.ts) doesn't apply to it. Only the DATABASE_URL
+ * fallback path connects to Supabase directly and needs it.
+ */
+function resolveConnection(): { connectionString: string; ssl?: ReturnType<typeof resolveDatabaseSsl> } {
   try {
     const context = getCloudflareContext();
     const hyperdrive = (context?.env as { HYPERDRIVE?: HyperdriveBinding } | undefined)?.HYPERDRIVE;
     if (hyperdrive?.connectionString) {
-      return hyperdrive.connectionString;
+      return { connectionString: hyperdrive.connectionString };
     }
   } catch {
     // Not running under OpenNext/Workers, or called outside request scope —
@@ -45,7 +53,7 @@ function resolveConnectionString(): string {
         'See docs/CLOUDFLARE_DEPLOYMENT.md and docs/SUPABASE_SETUP.md.'
     );
   }
-  return url;
+  return { connectionString: url, ssl: resolveDatabaseSsl() };
 }
 
 const globalForPrisma = globalThis as unknown as { __hotelosPrisma?: PrismaClient };
@@ -53,7 +61,8 @@ const globalForPrisma = globalThis as unknown as { __hotelosPrisma?: PrismaClien
 /** Constructed once per isolate/process, cached on globalThis — same reuse pattern already documented for the in-process Event Bus (Architecture §17). */
 function getRealClient(): PrismaClient {
   if (!globalForPrisma.__hotelosPrisma) {
-    const adapter = new PrismaPg({ connectionString: resolveConnectionString() });
+    const { connectionString, ssl } = resolveConnection();
+    const adapter = new PrismaPg(ssl !== undefined ? { connectionString, ssl } : { connectionString });
     globalForPrisma.__hotelosPrisma = new PrismaClient({ adapter });
   }
   return globalForPrisma.__hotelosPrisma;

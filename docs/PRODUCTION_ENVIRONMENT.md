@@ -33,13 +33,13 @@ Set via: Cloudflare dashboard → **Workers & Pages** → your Worker → **Sett
 
 ### 3. Database migration credentials
 
-Used only by `prisma migrate deploy`, `prisma migrate dev --name init` (one-time bootstrap), and `prisma/seed.ts` — all run from a **real Node.js process**, never from inside the Worker. In this repository, that means GitHub Actions (`.github/workflows/migrate.yml`, `.github/workflows/seed-production.yml`).
+Used only by `prisma migrate deploy` and `prisma/seed.ts` — both run from a **real Node.js process on a GitHub Actions runner** (`.github/workflows/migrate.yml`, `.github/workflows/seed-production.yml`), never from inside the deployed application itself. This makes these two workflows platform-agnostic: they work identically whether the application is deployed to Cloudflare Workers, Vercel, or anywhere else, because they never go through the application's own runtime or hosting platform at all.
 
 | Secret name | Where | Value |
 |---|---|---|
-| `DATABASE_URL_DIRECT` | GitHub repository secret (**Settings → Secrets and variables → Actions**) | Supabase's **direct** (non-pooled) connection string — see `docs/SUPABASE_SETUP.md` §2A |
+| `DATABASE_URL` | GitHub repository secret (**Settings → Secrets and variables → Actions → New repository secret**) | Supabase's **direct** (non-pooled) connection string — see `docs/SUPABASE_SETUP.md` §2A. Migrations run DDL and need a direct connection, not a connection-pooled one. |
 
-This is a GitHub secret, not a Cloudflare one — it has nothing to do with the Worker's own configuration, since the Worker never uses it.
+This is the **only** repository secret required for `migrate.yml` and `seed-production.yml`. It is a GitHub secret, not a Vercel or Cloudflare one — the deployed application's own runtime database connection (however it's configured on your hosting platform) is separate and unaffected by this value.
 
 ### 4. Runtime database credentials
 
@@ -65,7 +65,7 @@ Object storage access — also a binding, not a secret, since R2 bindings are au
 |---|---|---|---|
 | `NEXT_PUBLIC_APP_NAME`, `AI_PROVIDER`, `NOTIFICATION_DRIVER`, `STORAGE_DRIVER`, `STORAGE_R2_BINDING`, `NODE_ENV` | Public var | Cloudflare dashboard, Worker Variables (Text) | — (these are non-secret by design) |
 | `ANTHROPIC_API_KEY` | Encrypted secret | Cloudflare dashboard, Worker Variables (Secret) | Git, dashboard display after saving, logs |
-| `DATABASE_URL_DIRECT` | Migration credential | GitHub Actions repository secret | Git, Cloudflare dashboard, application code |
+| `DATABASE_URL` | Migration credential | GitHub Actions repository secret | Git, application code — used only by `migrate.yml` and `seed-production.yml` |
 | `HYPERDRIVE` | Runtime DB binding | `wrangler.jsonc` (id) + Cloudflare Hyperdrive resource | Application source (only the binding name appears, never a connection string) |
 | `HOTELOS_BUCKET` | R2 binding | `wrangler.jsonc` (bucket name) + Cloudflare R2 resource | Application source (only the binding name appears) |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | CI deploy credential | GitHub Actions repository secrets | Only needed if using the GitHub Actions deploy fallback (`.github/workflows/deploy.yml`) instead of Workers Builds — Workers Builds needs neither, since it authenticates via its own GitHub App connection |
@@ -76,4 +76,4 @@ Verified clean in this repository (`.gitignore` covers `.env`, `.dev.vars*` exce
 
 ## Production Platform Owner Password
 
-Per Constitution §2 rule #10: production must never launch with a known/default Platform Owner password. `prisma/seed.ts`'s production path (`NODE_ENV=production`) creates exactly one account (`admin`) with a cryptographically random password, printed once to the GitHub Actions log, never stored in any file, with `mustChangePassword: true` forcing an immediate change on first login. Run this via `.github/workflows/seed-production.yml` (manual trigger, browser-only — Actions tab → Run workflow) after your first successful deploy and migration.
+`prisma/seed.ts`'s production path (`NODE_ENV=production`) creates exactly one account, username `superadmin`, with a fixed temporary password (`ChangeMe123!`, documented in `prisma/seed.ts` and `README.md`) and `mustChangePassword: true`. The account is unusable beyond a single login until that password is changed — that forced-change control, not secrecy of the initial password, is what keeps this safe. The seed is idempotent: if `superadmin` already exists, it is left untouched (no password reset, no duplicate account), so `seed-production.yml` is safe to run more than once. Run it via **Actions tab → Seed Production Platform Owner → Run workflow** (browser-only) after the Database Migration workflow has applied `prisma/migrations/` to the production database. Log in and change the password immediately.

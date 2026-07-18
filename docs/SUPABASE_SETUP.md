@@ -30,8 +30,8 @@ Under **Connection string** → **URI**, with **Connection pooling** toggled **o
 postgresql://postgres:[YOUR-PASSWORD]@db.xxxxxxxxxxxx.supabase.co:5432/postgres
 ```
 
-- **Used for**: `prisma migrate deploy` (schema changes) and `prisma/seed.ts` (initial account creation) — both run from a normal Node.js process (GitHub Actions), never from inside the Cloudflare Worker.
-- **Where it goes**: the `DATABASE_URL_DIRECT` GitHub Actions secret (`docs/PRODUCTION_ENVIRONMENT.md`).
+- **Used for**: `prisma migrate deploy` (schema changes) and `prisma/seed.ts` (initial account creation) — both run from a normal Node.js process on a GitHub Actions runner, never from inside the deployed application itself.
+- **Where it goes**: the `DATABASE_URL` GitHub Actions repository secret (`docs/PRODUCTION_ENVIRONMENT.md`).
 - **Why direct, not pooled**: schema migrations run DDL (`CREATE TABLE`, `ALTER TABLE`, etc.) that behaves unpredictably or fails outright through a transaction pooler (pgbouncer-style poolers, including Supabase's own, don't support all session-level operations migrations need).
 
 ### B. Pooled/Transaction connection (for Cloudflare Hyperdrive)

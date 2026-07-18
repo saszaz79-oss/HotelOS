@@ -2,6 +2,13 @@
 
 Rendered in the Super Admin Console at `/admin/release-notes` via `src/lib/release-notes.ts` — that file is a TypeScript constant, not a filesystem read of this document, because Cloudflare Workers has no runtime filesystem to read from (confirmed directly during Cloudflare deployment prep: the original filesystem-based implementation compiled without error but would have failed at request time in the deployed Worker). **Update both files together** — this one for GitHub/human readability, `src/lib/release-notes.ts` for the in-app display — see `docs/HOTELOS_CONSTITUTION.md` Definition of Done.
 
+## Unreleased — Production Database Setup
+
+- Added `prisma/migrations/` (baseline `init` migration) — generated from and verified against the authoritative `prisma/schema.prisma`, applied cleanly via `prisma migrate deploy` against a fresh database.
+- `.github/workflows/migrate.yml` (already present) now reads a single `DATABASE_URL` repository secret, applying pending migrations only when manually triggered from the Actions tab.
+- `.github/workflows/seed-production.yml` (already present) now reads the same `DATABASE_URL` secret and seeds a `superadmin` Platform Owner account with a fixed, documented temporary password (`ChangeMe123!`) and forced password change on first login — idempotent, safe to run more than once.
+- `prisma/seed.ts`'s production path now creates username `superadmin` (previously `admin` with a random password) for consistency with the development seed's naming.
+
 ## Unreleased — Cloudflare Workers Deployment Preparation
 
 - Migrated to Next.js 15 and Prisma 7 (driver adapters, no Rust query engine) — both required for Cloudflare Workers compatibility.

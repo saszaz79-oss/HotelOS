@@ -29,8 +29,8 @@ jobs:
       - name: Apply pending migrations
         run: npx prisma migrate deploy
         env:
-          # Supabase's DIRECT (non-pooled) connection string — migrations
-          # need a direct connection, not the Hyperdrive-pooled one the
-          # Worker uses at runtime. Set this as a repository secret.
+          # Supabase's DIRECT (non-pooled) connection string — migrations run
+          # DDL and need a direct connection, not a pooled one. Set this as
+          # a repository secret named exactly DATABASE_URL.
           # See docs/SUPABASE_SETUP.md and docs/PRODUCTION_ENVIRONMENT.md.
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

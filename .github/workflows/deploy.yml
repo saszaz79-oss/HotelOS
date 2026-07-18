@@ -32,7 +32,7 @@ jobs:
         env:
           # Build-time only. Runtime DB access goes through the Hyperdrive
           # binding configured in wrangler.jsonc, not this variable.
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v3

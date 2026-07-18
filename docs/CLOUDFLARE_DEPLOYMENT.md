@@ -85,15 +85,17 @@ To enable it instead of Workers Builds:
 1. In GitHub, go to your repo → **Settings** → **Secrets and variables** → **Actions**.
 2. Add `CLOUDFLARE_API_TOKEN`: in the Cloudflare dashboard, go to **My Profile** → **API Tokens** → **Create Token** → use the **Edit Cloudflare Workers** template → scope it to your account → **Continue to summary** → **Create Token** → copy it (shown once).
 3. Add `CLOUDFLARE_ACCOUNT_ID`: found in the Cloudflare dashboard's right sidebar on almost any Workers/R2 page, or under **Workers & Pages** → **Overview**.
-4. Add `DATABASE_URL_DIRECT` (same value as used elsewhere — see `docs/PRODUCTION_ENVIRONMENT.md`).
+4. Add `DATABASE_URL` (same value as used elsewhere — see `docs/PRODUCTION_ENVIRONMENT.md`).
 5. Edit `.github/workflows/deploy.yml` in your repo (GitHub's web editor is fine) and remove the `if: false` line.
 6. Push — the workflow now runs on every push to `main`.
 
-## Step 6: Running Migrations Safely (First Time)
+## Step 6: Running Migrations Safely
 
-1. In GitHub, go to your repo → **Settings** → **Secrets and variables** → **Actions** → add `DATABASE_URL_DIRECT` (Supabase's direct connection string, `docs/SUPABASE_SETUP.md` §2A).
-2. **First-time only**: since this repository has no `prisma/migrations/` folder yet, you need one real Node.js session to generate the baseline (`docs/SUPABASE_SETUP.md` §3) — use a GitHub Codespace for this, run `npx prisma migrate dev --name init`, commit the generated `prisma/migrations/` folder, push.
-3. **Every time after**: go to your repo's **Actions** tab → **Database Migration** workflow → **Run workflow** → type `migrate` in the confirmation box → **Run workflow**. This applies any new migration files that were committed since the last run. Never destructive, never resets data (`docs/UPDATE_AND_ROLLBACK.md`).
+`prisma/migrations/` (with the baseline `init` migration) is already committed to this repository — no local/Codespace bootstrap step is needed.
+
+1. In GitHub, go to your repo → **Settings** → **Secrets and variables** → **Actions** → add `DATABASE_URL` (Supabase's direct connection string, `docs/SUPABASE_SETUP.md` §2A). This is the only secret `migrate.yml` and `seed-production.yml` need.
+2. Go to your repo's **Actions** tab → **Database Migration** workflow → **Run workflow** → type `migrate` in the confirmation box → **Run workflow**. This applies `prisma/migrations/` to the production database via `prisma migrate deploy`. Never destructive, never resets data (`docs/UPDATE_AND_ROLLBACK.md`).
+3. **Every time after** a new migration file is committed, repeat step 2 — it only applies migrations that haven't been applied yet.
 
 ## Step 7: First Deploy
 
@@ -102,9 +104,8 @@ If you set up Workers Builds (Step 5), it already deployed automatically when yo
 ## Step 8: Seed the Production Platform Owner Account
 
 1. Repo → **Actions** tab → **Seed Production Platform Owner** workflow → **Run workflow** → type `seed` → **Run workflow**.
-2. Open the workflow run's log, find the printed username (`admin`) and temporary password.
-3. **Copy it immediately and store it securely** (a password manager, not a chat message) — it is shown exactly once, in this log.
-4. Log in to your deployed HotelOS URL with those credentials — you'll be forced to `/change-password` immediately.
+2. This creates username `superadmin` with temporary password `ChangeMe123!` (documented in `prisma/seed.ts` — not randomly generated, since `mustChangePassword: true` forces it to be changed before the account is usable for anything else).
+3. Log in to your deployed HotelOS URL with those credentials — you'll be forced to `/change-password` immediately. Do this as soon as the workflow finishes.
 
 ## Step 9: Connect Your Existing Cloudflare-Managed Custom Domain
 

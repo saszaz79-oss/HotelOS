@@ -1,12 +1,15 @@
 /**
  * Seed data is clearly labeled demo data (Constitution §2 rule #8).
  *
- * Production safety (Product Owner directive): when NODE_ENV=production,
- * this script never creates the demo hotel/users, and creates the Platform
- * Owner account with a randomly generated password (printed once, never
- * stored anywhere) with mustChangePassword=true — there is no scenario
- * where a production deployment ends up with a known/guessable Platform
- * Owner password.
+ * Production safety (Product Owner directive, updated): when
+ * NODE_ENV=production, this script never creates the demo hotel/users, and
+ * creates exactly one Platform Owner account — username "superadmin" — with
+ * a fixed, documented temporary password and mustChangePassword=true. The
+ * forced change on first login is the control that keeps this safe: the
+ * account is unusable beyond a single login until the real operator sets
+ * their own password. This function is idempotent — if "superadmin" already
+ * exists, it is left untouched (no password reset, no duplicate account) —
+ * safe to run the seed workflow more than once.
  *
  * In non-production, seeded accounts use a fixed, clearly-labeled dev
  * password and are NOT flagged mustChangePassword — that flag exists for
@@ -16,12 +19,20 @@
  * predictable dev login.
  */
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
 
-const prisma = new PrismaClient();
+// Prisma 7 requires a driver adapter for every PrismaClient — no more Rust
+// query-engine-binary fallback (see src/lib/prisma.ts, prisma/schema.prisma).
+// This script runs as a standalone Node process (tsx), never through the
+// app's lazy singleton, so it builds its own adapter directly from
+// DATABASE_URL.
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 const isProduction = process.env.NODE_ENV === 'production';
 const DEV_PASSWORD = 'ChangeMe123!';
+const PLATFORM_OWNER_USERNAME = 'superadmin';
+const PLATFORM_OWNER_TEMP_PASSWORD = 'ChangeMe123!';
 
 const METRIC_DEFINITIONS = [
   { key: 'occupancy_pct', labelEn: 'Occupancy %', labelAr: 'نسبة الإشغال', unit: 'percentage', isComputed: false },
@@ -57,18 +68,17 @@ async function seedMetricDefinitions() {
 }
 
 async function seedProductionPlatformOwner() {
-  const existing = await prisma.user.findUnique({ where: { username: 'admin' } });
+  const existing = await prisma.user.findUnique({ where: { username: PLATFORM_OWNER_USERNAME } });
   if (existing) {
-    console.log('Platform Owner account "admin" already exists — skipping (no password change performed).');
+    console.log(`Platform Owner account "${PLATFORM_OWNER_USERNAME}" already exists — skipping (no password change performed).`);
     return;
   }
 
-  const temporaryPassword = randomBytes(16).toString('base64url');
-  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
+  const passwordHash = await bcrypt.hash(PLATFORM_OWNER_TEMP_PASSWORD, 12);
 
   await prisma.user.create({
     data: {
-      username: 'admin',
+      username: PLATFORM_OWNER_USERNAME,
       passwordHash,
       displayName: 'Platform Owner',
       isSuperAdmin: true,
@@ -79,10 +89,11 @@ async function seedProductionPlatformOwner() {
 
   console.log('=================================================================');
   console.log('PRODUCTION Platform Owner account created.');
-  console.log('Username: admin');
-  console.log(`Temporary password: ${temporaryPassword}`);
-  console.log('This password is shown ONLY ONCE and is not stored anywhere.');
-  console.log('You will be required to change it on first login.');
+  console.log(`Username: ${PLATFORM_OWNER_USERNAME}`);
+  console.log(`Temporary password: ${PLATFORM_OWNER_TEMP_PASSWORD}`);
+  console.log('This is a fixed, documented temporary password. You will be');
+  console.log('required to change it immediately on first login — do that');
+  console.log('before doing anything else with this account.');
   console.log('=================================================================');
 }
 

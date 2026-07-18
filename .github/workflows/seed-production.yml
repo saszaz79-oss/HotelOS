@@ -1,15 +1,16 @@
 name: Seed Production Platform Owner
 
 # Manually triggered only, and safe to re-run: prisma/seed.ts's production
-# path (NODE_ENV=production) checks for an existing "admin" user and skips
-# creation entirely if one exists — it never overwrites a password on an
-# existing account. Intended to be run exactly once, on first production
-# setup (docs/CLOUDFLARE_DEPLOYMENT.md step 8).
+# path (NODE_ENV=production) checks for an existing "superadmin" user and
+# skips creation entirely if one exists — it never overwrites a password on
+# an existing account, and running this workflow twice never creates a
+# duplicate. Run this once, after the Database Migration workflow has
+# applied prisma/migrations/ to the production database.
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "seed" to confirm — creates ONE Platform Owner account with a random password if it does not already exist'
+        description: 'Type "seed" to confirm — creates the "superadmin" Platform Owner account (temporary password, forced change on first login) if it does not already exist'
         required: true
 
 jobs:
@@ -29,9 +30,10 @@ jobs:
       - name: Seed production Platform Owner
         run: NODE_ENV=production npx tsx prisma/seed.ts
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DIRECT }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      # The temporary password is printed to this step's log, ONCE. GitHub
-      # Actions logs are visible to anyone with repo access — for a real
-      # company deployment, restrict who can view Actions runs, and change
-      # the password immediately after retrieving it (docs/PRODUCTION_ENVIRONMENT.md).
+      # The temporary password is documented (prisma/seed.ts, README) rather
+      # than randomly generated, because mustChangePassword=true makes the
+      # account unusable beyond a single login until the real operator sets
+      # their own password. Log in immediately after this workflow finishes
+      # and change it — see docs/PRODUCTION_ENVIRONMENT.md.

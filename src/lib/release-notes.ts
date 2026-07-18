@@ -19,6 +19,14 @@ export interface ReleaseNoteSection {
 
 export const RELEASE_NOTES: ReleaseNoteSection[] = [
   {
+    title: 'Unreleased — Production Database Setup',
+    items: [
+      'Added prisma/migrations/ (baseline init migration) — generated from and verified against the authoritative prisma/schema.prisma.',
+      'GitHub Actions workflows for prisma migrate deploy and production seeding now read a single DATABASE_URL repository secret.',
+      'Production seed creates a superadmin Platform Owner with a fixed, documented temporary password and forced password change on first login — idempotent, safe to run more than once.',
+    ],
+  },
+  {
     title: 'Unreleased — Cloudflare Workers Deployment Preparation',
     items: [
       'Migrated to Next.js 15 and Prisma 7 (driver adapters, no Rust query engine) — both required for Cloudflare Workers compatibility.',

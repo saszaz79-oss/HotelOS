@@ -3,11 +3,12 @@ import { getUser } from '@/server/modules/users/queries';
 import { ResetPasswordButton } from './ResetPasswordButton';
 import { setUserStatusAction } from './actions';
 
-export default async function AdminUserDetailPage({
-  params,
-}: {
-  params: { locale: string; userId: string };
-}) {
+export default async function AdminUserDetailPage(
+  props: {
+    params: Promise<{ locale: string; userId: string }>;
+  }
+) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const user = await getUser(params.userId);

@@ -6,11 +6,12 @@ import type { ExtractedField } from '@/server/modules/report-extraction/types';
 import type { QualityNote } from '@/server/modules/report-extraction/data-quality';
 import { recordGroundTruthAction } from './actions';
 
-export default async function ValidationReportDetailPage({
-  params,
-}: {
-  params: { locale: string; reportDocumentId: string };
-}) {
+export default async function ValidationReportDetailPage(
+  props: {
+    params: Promise<{ locale: string; reportDocumentId: string }>;
+  }
+) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const doc = await getReportValidationDetail(params.reportDocumentId);
 

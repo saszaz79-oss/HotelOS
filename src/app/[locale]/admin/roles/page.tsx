@@ -10,7 +10,8 @@ const ROLES = [
   { role: 'READ_ONLY', scope: 'Assigned hotel(s)', permissions: 'View Mission Control, Timeline; no upload, no write actions.' },
 ];
 
-export default function AdminRolesPage({ params }: { params: { locale: string } }) {
+export default async function AdminRolesPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
 

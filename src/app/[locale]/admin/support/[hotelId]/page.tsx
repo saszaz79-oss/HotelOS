@@ -6,11 +6,12 @@ import { listReportUploads } from '@/server/modules/reports/queries';
 import { getLatestInsight } from '@/server/modules/insights/queries';
 import { listTimelineEvents } from '@/server/modules/timeline';
 
-export default async function AdminSupportHotelPage({
-  params,
-}: {
-  params: { locale: string; hotelId: string };
-}) {
+export default async function AdminSupportHotelPage(
+  props: {
+    params: Promise<{ locale: string; hotelId: string }>;
+  }
+) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const user = await getCurrentUser();

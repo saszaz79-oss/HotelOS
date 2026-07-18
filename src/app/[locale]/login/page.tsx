@@ -1,7 +1,8 @@
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { LoginForm } from './LoginForm';
 
-export default function LoginPage({ params }: { params: { locale: string } }) {
+export default async function LoginPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
 

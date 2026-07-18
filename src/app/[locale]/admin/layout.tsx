@@ -10,13 +10,18 @@ import { getDictionary, locales, defaultLocale, dirFor, type Locale } from '@/i1
  * Owner — bilingual like the rest of HotelOS, since the Platform Owner may
  * well be an Arabic-first user (Constitution §8).
  */
-export default async function AdminLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: { locale: string };
-}) {
+export default async function AdminLayout(
+  props: {
+    children: React.ReactNode;
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const user = await getCurrentUser();

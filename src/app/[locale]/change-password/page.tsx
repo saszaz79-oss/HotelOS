@@ -3,7 +3,8 @@ import { getCurrentUser } from '@/server/modules/auth/session';
 import { redirect } from 'next/navigation';
 import { ChangePasswordForm } from './ChangePasswordForm';
 
-export default async function ChangePasswordPage({ params }: { params: { locale: string } }) {
+export default async function ChangePasswordPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const user = await getCurrentUser();

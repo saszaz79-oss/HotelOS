@@ -2,7 +2,8 @@ import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/confi
 import { listHotels } from '@/server/modules/hotels/queries';
 import { NewUserForm } from './NewUserForm';
 
-export default async function NewUserPage({ params }: { params: { locale: string } }) {
+export default async function NewUserPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const hotels = await listHotels();

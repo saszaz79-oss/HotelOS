@@ -17,7 +17,7 @@ export async function createSession(userId: string): Promise<void> {
     data: { id: token, userId, expiresAt },
   });
 
-  cookies().set(SESSION_COOKIE, token, {
+  (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -27,11 +27,11 @@ export async function createSession(userId: string): Promise<void> {
 }
 
 export async function destroySession(): Promise<void> {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (token) {
     await prisma.session.deleteMany({ where: { id: token } });
   }
-  cookies().delete(SESSION_COOKIE);
+  (await cookies()).delete(SESSION_COOKIE);
 }
 
 /**
@@ -40,7 +40,7 @@ export async function destroySession(): Promise<void> {
  * (Architecture §5, Constitution §5).
  */
 export async function getCurrentUser() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
   const session = await prisma.session.findUnique({

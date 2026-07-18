@@ -5,13 +5,18 @@ import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/confi
 import { listAgentsForRole } from '@/server/modules/agents/registry';
 import { AppShell } from './AppShell';
 
-export default async function AppLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: { locale: string };
-}) {
+export default async function AppLayout(
+  props: {
+    children: React.ReactNode;
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
 

@@ -6,7 +6,8 @@ import { listTimelineEvents } from '@/server/modules/timeline';
 
 const REPORT_DOCUMENT_EVENT_TYPES = new Set(['report_extracted', 'report_finalized', 'alert_raised', 'ai_summary_generated', 'metric_corrected']);
 
-export default async function TimelinePage({ params }: { params: { locale: string } }) {
+export default async function TimelinePage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const user = await getCurrentUser();

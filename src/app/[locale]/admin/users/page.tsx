@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { listUsers } from '@/server/modules/users/queries';
 
-export default async function AdminUsersPage({ params }: { params: { locale: string } }) {
+export default async function AdminUsersPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const users = await listUsers();

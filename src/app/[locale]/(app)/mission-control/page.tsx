@@ -8,7 +8,8 @@ import type { HealthFactor } from '@/server/modules/insights/scoring';
 
 const KEY_METRIC_KEYS = ['occupancy_pct', 'adr', 'revpar', 'room_revenue', 'total_revenue'];
 
-export default async function MissionControlPage({ params }: { params: { locale: string } }) {
+export default async function MissionControlPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const user = await getCurrentUser();

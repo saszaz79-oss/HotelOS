@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { listReportUploads } from '@/server/modules/reports/queries';
 import { UploadForm } from './UploadForm';
 
-export default async function ReportsUploadPage({ params }: { params: { locale: string } }) {
+export default async function ReportsUploadPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const user = await getCurrentUser();

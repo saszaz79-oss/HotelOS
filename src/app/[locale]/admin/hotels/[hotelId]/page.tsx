@@ -17,11 +17,12 @@ function isoDate(d: Date | null): string {
   return d ? new Date(d).toISOString().slice(0, 10) : '';
 }
 
-export default async function AdminHotelDetailPage({
-  params,
-}: {
-  params: { locale: string; hotelId: string };
-}) {
+export default async function AdminHotelDetailPage(
+  props: {
+    params: Promise<{ locale: string; hotelId: string }>;
+  }
+) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const hotel = await getHotelWithDetails(params.hotelId);

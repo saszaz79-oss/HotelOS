@@ -7,11 +7,12 @@ import { updateFieldAction, finalizeReportAction } from './actions';
 import type { ExtractedField } from '@/server/modules/report-extraction/types';
 import type { QualityNote } from '@/server/modules/report-extraction/data-quality';
 
-export default async function ReportReviewPage({
-  params,
-}: {
-  params: { locale: string; reportUploadId: string };
-}) {
+export default async function ReportReviewPage(
+  props: {
+    params: Promise<{ locale: string; reportUploadId: string }>;
+  }
+) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const user = await getCurrentUser();

@@ -2,7 +2,8 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 
-export default async function AdminReleaseNotesPage({ params }: { params: { locale: string } }) {
+export default async function AdminReleaseNotesPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
 

@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { locales, defaultLocale, type Locale } from '@/i18n/config';
 import { listReportsForValidation } from '@/server/modules/validation/queries';
 
-export default async function ValidationReportsPage({ params }: { params: { locale: string } }) {
+export default async function ValidationReportsPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const docs = await listReportsForValidation(200);
 

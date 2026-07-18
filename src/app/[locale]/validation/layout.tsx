@@ -12,13 +12,18 @@ import { locales, defaultLocale, type Locale } from '@/i18n/config';
  * surface is never shown to a hotel user, so bilingual investment here
  * would not serve the product's actual Arabic-first audience.
  */
-export default async function ValidationLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: { locale: string };
-}) {
+export default async function ValidationLayout(
+  props: {
+    children: React.ReactNode;
+    params: Promise<{ locale: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const user = await getCurrentUser();
 

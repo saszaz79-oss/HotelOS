@@ -1,7 +1,8 @@
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { prisma } from '@/lib/prisma';
 
-export default async function AdminAuditPage({ params }: { params: { locale: string } }) {
+export default async function AdminAuditPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
 

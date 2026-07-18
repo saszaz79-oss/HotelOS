@@ -3,11 +3,12 @@ import { getAllModuleStates } from '@/server/modules/feature-flags';
 import { prisma } from '@/lib/prisma';
 import { toggleModuleAction } from './actions';
 
-export default async function AdminHotelFeatureFlagsPage({
-  params,
-}: {
-  params: { locale: string; hotelId: string };
-}) {
+export default async function AdminHotelFeatureFlagsPage(
+  props: {
+    params: Promise<{ locale: string; hotelId: string }>;
+  }
+) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const hotel = await prisma.hotel.findUnique({ where: { id: params.hotelId }, select: { name: true } });

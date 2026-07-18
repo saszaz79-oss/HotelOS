@@ -12,7 +12,8 @@ async function checkDatabase(): Promise<boolean> {
   }
 }
 
-export default async function AdminSystemPage({ params }: { params: { locale: string } }) {
+export default async function AdminSystemPage(props: { params: Promise<{ locale: string }> }) {
+  const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
 

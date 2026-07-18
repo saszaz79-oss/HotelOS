@@ -1,6 +1,15 @@
 # HotelOS Changelog
 
-Rendered in the Super Admin Console at `/admin/release-notes`. Update this file in the same change as any milestone that ships — see `docs/HOTELOS_CONSTITUTION.md` Definition of Done.
+Rendered in the Super Admin Console at `/admin/release-notes` via `src/lib/release-notes.ts` — that file is a TypeScript constant, not a filesystem read of this document, because Cloudflare Workers has no runtime filesystem to read from (confirmed directly during Cloudflare deployment prep: the original filesystem-based implementation compiled without error but would have failed at request time in the deployed Worker). **Update both files together** — this one for GitHub/human readability, `src/lib/release-notes.ts` for the in-app display — see `docs/HOTELOS_CONSTITUTION.md` Definition of Done.
+
+## Unreleased — Cloudflare Workers Deployment Preparation
+
+- Migrated to Next.js 15 and Prisma 7 (driver adapters, no Rust query engine) — both required for Cloudflare Workers compatibility.
+- Replaced `pdf-parse` with `unpdf` (Cloudflare Workers-documented PDF extraction) — `pdf-parse` bundles `node:worker_threads`, unsupported on Workers.
+- Added `src/server/modules/storage/r2.ts` — Cloudflare R2 storage adapter via native binding.
+- `src/lib/prisma.ts` rewritten as a lazily-constructed client resolving its connection through a Cloudflare Hyperdrive binding (production) or `DATABASE_URL` (local dev/CI/migrations).
+- Added `wrangler.jsonc`, `open-next.config.ts`, `prisma.config.ts` and `cf:build`/`cf:preview`/`cf:deploy` scripts.
+- Fixed a filesystem-read bug in the Release Notes page that would have failed silently in production (see note above).
 
 ## Unreleased — Platform Ownership & Administration
 

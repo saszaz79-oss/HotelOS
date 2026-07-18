@@ -1,0 +1,16 @@
+# Local variables for `wrangler dev` / `npm run cf:preview` (a REAL Workers
+# runtime via Miniflare, distinct from `next dev`, which uses `.env` — see
+# .env.example). Copy to `.dev.vars` and fill in real values; never commit
+# `.dev.vars`.
+#
+# In production these become `wrangler secret put <NAME>` values instead
+# (docs/CLOUDFLARE_DEPLOYMENT.md, docs/PRODUCTION_ENVIRONMENT.md) — this
+# file is for local preview/testing against a real Worker runtime only.
+
+DATABASE_URL="postgresql://user:pass@localhost:5432/hotelos"
+AI_PROVIDER="anthropic"
+ANTHROPIC_API_KEY=""
+NOTIFICATION_DRIVER="mock"
+STORAGE_DRIVER="r2"
+STORAGE_R2_BINDING="HOTELOS_BUCKET"
+NEXT_PUBLIC_APP_NAME="HotelOS"

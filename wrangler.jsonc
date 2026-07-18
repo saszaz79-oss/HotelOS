@@ -1,0 +1,50 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "hotelos",
+	"compatibility_date": "2026-07-18",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			// Self-reference service binding, the service name must match the worker name
+			// see https://opennext.js.org/cloudflare/caching
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "hotelos"
+		}
+	],
+	"images": {
+		// Enable image optimization
+		// see https://opennext.js.org/cloudflare/howtos/image
+		"binding": "IMAGES"
+	},
+	// PostgreSQL access for HotelOS (src/lib/prisma.ts) — Supabase behind
+	// Hyperdrive's connection pooling. Create with:
+	//   npx wrangler hyperdrive create hotelos-db --connection-string="<SUPABASE_DIRECT_CONNECTION_STRING>"
+	// then replace <YOUR_HYPERDRIVE_ID> below with the id it prints.
+	// See docs/SUPABASE_SETUP.md and docs/CLOUDFLARE_DEPLOYMENT.md.
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "<YOUR_HYPERDRIVE_ID>"
+		}
+	],
+	// Original Opera PDF uploads and generated executive PDF exports
+	// (src/server/modules/storage/r2.ts) — never the Next.js/OpenNext
+	// incremental cache bucket (that one, if ever enabled, is a separate
+	// binding — see open-next.config.ts). Create with:
+	//   npx wrangler r2 bucket create hotelos-storage
+	// See docs/R2_SETUP.md.
+	"r2_buckets": [
+		{
+			"binding": "HOTELOS_BUCKET",
+			"bucket_name": "hotelos-storage"
+		}
+	]
+}

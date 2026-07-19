@@ -7,6 +7,7 @@ import { getLatestMetricDate, getMetricsForDate, getPreviousMetricDate } from '@
 import { getLatestInsight } from '@/server/modules/insights/queries';
 import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
 import { generateExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
+import { formatMetricValue } from '@/lib/format-metric';
 import type { HealthFactor } from '@/server/modules/insights/scoring';
 
 const KEY_METRIC_KEYS = ['occupancy_pct', 'adr', 'revpar', 'room_revenue', 'total_revenue'];
@@ -131,7 +132,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
               <div key={key} className="rounded-lg border border-ink/10 p-4">
                 <div className="text-sm text-ink-muted">{m.metricDefinition.labelEn}</div>
                 <div className="metric-value mt-1 text-2xl font-semibold">
-                  {m.metricDefinition.unit === 'percentage' ? `${m.value}%` : m.value}
+                  {formatMetricValue(m.value, m.metricDefinition.unit)}
                 </div>
                 <div className="mt-2 space-y-0.5 text-xs text-ink-muted">
                   {doc ? (

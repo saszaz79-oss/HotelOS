@@ -30,6 +30,19 @@ function metric(points: MetricPoint[], key: string): MetricPoint | undefined {
   return points.find((p) => p.key === key && p.value !== null);
 }
 
+/**
+ * Display-safe rounding for values interpolated straight into alert/
+ * recommendation text (persisted as-is, unlike a page render which can
+ * reformat on every read) — a computed value like ADR (room_revenue /
+ * rooms_sold) is a repeating decimal far more often than not, and an
+ * unrounded 307.575757575758 baked into stored text can never be fixed
+ * later without regenerating the insight.
+ */
+function round(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
 function supporting(...points: (MetricPoint | undefined)[]): Prisma.InputJsonValue {
   return points
     .filter((p): p is MetricPoint => !!p)
@@ -56,10 +69,11 @@ export function evaluateRules(
   const totalRevenue = metric(points, 'total_revenue');
 
   if (occupancy && occupancy.value! < 40) {
+    const occ = round(occupancy.value!, 1);
     recommendations.push({
       priority: 1,
-      textEn: `Occupancy is critically low at ${occupancy.value}%.`,
-      textAr: `نسبة الإشغال منخفضة بشكل حرج عند ${occupancy.value}%.`,
+      textEn: `Occupancy is critically low at ${occ}%.`,
+      textAr: `نسبة الإشغال منخفضة بشكل حرج عند ${occ}%.`,
       suggestedActionEn: 'Review pricing and promotional strategy for the affected period.',
       suggestedActionAr: 'راجع استراتيجية التسعير والعروض الترويجية للفترة المتأثرة.',
       confidence: 1,
@@ -67,10 +81,12 @@ export function evaluateRules(
       supportingMetrics: supporting(occupancy),
     });
   } else if (occupancy && occupancy.value! > 85) {
+    const occ = round(occupancy.value!, 1);
+    const adrRounded = adr ? round(adr.value!, 2) : null;
     recommendations.push({
       priority: 2,
-      textEn: `Occupancy is high at ${occupancy.value}%${adr ? `, with ADR at ${adr.value}` : ''}.`,
-      textAr: `نسبة الإشغال مرتفعة عند ${occupancy.value}%${adr ? ` بمتوسط سعر غرفة ${adr.value}` : ''}.`,
+      textEn: `Occupancy is high at ${occ}%${adrRounded !== null ? `, with ADR at ${adrRounded}` : ''}.`,
+      textAr: `نسبة الإشغال مرتفعة عند ${occ}%${adrRounded !== null ? ` بمتوسط سعر غرفة ${adrRounded}` : ''}.`,
       suggestedActionEn: 'Consider a rate increase given strong demand.',
       suggestedActionAr: 'يُنصح بزيادة الأسعار نظراً لارتفاع الطلب.',
       confidence: 1,
@@ -86,8 +102,8 @@ export function evaluateRules(
       alerts.push({
         severity: 'warning',
         category: 'finance',
-        messageEn: `Open balance is ${ratio !== null ? `${Math.round(ratio * 100)}% of total revenue` : `${openBalance.value}`}.`,
-        messageAr: `الرصيد المفتوح ${ratio !== null ? `يمثل ${Math.round(ratio * 100)}% من إجمالي الإيرادات` : `${openBalance.value}`}.`,
+        messageEn: `Open balance is ${ratio !== null ? `${Math.round(ratio * 100)}% of total revenue` : `${round(openBalance.value!, 2)}`}.`,
+        messageAr: `الرصيد المفتوح ${ratio !== null ? `يمثل ${Math.round(ratio * 100)}% من إجمالي الإيرادات` : `${round(openBalance.value!, 2)}`}.`,
         relatedMetricKey: 'open_balance',
       });
       recommendations.push({

@@ -1,4 +1,5 @@
 import type { getMetricsForDate } from '@/server/modules/metrics/queries';
+import { formatMetricValue } from '@/lib/format-metric';
 import type { getLatestInsight } from './queries';
 
 type Metrics = Awaited<ReturnType<typeof getMetricsForDate>>;
@@ -9,10 +10,6 @@ export interface MorningBrief {
 }
 
 const KEY_KEYS = ['occupancy_pct', 'adr', 'revpar'] as const;
-
-function fmt(value: number, unit: string | undefined): string {
-  return unit === 'percentage' ? `${value}%` : String(value);
-}
 
 function trendPhrase(current: number, previous: number, locale: 'ar' | 'en'): string {
   const delta = Math.round((current - previous) * 10) / 10;
@@ -56,7 +53,7 @@ export function buildMorningBrief(input: {
     const m = byKey.get(key);
     if (!m || m.value === null) continue;
     const label = locale === 'ar' ? m.metricDefinition.labelAr : m.metricDefinition.labelEn;
-    const valueStr = fmt(m.value, m.metricDefinition.unit);
+    const valueStr = formatMetricValue(m.value, m.metricDefinition.unit);
     const prev = prevByKey.get(key);
     const trend = prev && prev.value !== null ? ` (${trendPhrase(m.value, prev.value, locale)})` : '';
     metricLines.push(`${label}: ${valueStr}${trend}`);

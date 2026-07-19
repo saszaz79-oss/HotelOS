@@ -148,6 +148,18 @@
     },
     "success": "تم الرفع بنجاح."
   },
+  "reportsArchive": {
+    "title": "أرشيف التقارير",
+    "count": "إجمالي {count} تقرير",
+    "file": "الملف",
+    "reportType": "النوع",
+    "uploadedBy": "رفعه",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "previous": "السابق",
+    "next": "التالي",
+    "pageOf": "صفحة {page} من {totalPages}"
+  },
   "reportsReview": {
     "title": "مراجعة القيم المستخرجة",
     "backToUploads": "العودة إلى التقارير المرفوعة",
@@ -192,6 +204,7 @@
     "noReports": "لم يتم رفع أي تقارير لهذا الفندق بعد. ارفع أول تقرير لعرض التحليلات هنا.",
     "notFinalized": "تم رفع تقارير لكن لم يتم إنهاؤها بعد. راجع وأنهِ تقريراً لعرض المقاييس هنا.",
     "demoDataBadge": "بيانات تجريبية",
+    "morningBrief": "موجز الصباح",
     "healthScore": "مؤشر صحة الفندق",
     "factorBreakdown": "العوامل المساهمة",
     "insufficientData": "بيانات غير كافية",

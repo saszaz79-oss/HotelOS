@@ -148,6 +148,18 @@
     },
     "success": "Uploaded successfully."
   },
+  "reportsArchive": {
+    "title": "Reports Archive",
+    "count": "{count} report(s) total",
+    "file": "File",
+    "reportType": "Type",
+    "uploadedBy": "Uploaded by",
+    "status": "Status",
+    "date": "Date",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {page} of {totalPages}"
+  },
   "reportsReview": {
     "title": "Review Extracted Values",
     "backToUploads": "Back to uploads",
@@ -192,6 +204,7 @@
     "noReports": "No reports uploaded yet for this hotel. Upload your first report to see insights here.",
     "notFinalized": "Reports have been uploaded but not yet finalized. Review and finalize a report to see metrics here.",
     "demoDataBadge": "Demo data",
+    "morningBrief": "Morning Brief",
     "healthScore": "Hotel Health Score",
     "factorBreakdown": "Contributing factors",
     "insufficientData": "insufficient data",

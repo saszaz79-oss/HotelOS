@@ -3,8 +3,9 @@ import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/confi
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { prisma } from '@/lib/prisma';
 import { getActiveMembership } from '@/server/modules/hotels/access';
-import { getLatestMetricDate, getMetricsForDate } from '@/server/modules/metrics/queries';
+import { getLatestMetricDate, getMetricsForDate, getPreviousMetricDate } from '@/server/modules/metrics/queries';
 import { getLatestInsight } from '@/server/modules/insights/queries';
+import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
 import { generateExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
 import type { HealthFactor } from '@/server/modules/insights/scoring';
 
@@ -55,13 +56,23 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
     );
   }
 
-  const [metrics, insight, aiSummary] = await Promise.all([
+  const [metrics, previousDate, insight, aiSummary] = await Promise.all([
     getMetricsForDate(hotelId, latestDate),
+    getPreviousMetricDate(hotelId, latestDate),
     getLatestInsight(hotelId),
     generateExecutiveSummary(hotelId, locale),
   ]);
+  const previousMetrics = previousDate ? await getMetricsForDate(hotelId, previousDate) : [];
 
   const metricByKey = new Map(metrics.map((m) => [m.metricKey, m]));
+  const morningBrief = buildMorningBrief({
+    hotelName: membership.hotel.name,
+    locale,
+    latestDate,
+    metrics,
+    previousMetrics,
+    insight,
+  });
 
   return (
     <div className="max-w-4xl space-y-8">
@@ -73,6 +84,17 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
           {membership!.hotel.name} · {latestDate.toLocaleDateString(locale)}
         </p>
       </div>
+
+      <section className="rounded-lg border border-ink/10 bg-surface-raised p-4">
+        <h2 className="text-sm font-medium text-ink-muted">{dict.missionControl.morningBrief}</h2>
+        <ul className="mt-2 space-y-1 text-sm">
+          {morningBrief.lines.map((line, i) => (
+            <li key={i} className={i === 0 ? 'font-medium' : ''}>
+              {line}
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {insight?.healthScore !== null && insight?.healthScore !== undefined ? (
         <section className="rounded-lg border border-ink/10 p-5">

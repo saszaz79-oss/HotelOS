@@ -11,6 +11,24 @@ export async function listReportUploads(hotelId: string, take = 50) {
   });
 }
 
+const ARCHIVE_PAGE_SIZE = 20;
+
+/** Paginated report history (Reports Archive) — listReportUploads' fixed `take` was never meant for the full history, only a "recent uploads" preview on the upload page. */
+export async function listReportUploadsPage(hotelId: string, page: number) {
+  const skip = Math.max(0, page - 1) * ARCHIVE_PAGE_SIZE;
+  const [uploads, total] = await Promise.all([
+    prisma.reportUpload.findMany({
+      where: { hotelId },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: ARCHIVE_PAGE_SIZE,
+      include: { uploadedBy: { select: { displayName: true } }, documents: { select: { reportType: true } } },
+    }),
+    prisma.reportUpload.count({ where: { hotelId } }),
+  ]);
+  return { uploads, total, pageSize: ARCHIVE_PAGE_SIZE, totalPages: Math.max(1, Math.ceil(total / ARCHIVE_PAGE_SIZE)) };
+}
+
 export async function getReportUpload(hotelId: string, reportUploadId: string) {
   return prisma.reportUpload.findFirst({
     where: { id: reportUploadId, hotelId },

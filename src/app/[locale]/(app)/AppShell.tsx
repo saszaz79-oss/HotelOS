@@ -57,6 +57,12 @@ export function AppShell({
               {dict.nav.reports}
             </Link>
             <Link
+              href={`/${locale}/reports/archive`}
+              className="block rounded-md px-3 py-2 text-sm hover:bg-surface"
+            >
+              {dict.nav.archive}
+            </Link>
+            <Link
               href={`/${locale}/timeline`}
               className="block rounded-md px-3 py-2 text-sm hover:bg-surface"
             >

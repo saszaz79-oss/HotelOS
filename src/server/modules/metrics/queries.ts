@@ -25,6 +25,16 @@ export async function getMetricsForDate(hotelId: string, date: Date) {
   });
 }
 
+/** Most recent metricDate strictly before `beforeDate` — powers the Morning Brief's day-over-day trend, no other consumer needed this yet. */
+export async function getPreviousMetricDate(hotelId: string, beforeDate: Date): Promise<Date | null> {
+  const prev = await prisma.hotelMetric.findFirst({
+    where: { hotelId, metricDate: { lt: beforeDate } },
+    orderBy: { metricDate: 'desc' },
+    select: { metricDate: true },
+  });
+  return prev?.metricDate ?? null;
+}
+
 export async function getMetricsForDateRange(hotelId: string, from: Date, to: Date) {
   return prisma.hotelMetric.findMany({
     where: { hotelId, metricDate: { gte: from, lte: to } },

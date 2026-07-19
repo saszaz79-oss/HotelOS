@@ -15,9 +15,21 @@ const envSchema = z.object({
   // cookies/CSRF tokens need it later; never required, so it never blocks
   // deployment for a value nothing currently reads.
   SESSION_SECRET: z.string().min(16).optional(),
-  STORAGE_DRIVER: z.enum(['local', 'r2']).default('local'),
+  // 'local': filesystem, dev-only, never persistent on serverless (Vercel or
+  // Cloudflare Workers). 'r2': Cloudflare Workers binding, unavailable on
+  // Vercel. 'supabase': the only production-valid driver on this
+  // deployment — see src/server/modules/storage/supabase.ts. Left
+  // defaulting to 'local' for zero-config local dev; production sets this
+  // explicitly via the hosting platform's environment variables.
+  STORAGE_DRIVER: z.enum(['local', 'r2', 'supabase']).default('local'),
   STORAGE_LOCAL_PATH: z.string().default('./.storage'),
   STORAGE_R2_BINDING: z.string().default('HOTELOS_BUCKET'),
+  // Only required when STORAGE_DRIVER=supabase (validated at adapter
+  // construction, not here, for the same reason DATABASE_URL isn't
+  // required at this layer — a deployment that doesn't use this driver
+  // shouldn't be forced to set it).
+  SUPABASE_URL: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   AI_PROVIDER: z.enum(['anthropic', 'openai']).default('anthropic'),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),

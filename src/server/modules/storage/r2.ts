@@ -56,5 +56,12 @@ export function createR2StorageAdapter(bindingName: string): StorageAdapter {
       const bucket = await getBucket(bindingName);
       await bucket.delete(key);
     },
+    async getSignedUrl() {
+      // The native R2Bucket binding has no presigned-URL method — that
+      // requires R2's S3-compatible API with separate access-key
+      // credentials, which this adapter doesn't hold. Not needed while R2
+      // isn't the active production driver (STORAGE_DRIVER=supabase).
+      throw new Error('getSignedUrl is not implemented for the R2 binding adapter. Use STORAGE_DRIVER=supabase for signed URLs.');
+    },
   };
 }

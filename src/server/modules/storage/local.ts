@@ -27,5 +27,10 @@ export function createLocalStorageAdapter(basePath: string): StorageAdapter {
     async delete(key) {
       await fs.rm(resolve(key), { force: true });
     },
+    async getSignedUrl() {
+      throw new Error(
+        'getSignedUrl is not supported by the local storage adapter (dev-only, no HTTP file server). Use STORAGE_DRIVER=supabase for signed URLs.'
+      );
+    },
   };
 }

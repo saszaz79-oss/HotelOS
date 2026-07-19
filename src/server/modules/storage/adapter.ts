@@ -2,6 +2,10 @@ export interface StorageAdapter {
   put(key: string, data: Buffer, contentType: string): Promise<void>;
   get(key: string): Promise<Buffer>;
   delete(key: string): Promise<void>;
+  /** Time-limited, tenant-agnostic URL for direct client access. Callers are
+   * responsible for their own tenant-scope check before calling this — the
+   * storage layer has no concept of hotel membership. */
+  getSignedUrl(key: string, expiresInSeconds?: number): Promise<string>;
 }
 
 /**
@@ -19,11 +23,33 @@ function safeExtension(filename: string): string {
   return /^[a-z0-9]{1,10}$/.test(ext) ? ext : 'bin';
 }
 
-/** Per-hotel-prefixed key so storage-level access patterns mirror tenant boundaries (Architecture §6). hotelId/reportUploadId are always server-generated (cuid/uuid), never raw user input. */
-export function reportStorageKey(hotelId: string, reportUploadId: string, filename: string): string {
-  return `hotels/${hotelId}/reports/${reportUploadId}/original.${safeExtension(filename)}`;
+/**
+ * Per-hotel, per-day key so storage-level access patterns mirror tenant
+ * boundaries (Architecture §6) and files are browsable by day. `businessDate`
+ * (the date the report's data is actually FOR) isn't known until after
+ * extraction runs — it lives on ReportDocument, not at raw-upload time — so
+ * this uses `uploadedAt` (the one real date available when the file is
+ * written) as the day folder. This is a storage-organization convenience
+ * only; the authoritative business date is the DB's ReportDocument field,
+ * not the file path. hotelId/reportUploadId are always server-generated
+ * (cuid/uuid), never raw user input.
+ */
+export function reportStorageKey(
+  hotelId: string,
+  reportUploadId: string,
+  filename: string,
+  uploadedAt: Date = new Date()
+): string {
+  const dayFolder = uploadedAt.toISOString().slice(0, 10); // YYYY-MM-DD
+  return `hotels/${hotelId}/${dayFolder}/${reportUploadId}/original.${safeExtension(filename)}`;
 }
 
-export function exportStorageKey(hotelId: string, exportedReportId: string, filename: string): string {
-  return `hotels/${hotelId}/exports/${exportedReportId}/original.${safeExtension(filename)}`;
+export function exportStorageKey(
+  hotelId: string,
+  exportedReportId: string,
+  filename: string,
+  createdAt: Date = new Date()
+): string {
+  const dayFolder = createdAt.toISOString().slice(0, 10);
+  return `hotels/${hotelId}/${dayFolder}/exports/${exportedReportId}/original.${safeExtension(filename)}`;
 }

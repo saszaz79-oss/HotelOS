@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { prisma } from '@/lib/prisma';
-import { getReportUpload } from '@/server/modules/reports/queries';
+import { getReportUpload, getReportUploadSignedUrl } from '@/server/modules/reports/queries';
 import { updateFieldAction, finalizeReportAction } from './actions';
 import type { ExtractedField } from '@/server/modules/report-extraction/types';
 import type { QualityNote } from '@/server/modules/report-extraction/data-quality';
@@ -31,6 +31,7 @@ export default async function ReportReviewPage(
   }
 
   const document = upload.documents[0];
+  const originalFileUrl = await getReportUploadSignedUrl(membership.hotelId, upload.id);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -39,7 +40,17 @@ export default async function ReportReviewPage(
           ← {dict.reportsReview.backToUploads}
         </Link>
         <h1 className="mt-2 text-xl font-medium">{dict.reportsReview.title}</h1>
-        <p className="mt-1 text-sm text-ink-muted">{upload.originalFilename}</p>
+        <p className="mt-1 text-sm text-ink-muted">
+          {upload.originalFilename}
+          {originalFileUrl ? (
+            <>
+              {' · '}
+              <a href={originalFileUrl} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                {dict.reportsReview.viewOriginal}
+              </a>
+            </>
+          ) : null}
+        </p>
       </div>
 
       {upload.status === 'processing' || upload.status === 'uploaded' ? (

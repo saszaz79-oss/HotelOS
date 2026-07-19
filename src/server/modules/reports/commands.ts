@@ -14,7 +14,14 @@ export type UploadReportResult =
   | { ok: true; reportUploadId: string }
   | {
       ok: false;
-      error: 'INVALID_FILE_TYPE' | 'FILE_TOO_LARGE' | 'EMPTY_FILE' | 'DUPLICATE' | 'MODULE_DISABLED' | 'STORAGE_UNAVAILABLE';
+      error:
+        | 'INVALID_FILE_TYPE'
+        | 'FILE_TOO_LARGE'
+        | 'EMPTY_FILE'
+        | 'DUPLICATE'
+        | 'MODULE_DISABLED'
+        | 'STORAGE_UNAVAILABLE'
+        | 'UPLOAD_FAILED';
     };
 
 interface UploadReportInput {
@@ -82,41 +89,78 @@ export async function uploadReport(input: UploadReportInput): Promise<UploadRepo
     return { ok: false, error: 'STORAGE_UNAVAILABLE' };
   }
 
-  await prisma.reportUpload.create({
-    data: {
-      id: reportUploadId,
+  try {
+    await prisma.reportUpload.create({
+      data: {
+        id: reportUploadId,
+        hotelId: input.hotelId,
+        uploadedByUserId: input.uploadedByUserId,
+        originalFilename: input.originalFilename,
+        storageKey,
+        fileSizeBytes: input.data.length,
+        checksumSha256,
+        mimeType: input.mimeType,
+        status: 'uploaded',
+      },
+    });
+  } catch (err) {
+    // The file write succeeded but the DB record didn't — without cleanup
+    // this is a permanently orphaned file (real storage cost, and its
+    // reportUploadId-keyed path can never be legitimately reused). Best-
+    // effort delete; a cleanup failure is logged but must not mask the
+    // original database error from the caller.
+    console.error('[reports.uploadReport] reportUpload.create failed after storage.put succeeded — deleting orphaned file', {
       hotelId: input.hotelId,
-      uploadedByUserId: input.uploadedByUserId,
-      originalFilename: input.originalFilename,
+      reportUploadId,
       storageKey,
-      fileSizeBytes: input.data.length,
-      checksumSha256,
-      mimeType: input.mimeType,
-      status: 'uploaded',
-    },
-  });
+      error: err,
+    });
+    try {
+      await storage.delete(storageKey);
+    } catch (cleanupErr) {
+      console.error('[reports.uploadReport] orphaned-file cleanup also failed — manual cleanup needed', {
+        hotelId: input.hotelId,
+        reportUploadId,
+        storageKey,
+        error: cleanupErr,
+      });
+    }
+    return { ok: false, error: 'UPLOAD_FAILED' };
+  }
 
-  await publishTimelineEvent({
-    hotelId: input.hotelId,
-    eventType: 'report_uploaded',
-    actorUserId: input.uploadedByUserId,
-    payload: { originalFilename: input.originalFilename },
-    sourceRef: reportUploadId,
-  });
+  // The core artifact (file + DB record) is safe past this point. Timeline/
+  // event-bus/audit are side effects of a successful upload, not part of
+  // its correctness — a failure here shouldn't turn an actually-successful
+  // upload into an error response to the user.
+  try {
+    await publishTimelineEvent({
+      hotelId: input.hotelId,
+      eventType: 'report_uploaded',
+      actorUserId: input.uploadedByUserId,
+      payload: { originalFilename: input.originalFilename },
+      sourceRef: reportUploadId,
+    });
 
-  await publish({
-    type: 'ReportUploaded',
-    hotelId: input.hotelId,
-    payload: { reportUploadId, originalFilename: input.originalFilename },
-    causationRef: reportUploadId,
-  });
+    await publish({
+      type: 'ReportUploaded',
+      hotelId: input.hotelId,
+      payload: { reportUploadId, originalFilename: input.originalFilename },
+      causationRef: reportUploadId,
+    });
 
-  await audit({
-    hotelId: input.hotelId,
-    userId: input.uploadedByUserId,
-    action: 'report.upload',
-    metadata: { reportUploadId, originalFilename: input.originalFilename },
-  });
+    await audit({
+      hotelId: input.hotelId,
+      userId: input.uploadedByUserId,
+      action: 'report.upload',
+      metadata: { reportUploadId, originalFilename: input.originalFilename },
+    });
+  } catch (err) {
+    console.error('[reports.uploadReport] post-upload side effect failed (timeline/event/audit) — upload itself succeeded', {
+      hotelId: input.hotelId,
+      reportUploadId,
+      error: err,
+    });
+  }
 
   return { ok: true, reportUploadId };
 }

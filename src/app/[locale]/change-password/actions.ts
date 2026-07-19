@@ -30,5 +30,10 @@ export async function changePasswordAction(
     return { error: result.error };
   }
 
-  redirect(`/${locale}/mission-control`);
+  // Mission Control is hotel-scoped and requires a HotelMembership — the
+  // Platform Owner (isSuperAdmin) never has one by design (cross-hotel,
+  // not a normal hotel user; see (app)/layout.tsx's own identical branch).
+  // Sending a Super Admin there crashes; their real landing page is the
+  // Super Admin Console.
+  redirect(user.isSuperAdmin ? `/${locale}/admin` : `/${locale}/mission-control`);
 }

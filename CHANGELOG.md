@@ -2,6 +2,10 @@
 
 Rendered in the Super Admin Console at `/admin/release-notes` via `src/lib/release-notes.ts` — that file is a TypeScript constant, not a filesystem read of this document, because Cloudflare Workers has no runtime filesystem to read from (confirmed directly during Cloudflare deployment prep: the original filesystem-based implementation compiled without error but would have failed at request time in the deployed Worker). **Update both files together** — this one for GitHub/human readability, `src/lib/release-notes.ts` for the in-app display — see `docs/HOTELOS_CONSTITUTION.md` Definition of Done.
 
+## Unreleased — Forced Password Change Redirect Fix
+
+- Fixed the forced password-change flow crashing for the Platform Owner (Super Admin) after a successful password change: it unconditionally redirected to Mission Control, a hotel-scoped page that assumes a `HotelMembership` the Platform Owner never has by design — now redirects Super Admins to the Super Admin Console (`/admin`) instead, matching how `(app)/layout.tsx` already treats the same case.
+
 ## Unreleased — Production Database Setup
 
 - Added `prisma/migrations/` (baseline `init` migration) — generated from and verified against the authoritative `prisma/schema.prisma`, applied cleanly via `prisma migrate deploy` against a fresh database.

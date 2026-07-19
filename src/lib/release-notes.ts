@@ -19,6 +19,12 @@ export interface ReleaseNoteSection {
 
 export const RELEASE_NOTES: ReleaseNoteSection[] = [
   {
+    title: 'Unreleased — Forced Password Change Redirect Fix',
+    items: [
+      'Fixed the forced password-change flow crashing for the Platform Owner after a successful change — now redirects Super Admins to the Super Admin Console instead of the hotel-scoped Mission Control page.',
+    ],
+  },
+  {
     title: 'Unreleased — Production Database Setup',
     items: [
       'Added prisma/migrations/ (baseline init migration) — generated from and verified against the authoritative prisma/schema.prisma.',

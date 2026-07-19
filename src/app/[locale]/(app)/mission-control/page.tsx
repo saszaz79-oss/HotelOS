@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { prisma } from '@/lib/prisma';
@@ -14,14 +15,24 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
   const dict = getDictionary(locale);
   const user = await getCurrentUser();
 
-  const membership = user && !user.isSuperAdmin
+  // Mission Control is hotel-scoped. The Platform Owner (isSuperAdmin) never
+  // has a HotelMembership by design (cross-hotel, not a normal hotel user —
+  // same fact (app)/layout.tsx already encodes). Sending them further into
+  // this hotel-scoped page crashed on the non-null assertion below (Vercel
+  // runtime digest 1120167232: TypeError reading 'hotelId' on null); their
+  // real landing page is the Super Admin Console.
+  if (user?.isSuperAdmin) {
+    redirect(`/${locale}/admin`);
+  }
+
+  const membership = user
     ? await prisma.hotelMembership.findFirst({
         where: { userId: user.id, status: 'active' },
         include: { hotel: true },
       })
     : null;
 
-  if (!user?.isSuperAdmin && !membership) {
+  if (!membership) {
     return (
       <div className="max-w-lg">
         <p className="text-ink-muted">{dict.missionControl.noHotels}</p>
@@ -29,7 +40,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
     );
   }
 
-  const hotelId = membership!.hotelId;
+  const hotelId = membership.hotelId;
   const hasAnyUpload = (await prisma.reportUpload.count({ where: { hotelId } })) > 0;
   const latestDate = await getLatestMetricDate(hotelId);
 

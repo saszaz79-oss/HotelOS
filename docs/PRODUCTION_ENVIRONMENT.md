@@ -44,6 +44,8 @@ These are the **only** repository secrets required for `migrate.yml` and `seed-p
 
 **Important if deployed anywhere other than Cloudflare Workers (e.g. Vercel)**: `src/lib/prisma.ts` only skips the `DATABASE_CA_CERT` requirement when running behind a Cloudflare Hyperdrive binding, which terminates TLS to Supabase itself. On any other host, the deployed application connects to Supabase the same way `prisma/seed.ts` does, and hits the identical `self-signed certificate in certificate chain` error on its first real query unless that host's own environment variables also include `DATABASE_URL` and `DATABASE_CA_CERT` — set those directly in that platform's dashboard (e.g. Vercel → Project → Settings → Environment Variables), separately from the GitHub secrets above, which only reach GitHub Actions runners.
 
+**`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` (Vercel/self-hosted)**: set this to a fixed random value (e.g. `openssl rand -base64 32`) in the hosting platform's environment variables so Server Action identity stays stable across builds. Without it, Next.js generates a fresh key per build, and any cached/prerendered page from an earlier build submits action IDs the newer server bundle rejects with `Failed to find Server Action` (HTTP 500) — observed in production on Vercel when a redeploy reused cached prerendered HTML against a rebuilt server bundle. The login page is prerendered, making it the first place this bites.
+
 ### 4. Runtime database credentials
 
 The Worker's actual query-time database access — not a secret string at all, but a **Cloudflare Hyperdrive binding**.

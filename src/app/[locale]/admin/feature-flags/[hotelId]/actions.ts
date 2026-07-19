@@ -1,5 +1,6 @@
 'use server';
 
+import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { setModuleEnabled } from '@/server/modules/feature-flags';
@@ -13,7 +14,13 @@ export async function toggleModuleAction(
   currentlyEnabled: boolean
 ): Promise<void> {
   const user = await getCurrentUser();
-  if (!user || !user.isSuperAdmin) throw new Error('FORBIDDEN');
+  // Session can expire between page load and form submit (this page is
+  // only reachable by a Super Admin whose session was valid when the page
+  // rendered) — send them to sign in again instead of an uncaught throw,
+  // which produced a generic 500 in production (digest 881976446).
+  if (!user || !user.isSuperAdmin) {
+    redirect(`/${locale}/login`);
+  }
 
   await setModuleEnabled(hotelId, moduleKey, !currentlyEnabled);
   await audit({

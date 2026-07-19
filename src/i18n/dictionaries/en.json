@@ -142,7 +142,8 @@
       "FILE_TOO_LARGE": "File exceeds the 15MB limit.",
       "EMPTY_FILE": "The file is empty.",
       "DUPLICATE": "This exact file has already been uploaded.",
-      "MODULE_DISABLED": "Report uploads are not enabled for this hotel."
+      "MODULE_DISABLED": "Report uploads are not enabled for this hotel.",
+      "STORAGE_UNAVAILABLE": "Upload storage is temporarily unavailable. Please try again shortly or contact support if this continues."
     },
     "success": "Uploaded successfully."
   },

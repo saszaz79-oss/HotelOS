@@ -1,5 +1,6 @@
 'use server';
 
+import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { resolveHotelScope } from '@/server/modules/hotels/access';
@@ -20,8 +21,11 @@ export async function uploadReportsAction(
   formData: FormData
 ): Promise<UploadActionState> {
   const user = await getCurrentUser();
+  // Session can expire between page load and submit — redirect to sign in
+  // again instead of an uncaught throw (same crash class as digest
+  // 881976446/1047464761).
   if (!user) {
-    throw new Error('UNAUTHENTICATED');
+    redirect(`/${locale}/login`);
   }
   const scope = await resolveHotelScope(user);
 

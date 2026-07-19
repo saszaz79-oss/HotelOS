@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { withSuperAdminScope } from '@/server/modules/hotels/access';
@@ -15,7 +16,11 @@ export default async function AdminSupportHotelPage(
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
   const user = await getCurrentUser();
-  if (!user || !user.isSuperAdmin) throw new Error('FORBIDDEN');
+  // Session can expire between navigating here and this render (same crash
+  // class as digest 881976446) — redirect instead of an uncaught throw.
+  if (!user || !user.isSuperAdmin) {
+    redirect(`/${locale}/login`);
+  }
 
   const hotel = await prisma.hotel.findUnique({ where: { id: params.hotelId }, select: { name: true } });
 

@@ -12,7 +12,10 @@ const ALLOWED_MIME_TYPES = new Set(['application/pdf']);
 
 export type UploadReportResult =
   | { ok: true; reportUploadId: string }
-  | { ok: false; error: 'INVALID_FILE_TYPE' | 'FILE_TOO_LARGE' | 'EMPTY_FILE' | 'DUPLICATE' | 'MODULE_DISABLED' };
+  | {
+      ok: false;
+      error: 'INVALID_FILE_TYPE' | 'FILE_TOO_LARGE' | 'EMPTY_FILE' | 'DUPLICATE' | 'MODULE_DISABLED' | 'STORAGE_UNAVAILABLE';
+    };
 
 interface UploadReportInput {
   hotelId: string;
@@ -63,7 +66,21 @@ export async function uploadReport(input: UploadReportInput): Promise<UploadRepo
   const reportUploadId = randomUUID();
   const storageKey = reportStorageKey(input.hotelId, reportUploadId, input.originalFilename);
 
-  await storage.put(storageKey, input.data, input.mimeType);
+  try {
+    await storage.put(storageKey, input.data, input.mimeType);
+  } catch (err) {
+    // Never let a storage-layer failure (misconfigured driver, unavailable
+    // backend, transient write error) surface as an uncaught 500 — this is
+    // exactly what produced digest 1047464761 in production. Full detail
+    // stays server-side only; the caller sees a safe, typed result.
+    console.error('[reports.uploadReport] storage.put failed', {
+      hotelId: input.hotelId,
+      reportUploadId,
+      storageKey,
+      error: err,
+    });
+    return { ok: false, error: 'STORAGE_UNAVAILABLE' };
+  }
 
   await prisma.reportUpload.create({
     data: {

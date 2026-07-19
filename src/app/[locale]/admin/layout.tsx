@@ -39,61 +39,60 @@ export default async function AdminLayout(
 
   const dir = dirFor(locale);
 
+  const navItems: { href: string; label: string }[] = [
+    { href: `/${locale}/admin/hotels`, label: dict.admin.nav.hotels },
+    { href: `/${locale}/admin/users`, label: dict.admin.nav.users },
+    { href: `/${locale}/admin/roles`, label: dict.admin.nav.roles },
+    { href: `/${locale}/admin/feature-flags`, label: dict.admin.nav.featureFlags },
+    { href: `/${locale}/admin/audit`, label: dict.admin.nav.audit },
+    { href: `/${locale}/admin/system`, label: dict.admin.nav.system },
+    { href: `/${locale}/admin/release-notes`, label: dict.admin.nav.releaseNotes },
+    { href: `/${locale}/admin/support`, label: dict.admin.nav.support },
+    { href: `/${locale}/admin/settings`, label: dict.admin.nav.settings },
+  ];
+
   return (
-    <div className="min-h-screen bg-surface" dir={dir}>
-      <header className="border-b border-ink/10 bg-surface-raised px-6 py-3">
-        <div className="flex items-center justify-between">
+    <div className="flex min-h-screen flex-col bg-surface md:flex-row" dir={dir}>
+      {/* Sidebar, matching the hotel workspace's AppShell pattern (M8: the
+          previous top horizontal nav crammed 9 links + sign-out into one
+          flex-wrap row — cramped on any real viewport and the first thing
+          this audit's "no tiny horizontal navigation" note was written
+          about). */}
+      <aside className="flex shrink-0 flex-col justify-between border-ink/10 bg-surface-raised p-4 md:w-64 md:border-e">
+        <div className="space-y-6">
           <div>
             <p className="text-sm font-medium">{dict.admin.title}</p>
             <p className="text-xs text-ink-muted">{dict.admin.subtitle}</p>
           </div>
-          <nav className="flex flex-wrap gap-4 text-sm">
-            <Link href={`/${locale}/admin/hotels`} className="hover:underline">
-              {dict.admin.nav.hotels}
-            </Link>
-            <Link href={`/${locale}/admin/users`} className="hover:underline">
-              {dict.admin.nav.users}
-            </Link>
-            <Link href={`/${locale}/admin/roles`} className="hover:underline">
-              {dict.admin.nav.roles}
-            </Link>
-            <Link href={`/${locale}/admin/feature-flags`} className="hover:underline">
-              {dict.admin.nav.featureFlags}
-            </Link>
-            <Link href={`/${locale}/admin/audit`} className="hover:underline">
-              {dict.admin.nav.audit}
-            </Link>
-            <Link href={`/${locale}/admin/system`} className="hover:underline">
-              {dict.admin.nav.system}
-            </Link>
-            <Link href={`/${locale}/admin/release-notes`} className="hover:underline">
-              {dict.admin.nav.releaseNotes}
-            </Link>
-            <Link href={`/${locale}/admin/support`} className="hover:underline">
-              {dict.admin.nav.support}
-            </Link>
-            <Link href={`/${locale}/admin/settings`} className="hover:underline">
-              {dict.admin.nav.settings}
-            </Link>
-            <form
-              action={async () => {
-                'use server';
-                await logoutAction(locale);
-              }}
-            >
-              {/* The Platform Owner (isSuperAdmin) never has a HotelMembership
-                  by design, so there is no hotel-facing area to "exit" into —
-                  linking to /mission-control just bounced straight back here
-                  (mission-control redirects Super Admins to /admin). A real
-                  sign-out is the only meaningful action here. */}
-              <button type="submit" className="text-ink-muted hover:underline">
-                {dict.admin.exit}
-              </button>
-            </form>
+          <nav className="space-y-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="block rounded-md px-3 py-2 text-sm hover:bg-surface"
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
         </div>
-      </header>
-      <main className="p-6">{children}</main>
+        <form
+          action={async () => {
+            'use server';
+            await logoutAction(locale);
+          }}
+        >
+          {/* The Platform Owner (isSuperAdmin) never has a HotelMembership
+              by design, so there is no hotel-facing area to "exit" into —
+              linking to /mission-control just bounced straight back here
+              (mission-control redirects Super Admins to /admin). A real
+              sign-out is the only meaningful action here. */}
+          <button type="submit" className="text-sm text-ink-muted hover:text-ink">
+            {dict.admin.exit}
+          </button>
+        </form>
+      </aside>
+      <main className="flex-1 p-4 md:p-8">{children}</main>
     </div>
   );
 }

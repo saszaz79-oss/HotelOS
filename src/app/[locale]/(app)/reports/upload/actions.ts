@@ -29,6 +29,15 @@ export async function uploadReportsAction(
   }
   const scope = await resolveHotelScope(user);
 
+  // Membership/hotel state can change between page load and submit (e.g.
+  // the Platform Owner suspends the hotel or revokes membership mid-
+  // session) — uploadReport()'s own assertHotelAccess() throws in that
+  // case, which must never reach the caller uncaught (same discipline as
+  // the login-expiry check above).
+  if (scope.kind !== 'super_admin' && !scope.hotelIds.includes(hotelId)) {
+    redirect(`/${locale}/mission-control`);
+  }
+
   const files = formData.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
   const results: UploadActionState['results'] = [];
 

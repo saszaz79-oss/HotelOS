@@ -34,7 +34,7 @@
   "admin": {
     "title": "Platform Administration",
     "subtitle": "Platform Owner console — not part of the hotel-facing product",
-    "exit": "Exit",
+    "exit": "Sign out",
     "nav": {
       "hotels": "Hotels",
       "users": "Users",

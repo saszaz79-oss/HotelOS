@@ -1,8 +1,9 @@
 'use server';
 
+import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/server/modules/auth/session';
-import { resolveHotelScope, assertHotelAccess } from '@/server/modules/hotels/access';
+import { resolveHotelScope, type HotelScope } from '@/server/modules/hotels/access';
 import { getReportUpload } from '@/server/modules/reports/queries';
 import { updateExtractedField } from '@/server/modules/report-extraction/commands';
 import { normalizeReportDocument } from '@/server/modules/metrics/commands';
@@ -12,6 +13,16 @@ import type { Locale } from '@/i18n/config';
 // `MetricsExtracted` (Architecture §17) — see insights/index.ts.
 import '@/server/modules/insights';
 
+// Redirects (never throws) on a stale/cross-tenant bound action — e.g. the
+// caller's hotel membership was revoked between page load and submit. This
+// is the same "no uncaught exception from a server action" discipline
+// applied to every other action in this codebase (Constitution, §M2 fix
+// history) — assertHotelAccess()'s throw is fine deep in a command function
+// but never at the top of a directly form-bound action.
+function hasHotelAccess(scope: HotelScope, hotelId: string): boolean {
+  return scope.kind === 'super_admin' || scope.hotelIds.includes(hotelId);
+}
+
 export async function updateFieldAction(
   locale: Locale,
   hotelId: string,
@@ -20,17 +31,19 @@ export async function updateFieldAction(
   formData: FormData
 ): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) throw new Error('UNAUTHENTICATED');
+  if (!user) redirect(`/${locale}/login`);
 
   const scope = await resolveHotelScope(user);
-  assertHotelAccess(scope, hotelId);
+  if (!hasHotelAccess(scope, hotelId)) {
+    redirect(`/${locale}/mission-control`);
+  }
 
   // Defense in depth: confirm the document actually belongs to this
   // hotel/upload before writing, even though the form only ever renders
   // fields for the caller's own hotel (§4).
   const upload = await getReportUpload(hotelId, reportUploadId);
   if (!upload || !upload.documents.some((d) => d.id === reportDocumentId)) {
-    throw new Error('NOT_FOUND');
+    redirect(`/${locale}/mission-control`);
   }
 
   const metricKey = String(formData.get('metricKey'));
@@ -58,19 +71,24 @@ export async function finalizeReportAction(
   formData: FormData
 ): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) throw new Error('UNAUTHENTICATED');
+  if (!user) redirect(`/${locale}/login`);
 
   const scope = await resolveHotelScope(user);
-  assertHotelAccess(scope, hotelId);
+  if (!hasHotelAccess(scope, hotelId)) {
+    redirect(`/${locale}/mission-control`);
+  }
 
   const upload = await getReportUpload(hotelId, reportUploadId);
   if (!upload || !upload.documents.some((d) => d.id === reportDocumentId)) {
-    throw new Error('NOT_FOUND');
+    redirect(`/${locale}/mission-control`);
   }
 
   const confirmedReportDate = new Date(String(formData.get('confirmedReportDate')));
   if (Number.isNaN(confirmedReportDate.getTime())) {
-    throw new Error('INVALID_DATE');
+    // Native <input type="date" required> makes this practically
+    // unreachable client-side; a redirect (not a throw) keeps it that way
+    // for any other caller of this action too.
+    redirect(`/${locale}/reports/${reportUploadId}`);
   }
 
   await normalizeReportDocument(hotelId, reportDocumentId, confirmedReportDate, user.id);

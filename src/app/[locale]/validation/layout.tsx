@@ -27,8 +27,17 @@ export default async function ValidationLayout(
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const user = await getCurrentUser();
 
-  if (!user || !user.isSuperAdmin) {
+  if (!user) {
+    redirect(`/${locale}/login`);
+  }
+  if (!user.isSuperAdmin) {
     redirect(`/${locale}/mission-control`);
+  }
+  // Forced-password-change is enforced by (app)/layout.tsx and admin/layout.tsx
+  // but this layout sits outside both route groups — without its own check a
+  // temporary password could reach a live Super Admin tool unchanged.
+  if (user.mustChangePassword) {
+    redirect(`/${locale}/change-password`);
   }
 
   return (

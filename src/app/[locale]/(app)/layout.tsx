@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/server/modules/auth/session';
-import { prisma } from '@/lib/prisma';
+import { getActiveMembership } from '@/server/modules/hotels/access';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { listAgentsForRole } from '@/server/modules/agents/registry';
 import { AppShell } from './AppShell';
@@ -30,12 +30,7 @@ export default async function AppLayout(
 
   // v0.1 M1: first active membership stands in for a full hotel switcher,
   // which is planned but not yet built (UX_SYSTEM.md §1 hotel switcher).
-  const membership = user.isSuperAdmin
-    ? null
-    : await prisma.hotelMembership.findFirst({
-        where: { userId: user.id, status: 'active' },
-        include: { hotel: true },
-      });
+  const membership = user.isSuperAdmin ? null : await getActiveMembership(user.id);
 
   const agents = membership ? listAgentsForRole(membership.role) : [];
 

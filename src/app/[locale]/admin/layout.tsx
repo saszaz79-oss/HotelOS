@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/server/modules/auth/session';
+import { logoutAction } from '../(app)/actions';
 import { getDictionary, locales, defaultLocale, dirFor, type Locale } from '@/i18n/config';
 
 /**
@@ -26,7 +27,10 @@ export default async function AdminLayout(
   const dict = getDictionary(locale);
   const user = await getCurrentUser();
 
-  if (!user || !user.isSuperAdmin) {
+  if (!user) {
+    redirect(`/${locale}/login`);
+  }
+  if (!user.isSuperAdmin) {
     redirect(`/${locale}/mission-control`);
   }
   if (user.mustChangePassword) {
@@ -71,9 +75,21 @@ export default async function AdminLayout(
             <Link href={`/${locale}/admin/settings`} className="hover:underline">
               {dict.admin.nav.settings}
             </Link>
-            <Link href={`/${locale}/mission-control`} className="text-ink-muted hover:underline">
-              {dict.admin.exit}
-            </Link>
+            <form
+              action={async () => {
+                'use server';
+                await logoutAction(locale);
+              }}
+            >
+              {/* The Platform Owner (isSuperAdmin) never has a HotelMembership
+                  by design, so there is no hotel-facing area to "exit" into —
+                  linking to /mission-control just bounced straight back here
+                  (mission-control redirects Super Admins to /admin). A real
+                  sign-out is the only meaningful action here. */}
+              <button type="submit" className="text-ink-muted hover:underline">
+                {dict.admin.exit}
+              </button>
+            </form>
           </nav>
         </div>
       </header>

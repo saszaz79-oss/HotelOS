@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { prisma } from '@/lib/prisma';
+import { getActiveMembership } from '@/server/modules/hotels/access';
 import { listTimelineEvents } from '@/server/modules/timeline';
 
 const REPORT_DOCUMENT_EVENT_TYPES = new Set(['report_extracted', 'report_finalized', 'alert_raised', 'ai_summary_generated', 'metric_corrected']);
@@ -12,9 +13,7 @@ export default async function TimelinePage(props: { params: Promise<{ locale: st
   const dict = getDictionary(locale);
   const user = await getCurrentUser();
 
-  const membership = user && !user.isSuperAdmin
-    ? await prisma.hotelMembership.findFirst({ where: { userId: user.id, status: 'active' }, include: { hotel: true } })
-    : null;
+  const membership = user && !user.isSuperAdmin ? await getActiveMembership(user.id) : null;
 
   if (!membership) {
     return <p className="text-ink-muted">{dict.missionControl.noHotels}</p>;

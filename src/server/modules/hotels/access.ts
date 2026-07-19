@@ -19,12 +19,30 @@ export async function resolveHotelScope(user: User): Promise<HotelScope> {
     return { kind: 'super_admin' };
   }
 
+  // hotel: { status: 'active' } — an active HotelMembership alone isn't
+  // enough. Without this filter, a Platform-Owner-suspended or archived
+  // hotel had no actual effect on its members' access (found during the
+  // M3 auth/session audit: suspending a hotel via /admin/hotels updated
+  // Hotel.status but no read/write path ever checked it).
   const memberships = await prisma.hotelMembership.findMany({
-    where: { userId: user.id, status: 'active' },
+    where: { userId: user.id, status: 'active', hotel: { status: 'active' } },
     select: { hotelId: true },
   });
 
   return { kind: 'scoped', hotelIds: memberships.map((m) => m.hotelId) };
+}
+
+/**
+ * Single seam for "does this user currently have working access to a
+ * hotel" page-level reads (Architecture §4) — mirrors resolveHotelScope's
+ * hotel-status filter so a suspended/archived hotel locks its members out
+ * immediately, without every page re-deriving the same query by hand.
+ */
+export async function getActiveMembership(userId: string) {
+  return prisma.hotelMembership.findFirst({
+    where: { userId, status: 'active', hotel: { status: 'active' } },
+    include: { hotel: true },
+  });
 }
 
 /** Throws if the resolved scope does not include hotelId. */

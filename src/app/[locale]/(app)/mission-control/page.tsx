@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { prisma } from '@/lib/prisma';
+import { getActiveMembership } from '@/server/modules/hotels/access';
 import { getLatestMetricDate, getMetricsForDate } from '@/server/modules/metrics/queries';
 import { getLatestInsight } from '@/server/modules/insights/queries';
 import { generateExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
@@ -25,12 +26,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
     redirect(`/${locale}/admin`);
   }
 
-  const membership = user
-    ? await prisma.hotelMembership.findFirst({
-        where: { userId: user.id, status: 'active' },
-        include: { hotel: true },
-      })
-    : null;
+  const membership = user ? await getActiveMembership(user.id) : null;
 
   if (!membership) {
     return (

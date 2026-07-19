@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { getCurrentUser } from '@/server/modules/auth/session';
-import { prisma } from '@/lib/prisma';
+import { getActiveMembership } from '@/server/modules/hotels/access';
 import { getReportUpload, getReportUploadSignedUrl } from '@/server/modules/reports/queries';
 import { updateFieldAction, finalizeReportAction } from './actions';
 import type { ExtractedField } from '@/server/modules/report-extraction/types';
@@ -17,9 +17,7 @@ export default async function ReportReviewPage(
   const dict = getDictionary(locale);
   const user = await getCurrentUser();
 
-  const membership = user && !user.isSuperAdmin
-    ? await prisma.hotelMembership.findFirst({ where: { userId: user.id, status: 'active' } })
-    : null;
+  const membership = user && !user.isSuperAdmin ? await getActiveMembership(user.id) : null;
 
   if (!membership) {
     return <p className="text-ink-muted">{dict.missionControl.noHotels}</p>;

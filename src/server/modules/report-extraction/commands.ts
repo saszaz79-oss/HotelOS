@@ -25,11 +25,31 @@ export async function processReportUpload(hotelId: string, reportUploadId: strin
   await prisma.reportUpload.update({ where: { id: upload.id }, data: { status: 'processing' } });
 
   const reportDocumentId = crypto.randomUUID();
-  const job = await prisma.extractionJob.create({
-    data: { reportDocumentId, stage: 'extract' },
-  });
+  let job: { id: string } | undefined;
 
   try {
+    // ExtractionJob.reportDocumentId is a required FK to ReportDocument, so
+    // the document row must exist before any ExtractionJob can reference it
+    // — a placeholder (reportType is unknown until extraction runs) is
+    // created first and updated in place once the real type is known, rather
+    // than created fresh at the end. Confirmed in production: every prior
+    // report upload left ExtractionJob.create failing with a foreign-key
+    // violation here, silently swallowed by the event bus, so status never
+    // advanced past "processing".
+    await prisma.reportDocument.create({
+      data: {
+        id: reportDocumentId,
+        reportUploadId: upload.id,
+        hotelId,
+        reportType: 'GENERIC',
+        checksumSha256: upload.checksumSha256,
+      },
+    });
+
+    job = await prisma.extractionJob.create({
+      data: { reportDocumentId, stage: 'extract' },
+    });
+
     const fileBuffer = await storage.get(upload.storageKey);
     const { fullText, pages } = await extractPdfContent(fileBuffer);
 
@@ -39,16 +59,13 @@ export async function processReportUpload(hotelId: string, reportUploadId: strin
     await prisma.extractionJob.update({ where: { id: job.id }, data: { stage: 'validate' } });
     const quality = assessDataQuality(result.fields as ExtractedField[]);
 
-    await prisma.reportDocument.create({
+    await prisma.reportDocument.update({
+      where: { id: reportDocumentId },
       data: {
-        id: reportDocumentId,
-        reportUploadId: upload.id,
-        hotelId,
         reportType: adapter.reportType,
         detectedReportDate: result.detectedReportDate,
         extractionConfidence: result.typeConfidence,
         rawExtractedText: adapter.reportType === 'GENERIC' ? fullText : null,
-        checksumSha256: upload.checksumSha256,
         completenessScore: quality.completenessScore,
         validationStatus: quality.validationStatus,
         qualityNotes: quality.qualityNotes as unknown as Prisma.InputJsonValue,
@@ -75,10 +92,12 @@ export async function processReportUpload(hotelId: string, reportUploadId: strin
       sourceRef: reportDocumentId,
     });
   } catch (err) {
-    await prisma.extractionJob.update({
-      where: { id: job.id },
-      data: { stage: 'error', errorMessage: err instanceof Error ? err.message : String(err), completedAt: new Date() },
-    });
+    if (job) {
+      await prisma.extractionJob.update({
+        where: { id: job.id },
+        data: { stage: 'error', errorMessage: err instanceof Error ? err.message : String(err), completedAt: new Date() },
+      });
+    }
     await prisma.reportUpload.update({ where: { id: upload.id }, data: { status: 'error' } });
   }
 }

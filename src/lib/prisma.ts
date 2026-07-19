@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
-import { resolveDatabaseSsl } from './db-ssl';
+import { resolveDatabaseConnection, resolveDatabaseSsl } from './db-ssl';
 
 /**
  * Prisma 7 requires a driver adapter for every PrismaClient — there is no
@@ -53,7 +53,10 @@ function resolveConnection(): { connectionString: string; ssl?: ReturnType<typeo
         'See docs/CLOUDFLARE_DEPLOYMENT.md and docs/SUPABASE_SETUP.md.'
     );
   }
-  return { connectionString: url, ssl: resolveDatabaseSsl() };
+  // resolveDatabaseConnection also strips sslmode= from the URL when a CA
+  // is configured — pg lets URL params override the explicit ssl option,
+  // which would otherwise discard the CA (see src/lib/db-ssl.ts).
+  return resolveDatabaseConnection(url);
 }
 
 const globalForPrisma = globalThis as unknown as { __hotelosPrisma?: PrismaClient };

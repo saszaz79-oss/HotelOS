@@ -60,3 +60,42 @@ export function resolveDatabaseSsl(): boolean | ConnectionOptions {
   // verification.
   return true;
 }
+
+/**
+ * pg (node-postgres) merges values parsed from the connection string OVER
+ * the explicit config object (ConnectionParameters does
+ * `Object.assign({}, config, parse(connectionString))`), so an `sslmode=`
+ * query parameter inside DATABASE_URL silently replaces the `ssl` option —
+ * discarding the CA and reproducing the exact "self-signed certificate in
+ * certificate chain" failure even when DATABASE_CA_CERT is set correctly.
+ * Verified empirically: against the same SSL-enabled Postgres, the same
+ * `ssl: { ca }` config succeeds without `?sslmode=require` in the URL and
+ * fails with it.
+ *
+ * So when we supply our own ssl object (which is strictly *stronger* than
+ * any sslmode the URL could ask for — full chain verification against the
+ * real CA), strip every ssl-related parameter from the URL so the explicit
+ * config is authoritative.
+ */
+export function resolveDatabaseConnection(rawUrl: string): {
+  connectionString: string;
+  ssl: boolean | ConnectionOptions;
+} {
+  const ssl = resolveDatabaseSsl();
+  if (typeof ssl !== 'object') {
+    return { connectionString: rawUrl, ssl };
+  }
+  let connectionString = rawUrl;
+  try {
+    const url = new URL(rawUrl);
+    for (const param of ['sslmode', 'ssl', 'sslrootcert', 'sslcert', 'sslkey', 'uselibpqcompat']) {
+      url.searchParams.delete(param);
+    }
+    connectionString = url.toString();
+  } catch {
+    // Not parseable as a URL (unusual DSN form) — leave it untouched rather
+    // than guess; the explicit ssl option still applies unless the string
+    // itself carries an sslmode parameter.
+  }
+  return { connectionString, ssl };
+}

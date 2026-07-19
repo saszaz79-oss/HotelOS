@@ -26,6 +26,7 @@ export const RELEASE_NOTES: ReleaseNoteSection[] = [
       'Production seed creates a superadmin Platform Owner with a fixed, documented temporary password and forced password change on first login — idempotent, safe to run more than once.',
       'Fixed npm ci failing during postinstall in both workflows by moving DATABASE_URL to job-level scope, with a validation step that fails clearly (never printing the value) if secrets are missing.',
       "Fixed the production seed failing with a certificate verification error against Supabase by trusting Supabase's actual CA certificate (DATABASE_CA_CERT) for real TLS verification, shared between the seed script and the app's own runtime client.",
+      'Fixed an sslmode= parameter inside DATABASE_URL silently overriding the CA-bearing TLS config (node-postgres lets URL parameters win over the explicit ssl option) — ssl-related URL parameters are now stripped when the stricter explicit CA config is supplied.',
     ],
   },
   {

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 import { audit } from '@/server/modules/audit';
 import type { User } from '@prisma/client';
@@ -37,13 +38,17 @@ export async function resolveHotelScope(user: User): Promise<HotelScope> {
  * hotel" page-level reads (Architecture §4) — mirrors resolveHotelScope's
  * hotel-status filter so a suspended/archived hotel locks its members out
  * immediately, without every page re-deriving the same query by hand.
+ *
+ * `cache()`-wrapped (request-scoped, not cross-request) for the same reason
+ * as `getCurrentUser` — (app)/layout.tsx and its page both need this on
+ * every request, with no prop-drilling path between them (M7 audit).
  */
-export async function getActiveMembership(userId: string) {
+export const getActiveMembership = cache(async (userId: string) => {
   return prisma.hotelMembership.findFirst({
     where: { userId, status: 'active', hotel: { status: 'active' } },
     include: { hotel: true },
   });
-}
+});
 
 /** Throws if the resolved scope does not include hotelId. */
 export function assertHotelAccess(scope: HotelScope, hotelId: string): void {

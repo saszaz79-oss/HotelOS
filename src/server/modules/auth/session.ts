@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto';
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 
@@ -38,8 +39,14 @@ export async function destroySession(): Promise<void> {
  * Re-derives the current user from the session cookie against the database
  * on every call — authorization is never trusted from client-supplied state
  * (Architecture §5, Constitution §5).
+ *
+ * Wrapped in React's `cache()` (request-scoped memoization, not a
+ * cross-request cache — a fresh request always gets a fresh call) because
+ * both a layout and its page routinely call this independently with no way
+ * to share the result via props; before this, every request re-ran the
+ * session lookup query once per layout/page pair (M7 performance audit).
  */
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
@@ -56,4 +63,4 @@ export async function getCurrentUser() {
   if (session.user.status !== 'active') return null;
 
   return session.user;
-}
+});

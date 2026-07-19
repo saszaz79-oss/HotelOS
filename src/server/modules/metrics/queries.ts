@@ -1,14 +1,22 @@
+import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 
-/** CQRS convention (Architecture §28): reads only. */
-export async function getLatestMetricDate(hotelId: string): Promise<Date | null> {
+/**
+ * CQRS convention (Architecture §28): reads only.
+ *
+ * `cache()`-wrapped: Mission Control fetches this itself and also triggers
+ * generateExecutiveSummary(), which independently re-fetches the exact same
+ * value for the exact same hotelId — request-scoped memoization collapses
+ * that back to one query (M7 performance audit).
+ */
+export const getLatestMetricDate = cache(async (hotelId: string): Promise<Date | null> => {
   const latest = await prisma.hotelMetric.findFirst({
     where: { hotelId },
     orderBy: { metricDate: 'desc' },
     select: { metricDate: true },
   });
   return latest?.metricDate ?? null;
-}
+});
 
 /**
  * Metrics for a date, with provenance/quality joined in (Data Quality Engine,

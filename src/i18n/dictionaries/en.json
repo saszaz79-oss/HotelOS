@@ -323,6 +323,21 @@
     "dataQuality": "Data quality",
     "vsPrevious": "vs previous"
   },
+  "comparisons": {
+    "title": "Comparisons",
+    "subtitle": "Real movement between report dates — every value here comes from a finalized report, nothing estimated.",
+    "todayVsPrevious": "Latest vs previous report date",
+    "metric": "Metric",
+    "current": "Current",
+    "previous": "Previous",
+    "change": "Change",
+    "notAvailable": "Not available",
+    "trend": "Trend",
+    "selectMetric": "Metric",
+    "range7": "Last 7 days",
+    "range30": "Last 30 days",
+    "noMetricsYet": "No finalized metrics yet — upload and finalize a report to see comparisons here."
+  },
   "timeline": {
     "title": "Mission Timeline",
     "empty": "No activity yet for this hotel.",

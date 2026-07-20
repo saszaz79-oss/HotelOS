@@ -50,3 +50,13 @@ export async function getMetricsForDateRange(hotelId: string, from: Date, to: Da
     orderBy: { metricDate: 'asc' },
   });
 }
+
+/** Distinct metric keys with at least one real recorded value — backs the Comparisons page's metric selector, so it never offers a metric this hotel has no history for. */
+export async function listAvailableMetricKeys(hotelId: string) {
+  const rows = await prisma.hotelMetric.findMany({
+    where: { hotelId, value: { not: null } },
+    distinct: ['metricKey'],
+    select: { metricKey: true, metricDefinition: { select: { labelEn: true, labelAr: true, unit: true } } },
+  });
+  return rows.map((r) => ({ key: r.metricKey, labelEn: r.metricDefinition.labelEn, labelAr: r.metricDefinition.labelAr, unit: r.metricDefinition.unit }));
+}

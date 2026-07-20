@@ -70,6 +70,7 @@ export function AppShell({
     { href: `/${locale}/mission-control`, label: dict.nav.missionControl },
     { href: `/${locale}/reports/upload`, label: dict.nav.reports },
     { href: `/${locale}/reports/archive`, label: dict.nav.archive },
+    { href: `/${locale}/comparisons`, label: dict.nav.comparisons },
     { href: `/${locale}/timeline`, label: dict.nav.timeline },
   ];
 

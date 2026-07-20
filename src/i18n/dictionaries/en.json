@@ -294,6 +294,17 @@
     "notFinalized": "Reports have been uploaded but not yet finalized. Review and finalize a report to see metrics here.",
     "demoDataBadge": "Demo data",
     "morningBrief": "Morning Brief",
+    "brief": {
+      "todaySummary": "Today's Summary",
+      "keyNumbers": "Key Numbers",
+      "whatChanged": "What Changed",
+      "risks": "Risks",
+      "opportunities": "Opportunities",
+      "todayActions": "Today's Actions",
+      "priority": "Priority",
+      "suggestedOwner": "Suggested Owner",
+      "dataStatus": "Data Status"
+    },
     "healthScore": "Hotel Health Score",
     "factorBreakdown": "Contributing factors",
     "insufficientData": "insufficient data",

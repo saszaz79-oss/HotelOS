@@ -5,11 +5,48 @@ import type { getLatestInsight } from './queries';
 type Metrics = Awaited<ReturnType<typeof getMetricsForDate>>;
 type Insight = Awaited<ReturnType<typeof getLatestInsight>>;
 
+export interface MorningBriefKeyNumber {
+  label: string;
+  value: string;
+  trend: string | null;
+}
+
+/**
+ * Structured to match the required section set (Enterprise v2 Phase 10)
+ * exactly — todaySummary/keyNumbers/whatChanged/risks/opportunities/
+ * todayActions/priority/suggestedOwner/dataStatus — instead of a flat
+ * line list, so the UI can render each as its own labeled block.
+ */
 export interface MorningBrief {
-  lines: string[];
+  todaySummary: string;
+  keyNumbers: MorningBriefKeyNumber[];
+  whatChanged: string[];
+  risks: string[];
+  opportunities: string[];
+  todayActions: string[];
+  priority: string | null;
+  suggestedOwner: string | null;
+  dataStatus: string;
 }
 
 const KEY_KEYS = ['occupancy_pct', 'adr', 'revpar'] as const;
+
+// Coarse, deterministic role inference from which real metrics fed a
+// recommendation (Recommendation.supportingMetrics) — not a stored fact
+// (no schema field for "owner" exists), so this is re-derived at display
+// time rather than fabricated once and persisted as if it were data.
+const REVENUE_METRIC_KEYS = new Set(['occupancy_pct', 'adr', 'revpar', 'room_revenue', 'total_revenue']);
+const FRONT_OFFICE_METRIC_KEYS = new Set(['open_balance', 'arrivals', 'departures', 'stayovers', 'no_shows', 'cancellations']);
+
+function inferSuggestedOwner(supportingMetrics: unknown): string | null {
+  if (!Array.isArray(supportingMetrics)) return null;
+  const keys = supportingMetrics
+    .map((m) => (m && typeof m === 'object' && 'metricKey' in m ? String((m as { metricKey: unknown }).metricKey) : null))
+    .filter((k): k is string => k !== null);
+  if (keys.some((k) => REVENUE_METRIC_KEYS.has(k))) return 'REVENUE_MANAGER';
+  if (keys.some((k) => FRONT_OFFICE_METRIC_KEYS.has(k))) return 'FRONT_OFFICE_MANAGER';
+  return keys.length > 0 ? 'GENERAL_MANAGER' : null;
+}
 
 function trendPhrase(current: number, previous: number, locale: 'ar' | 'en'): string {
   const delta = Math.round((current - previous) * 10) / 10;
@@ -36,50 +73,87 @@ export function buildMorningBrief(input: {
   metrics: Metrics;
   previousMetrics: Metrics;
   insight: Insight;
+  avgDataQuality: number | null;
 }): MorningBrief {
-  const { hotelName, locale, latestDate, metrics, previousMetrics, insight } = input;
+  const { hotelName, locale, latestDate, metrics, previousMetrics, insight, avgDataQuality } = input;
   const byKey = new Map(metrics.map((m) => [m.metricKey, m]));
   const prevByKey = new Map(previousMetrics.map((m) => [m.metricKey, m]));
   const dateStr = latestDate.toLocaleDateString(locale);
 
-  const lines: string[] = [];
-
-  lines.push(
-    locale === 'ar' ? `موجز الصباح — ${hotelName} — ${dateStr}` : `Morning Brief — ${hotelName} — ${dateStr}`
-  );
-
-  const metricLines: string[] = [];
+  const keyNumbers: MorningBriefKeyNumber[] = [];
+  const whatChanged: string[] = [];
   for (const key of KEY_KEYS) {
     const m = byKey.get(key);
     if (!m || m.value === null) continue;
     const label = locale === 'ar' ? m.metricDefinition.labelAr : m.metricDefinition.labelEn;
     const valueStr = formatMetricValue(m.value, m.metricDefinition.unit);
     const prev = prevByKey.get(key);
-    const trend = prev && prev.value !== null ? ` (${trendPhrase(m.value, prev.value, locale)})` : '';
-    metricLines.push(`${label}: ${valueStr}${trend}`);
+    const trend = prev && prev.value !== null ? trendPhrase(m.value, prev.value, locale) : null;
+    keyNumbers.push({ label, value: valueStr, trend });
+    if (trend && prev!.value !== m.value) {
+      whatChanged.push(`${label}: ${trend}`);
+    }
   }
-  if (metricLines.length > 0) {
-    lines.push(...metricLines);
-  } else {
-    lines.push(locale === 'ar' ? 'لا توجد مؤشرات رئيسية متاحة لهذا التقرير.' : 'No key metrics available for this report.');
-  }
-
-  const openAlerts = insight?.alerts.length ?? 0;
-  if (openAlerts > 0) {
-    lines.push(
-      locale === 'ar'
-        ? `${openAlerts} تنبيه(ات) مفتوحة تحتاج إلى المراجعة.`
-        : `${openAlerts} open alert${openAlerts === 1 ? '' : 's'} need attention.`
+  if (whatChanged.length === 0) {
+    whatChanged.push(
+      previousMetrics.length === 0
+        ? locale === 'ar'
+          ? 'لا توجد بيانات من تقرير سابق للمقارنة.'
+          : 'No previous report to compare against yet.'
+        : locale === 'ar'
+        ? 'لا توجد تغييرات ملحوظة عن التقرير السابق.'
+        : 'No notable changes from the previous report.'
     );
+  }
+
+  const occ = byKey.get('occupancy_pct');
+  const adr = byKey.get('adr');
+  let todaySummary: string;
+  if (occ?.value !== null && occ !== undefined) {
+    const occStr = formatMetricValue(occ.value, 'percentage');
+    const adrStr = adr?.value !== null && adr !== undefined ? formatMetricValue(adr.value, 'currency') : null;
+    todaySummary =
+      locale === 'ar'
+        ? `${hotelName} — ${dateStr}: نسبة الإشغال ${occStr}${adrStr ? ` بمتوسط سعر غرفة ${adrStr}` : ''}.`
+        : `${hotelName} — ${dateStr}: occupancy at ${occStr}${adrStr ? ` with ADR at ${adrStr}` : ''}.`;
   } else {
-    lines.push(locale === 'ar' ? 'لا توجد تنبيهات مفتوحة.' : 'No open alerts.');
+    todaySummary =
+      locale === 'ar' ? `${hotelName} — ${dateStr}: تقرير متاح دون بيانات إشغال.` : `${hotelName} — ${dateStr}: report available without occupancy data.`;
   }
 
-  const topRecommendation = insight?.recommendations[0];
-  if (topRecommendation) {
-    const text = locale === 'ar' ? topRecommendation.textAr : topRecommendation.textEn;
-    lines.push(locale === 'ar' ? `أولوية اليوم: ${text}` : `Today's priority: ${text}`);
+  const risks = (insight?.alerts ?? [])
+    .filter((a) => a.severity === 'critical' || a.severity === 'warning')
+    .map((a) => (locale === 'ar' ? a.messageAr : a.messageEn));
+  const riskRecommendations = (insight?.recommendations ?? []).filter((r) => r.category === 'risk');
+  for (const r of riskRecommendations) {
+    risks.push(locale === 'ar' ? r.textAr : r.textEn);
+  }
+  if (risks.length === 0) {
+    risks.push(locale === 'ar' ? 'لا توجد مخاطر مرصودة حالياً.' : 'No risks currently flagged.');
   }
 
-  return { lines };
+  const opportunities = (insight?.recommendations ?? [])
+    .filter((r) => r.category === 'opportunity')
+    .map((r) => (locale === 'ar' ? r.textAr : r.textEn));
+  if (opportunities.length === 0) {
+    opportunities.push(locale === 'ar' ? 'لا توجد فرص مرصودة حالياً.' : 'No opportunities currently flagged.');
+  }
+
+  const allRecommendations = insight?.recommendations ?? [];
+  const todayActions = allRecommendations.map((r) => (locale === 'ar' ? r.suggestedActionAr : r.suggestedActionEn));
+
+  const topRecommendation = allRecommendations[0];
+  const priority = topRecommendation ? (locale === 'ar' ? topRecommendation.textAr : topRecommendation.textEn) : null;
+  const suggestedOwner = topRecommendation ? inferSuggestedOwner(topRecommendation.supportingMetrics) : null;
+
+  const dataStatus =
+    avgDataQuality !== null
+      ? locale === 'ar'
+        ? `اكتمال البيانات ${Math.round(avgDataQuality * 100)}% لهذا التاريخ.`
+        : `Data is ${Math.round(avgDataQuality * 100)}% complete for this date.`
+      : locale === 'ar'
+      ? 'لا تتوفر معلومات عن جودة البيانات لهذا التاريخ.'
+      : 'No data-quality information available for this date.';
+
+  return { todaySummary, keyNumbers, whatChanged, risks, opportunities, todayActions, priority, suggestedOwner, dataStatus };
 }

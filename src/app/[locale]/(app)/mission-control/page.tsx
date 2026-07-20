@@ -100,6 +100,12 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
 
   const metricByKey = new Map(metrics.map((m) => [m.metricKey, m]));
   const previousByKey = new Map(previousMetrics.map((m) => [m.metricKey, m.value]));
+
+  const qualityScores = metrics
+    .map((m) => m.sourceReportDocument?.completenessScore)
+    .filter((s): s is number => s !== null && s !== undefined);
+  const avgQuality = qualityScores.length > 0 ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length : null;
+
   const morningBrief = buildMorningBrief({
     hotelName: membership.hotel.name,
     locale,
@@ -107,12 +113,8 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
     metrics,
     previousMetrics,
     insight,
+    avgDataQuality: avgQuality,
   });
-
-  const qualityScores = metrics
-    .map((m) => m.sourceReportDocument?.completenessScore)
-    .filter((s): s is number => s !== null && s !== undefined);
-  const avgQuality = qualityScores.length > 0 ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length : null;
 
   return (
     <div className="max-w-5xl space-y-8">
@@ -132,15 +134,86 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
         ) : null}
       </div>
 
-      <Card>
+      <Card className="space-y-4">
         <CardTitle>{dict.missionControl.morningBrief}</CardTitle>
-        <ul className="mt-2 space-y-1 text-sm">
-          {morningBrief.lines.map((line, i) => (
-            <li key={i} className={i === 0 ? 'font-medium text-ink' : 'text-ink-muted'}>
-              {line}
-            </li>
-          ))}
-        </ul>
+
+        <div>
+          <h3 className="text-xs font-medium uppercase text-ink-muted">{dict.missionControl.brief.todaySummary}</h3>
+          <p className="mt-1 text-sm font-medium text-ink">{morningBrief.todaySummary}</p>
+        </div>
+
+        {morningBrief.keyNumbers.length > 0 ? (
+          <div>
+            <h3 className="text-xs font-medium uppercase text-ink-muted">{dict.missionControl.brief.keyNumbers}</h3>
+            <ul className="mt-1 space-y-0.5 text-sm text-ink">
+              {morningBrief.keyNumbers.map((k) => (
+                <li key={k.label}>
+                  {k.label}: <span className="metric-value">{k.value}</span>
+                  {k.trend ? <span className="text-ink-muted"> ({k.trend})</span> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div>
+          <h3 className="text-xs font-medium uppercase text-ink-muted">{dict.missionControl.brief.whatChanged}</h3>
+          <ul className="mt-1 space-y-0.5 text-sm text-ink-muted">
+            {morningBrief.whatChanged.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <h3 className="text-xs font-medium uppercase text-status-critical">{dict.missionControl.brief.risks}</h3>
+            <ul className="mt-1 space-y-0.5 text-sm text-ink-muted">
+              {morningBrief.risks.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-xs font-medium uppercase text-status-positive">{dict.missionControl.brief.opportunities}</h3>
+            <ul className="mt-1 space-y-0.5 text-sm text-ink-muted">
+              {morningBrief.opportunities.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {morningBrief.todayActions.length > 0 ? (
+          <div>
+            <h3 className="text-xs font-medium uppercase text-ink-muted">{dict.missionControl.brief.todayActions}</h3>
+            <ul className="mt-1 list-inside list-disc space-y-0.5 text-sm text-ink-muted">
+              {morningBrief.todayActions.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {morningBrief.priority ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <h3 className="text-xs font-medium uppercase text-ink-muted">{dict.missionControl.brief.priority}</h3>
+              <p className="mt-1 text-sm text-ink">{morningBrief.priority}</p>
+            </div>
+            {morningBrief.suggestedOwner ? (
+              <div>
+                <h3 className="text-xs font-medium uppercase text-ink-muted">{dict.missionControl.brief.suggestedOwner}</h3>
+                <p className="metric-value mt-1 text-sm text-ink">{morningBrief.suggestedOwner}</p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div>
+          <h3 className="text-xs font-medium uppercase text-ink-muted">{dict.missionControl.brief.dataStatus}</h3>
+          <p className="mt-1 text-sm text-ink-muted">{morningBrief.dataStatus}</p>
+        </div>
       </Card>
 
       {insight?.healthScore !== null && insight?.healthScore !== undefined ? (

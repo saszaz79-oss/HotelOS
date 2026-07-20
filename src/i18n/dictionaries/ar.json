@@ -294,6 +294,17 @@
     "notFinalized": "تم رفع تقارير لكن لم يتم إنهاؤها بعد. راجع وأنهِ تقريراً لعرض المقاييس هنا.",
     "demoDataBadge": "بيانات تجريبية",
     "morningBrief": "موجز الصباح",
+    "brief": {
+      "todaySummary": "ملخص اليوم",
+      "keyNumbers": "أهم الأرقام",
+      "whatChanged": "ما تغيّر",
+      "risks": "المخاطر",
+      "opportunities": "الفرص",
+      "todayActions": "إجراءات اليوم",
+      "priority": "الأولوية",
+      "suggestedOwner": "المسؤول المقترح",
+      "dataStatus": "حالة البيانات"
+    },
     "healthScore": "مؤشر صحة الفندق",
     "factorBreakdown": "العوامل المساهمة",
     "insufficientData": "بيانات غير كافية",

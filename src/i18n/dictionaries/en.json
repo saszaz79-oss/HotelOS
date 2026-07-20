@@ -2,7 +2,8 @@
   "app": {
     "name": "HotelOS",
     "tagline": "The Intelligent Operating System for Hotels",
-    "brandStatement": "One command center for occupancy, revenue, and daily operations — built for hotels and hotel groups that run on real numbers, not guesswork."
+    "brandStatement": "One command center for occupancy, revenue, and daily operations — built for hotels and hotel groups that run on real numbers, not guesswork.",
+    "signOut": "Sign out"
   },
   "login": {
     "title": "Sign in",
@@ -290,7 +291,12 @@
       "NOT_CONFIGURED": "AI summary is not available — no AI provider is configured for this deployment.",
       "PROVIDER_ERROR": "AI summary could not be generated right now. Try again shortly."
     },
-    "citedFrom": "Based on"
+    "citedFrom": "Based on",
+    "uploadCta": "Upload your first report",
+    "recentUploads": "Recent uploads",
+    "viewArchive": "View archive",
+    "dataQuality": "Data quality",
+    "vsPrevious": "vs previous"
   },
   "timeline": {
     "title": "Mission Timeline",

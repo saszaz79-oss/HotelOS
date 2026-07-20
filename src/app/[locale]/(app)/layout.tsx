@@ -4,6 +4,7 @@ import { getActiveMembership } from '@/server/modules/hotels/access';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { listAgentsForRole } from '@/server/modules/agents/registry';
 import { AppShell } from './AppShell';
+import { logoutAction } from './actions';
 
 export default async function AppLayout(
   props: {
@@ -41,6 +42,8 @@ export default async function AppLayout(
       userDisplayName={user.displayName}
       hotelName={membership?.hotel.name ?? null}
       agents={agents}
+      exitLabel={dict.app.signOut}
+      signOutAction={logoutAction.bind(null, locale)}
     >
       {children}
     </AppShell>

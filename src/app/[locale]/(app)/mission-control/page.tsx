@@ -96,7 +96,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
     getMetricsForDate(hotelId, latestDate),
     getPreviousMetricDate(hotelId, latestDate),
     getLatestInsight(hotelId),
-    generateExecutiveSummary(hotelId, locale),
+    generateExecutiveSummary(hotelId, locale, membership.hotel.name),
     listReportUploads(hotelId, 5),
   ]);
   const previousMetrics = previousDate ? await getMetricsForDate(hotelId, previousDate) : [];

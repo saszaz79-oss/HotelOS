@@ -46,7 +46,7 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
     getMetricsForDate(hotelId, latestDate),
     getPreviousMetricDate(hotelId, latestDate),
     getLatestInsight(hotelId),
-    generateExecutiveSummary(hotelId, locale),
+    generateExecutiveSummary(hotelId, locale, membership.hotel.name),
   ]);
   const previousMetrics = previousDate ? await getMetricsForDate(hotelId, previousDate) : [];
   const previousByKey = new Map(previousMetrics.map((m) => [m.metricKey, m.value]));

@@ -38,15 +38,24 @@ export type ExecutiveSummaryResult =
  */
 export async function generateExecutiveSummary(
   hotelId: string,
-  language: 'ar' | 'en'
+  language: 'ar' | 'en',
+  // Both current callers (mission-control, executive export) already have
+  // this from their own membership lookup — skip the redundant by-id
+  // fetch when it's handed in rather than re-querying for a value the
+  // caller already holds (Perf sprint, M14).
+  knownHotelName?: string
 ): Promise<ExecutiveSummaryResult> {
-  // Retrieval — verified metrics only, nothing inferred.
+  // Retrieval — verified metrics only, nothing inferred. getLatestMetricDate
+  // and getMetricsForDate are both React cache()-wrapped, so when the
+  // caller already fetched the same (hotelId, date) this request, these
+  // resolve from the request-scoped cache rather than re-querying.
   const latestDate = await getLatestMetricDate(hotelId);
   if (!latestDate) {
     return { ok: false, reason: 'NO_DATA', message: 'No finalized metrics available yet for this hotel.' };
   }
 
-  const hotel = await prisma.hotel.findUniqueOrThrow({ where: { id: hotelId }, select: { name: true } });
+  const hotelName =
+    knownHotelName ?? (await prisma.hotel.findUniqueOrThrow({ where: { id: hotelId }, select: { name: true } })).name;
   const metrics = await getMetricsForDate(hotelId, latestDate);
   const availableKeys = new Set(metrics.map((m) => m.metricKey));
 
@@ -66,7 +75,7 @@ export async function generateExecutiveSummary(
 
   // Prompt selection (file-based Prompt Registry, Architecture §21).
   const userPrompt = buildExecutiveSummaryPrompt({
-    hotelName: hotel.name,
+    hotelName,
     reportDate: latestDate.toISOString().slice(0, 10),
     language,
     metricsBlock,

@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { logoutAction } from '../(app)/actions';
 import { getDictionary, locales, defaultLocale, dirFor, type Locale } from '@/i18n/config';
+import { AdminSidebar, type AdminNavItem } from './AdminSidebar';
 
 /**
  * Super Admin Console (Product Owner directive: "Normal hotel users must
@@ -39,7 +39,11 @@ export default async function AdminLayout(
 
   const dir = dirFor(locale);
 
-  const navItems: { href: string; label: string }[] = [
+  // Subscriptions/Licenses is intentionally not listed yet — that module
+  // doesn't exist until Phase 13 (Enterprise v2 working method: hide
+  // incomplete features rather than show a broken/placeholder nav entry).
+  const navItems: AdminNavItem[] = [
+    { href: `/${locale}/admin`, label: dict.admin.nav.overview },
     { href: `/${locale}/admin/hotels`, label: dict.admin.nav.hotels },
     { href: `/${locale}/admin/users`, label: dict.admin.nav.users },
     { href: `/${locale}/admin/roles`, label: dict.admin.nav.roles },
@@ -53,45 +57,13 @@ export default async function AdminLayout(
 
   return (
     <div className="flex min-h-screen flex-col bg-surface md:flex-row" dir={dir}>
-      {/* Sidebar, matching the hotel workspace's AppShell pattern (M8: the
-          previous top horizontal nav crammed 9 links + sign-out into one
-          flex-wrap row — cramped on any real viewport and the first thing
-          this audit's "no tiny horizontal navigation" note was written
-          about). */}
-      <aside className="flex shrink-0 flex-col justify-between border-ink/10 bg-surface-raised p-4 md:w-64 md:border-e">
-        <div className="space-y-6">
-          <div>
-            <p className="text-sm font-medium">{dict.admin.title}</p>
-            <p className="text-xs text-ink-muted">{dict.admin.subtitle}</p>
-          </div>
-          <nav className="space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-md px-3 py-2 text-sm hover:bg-surface"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-        <form
-          action={async () => {
-            'use server';
-            await logoutAction(locale);
-          }}
-        >
-          {/* The Platform Owner (isSuperAdmin) never has a HotelMembership
-              by design, so there is no hotel-facing area to "exit" into —
-              linking to /mission-control just bounced straight back here
-              (mission-control redirects Super Admins to /admin). A real
-              sign-out is the only meaningful action here. */}
-          <button type="submit" className="text-sm text-ink-muted hover:text-ink">
-            {dict.admin.exit}
-          </button>
-        </form>
-      </aside>
+      <AdminSidebar
+        title={dict.admin.title}
+        subtitle={dict.admin.subtitle}
+        navItems={navItems}
+        exitLabel={dict.admin.exit}
+        signOutAction={logoutAction.bind(null, locale)}
+      />
       <main className="flex-1 p-4 md:p-8">{children}</main>
     </div>
   );

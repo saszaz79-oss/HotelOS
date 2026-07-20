@@ -49,6 +49,7 @@
     "subtitle": "Platform Owner console — not part of the hotel-facing product",
     "exit": "Sign out",
     "nav": {
+      "overview": "Overview",
       "hotels": "Hotels",
       "users": "Users",
       "roles": "Roles & Permissions",
@@ -58,6 +59,33 @@
       "releaseNotes": "Release Notes",
       "support": "Support Access",
       "settings": "Platform Settings"
+    },
+    "overview": {
+      "title": "Overview",
+      "kpis": {
+        "hotelsTotal": "Hotels",
+        "hotelsActive": "Active hotels",
+        "hotelsSuspended": "Suspended hotels",
+        "usersTotal": "Total users",
+        "usersActive": "Active users",
+        "reportsTotal": "Reports uploaded",
+        "actionsLast24h": "Actions, last 24h",
+        "activeErrors": "Active system errors"
+      },
+      "recentHotels": "Recent hotels",
+      "recentUsers": "Recent users",
+      "recentAudit": "Recent audit events",
+      "serviceStatus": "Service status",
+      "quickActions": "Quick actions",
+      "actions": {
+        "createHotel": "Create hotel",
+        "createUser": "Create user",
+        "manageFeatures": "Manage feature flags",
+        "reviewAudit": "Review audit log"
+      },
+      "noHotelsYet": "No hotels yet.",
+      "noUsersYet": "No users yet.",
+      "noAuditYet": "No audit events yet."
     },
     "hotels": {
       "title": "Hotels",

@@ -49,6 +49,7 @@
     "subtitle": "لوحة مالك المنصة — ليست جزءاً من المنتج الموجه للفنادق",
     "exit": "تسجيل الخروج",
     "nav": {
+      "overview": "نظرة عامة",
       "hotels": "الفنادق",
       "users": "المستخدمون",
       "roles": "الأدوار والصلاحيات",
@@ -58,6 +59,33 @@
       "releaseNotes": "ملاحظات الإصدار",
       "support": "الوصول للدعم",
       "settings": "إعدادات المنصة"
+    },
+    "overview": {
+      "title": "نظرة عامة",
+      "kpis": {
+        "hotelsTotal": "عدد الفنادق",
+        "hotelsActive": "الفنادق النشطة",
+        "hotelsSuspended": "الفنادق المعلقة",
+        "usersTotal": "إجمالي المستخدمين",
+        "usersActive": "المستخدمون النشطون",
+        "reportsTotal": "التقارير المرفوعة",
+        "actionsLast24h": "عمليات آخر 24 ساعة",
+        "activeErrors": "أخطاء النظام النشطة"
+      },
+      "recentHotels": "آخر الفنادق",
+      "recentUsers": "آخر المستخدمين",
+      "recentAudit": "آخر أحداث سجل التدقيق",
+      "serviceStatus": "حالة الخدمات",
+      "quickActions": "إجراءات سريعة",
+      "actions": {
+        "createHotel": "إنشاء فندق",
+        "createUser": "إنشاء مستخدم",
+        "manageFeatures": "تفعيل ميزة",
+        "reviewAudit": "مراجعة سجل التدقيق"
+      },
+      "noHotelsYet": "لا توجد فنادق بعد.",
+      "noUsersYet": "لا يوجد مستخدمون بعد.",
+      "noAuditYet": "لا توجد أحداث تدقيق بعد."
     },
     "hotels": {
       "title": "الفنادق",

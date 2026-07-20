@@ -22,8 +22,16 @@ export const getLatestMetricDate = cache(async (hotelId: string): Promise<Date |
  * Metrics for a date, with provenance/quality joined in (Data Quality Engine,
  * Architecture §33) — every value on Mission Control must be able to show
  * its confidence, completeness, source report, and report date (PRD §6).
+ *
+ * `cache()`-wrapped for the same reason as `getLatestMetricDate` above:
+ * Mission Control fetches this directly for `metrics` and also triggers
+ * generateExecutiveSummary(), which independently re-fetches the identical
+ * (hotelId, date) pair for `citedMetrics` — this is the heavier of the two
+ * duplicated queries (a join across metricDefinition + sourceReportDocument
+ * + reportUpload), so deduping it is the higher-value half of the M7 fix
+ * documented on getLatestMetricDate (Perf sprint, M14).
  */
-export async function getMetricsForDate(hotelId: string, date: Date) {
+export const getMetricsForDate = cache(async (hotelId: string, date: Date) => {
   return prisma.hotelMetric.findMany({
     where: { hotelId, metricDate: date },
     include: {
@@ -31,7 +39,7 @@ export async function getMetricsForDate(hotelId: string, date: Date) {
       sourceReportDocument: { include: { reportUpload: { select: { originalFilename: true } } } },
     },
   });
-}
+});
 
 /** Most recent metricDate strictly before `beforeDate` — powers the Morning Brief's day-over-day trend, no other consumer needed this yet. */
 export async function getPreviousMetricDate(hotelId: string, beforeDate: Date): Promise<Date | null> {

@@ -62,10 +62,13 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
   }
 
   const hotelId = membership.hotelId;
-  const hasAnyUpload = (await prisma.reportUpload.count({ where: { hotelId } })) > 0;
   const latestDate = await getLatestMetricDate(hotelId);
 
   if (!latestDate) {
+    // Only needed to pick the empty-state copy on this already-empty path —
+    // fetching it unconditionally on every request (including the common
+    // case where latestDate exists) was a wasted round trip (Perf sprint, M14).
+    const hasAnyUpload = (await prisma.reportUpload.count({ where: { hotelId } })) > 0;
     return (
       <div className="max-w-3xl space-y-6">
         <h1 className="text-2xl font-medium text-ink">

@@ -1,10 +1,26 @@
 import { prisma } from '@/lib/prisma';
 
+interface OverviewCountsRow {
+  hotelsTotal: number;
+  hotelsActive: number;
+  hotelsSuspended: number;
+  usersTotal: number;
+  usersActive: number;
+  reportsTotal: number;
+  actionsLast24h: number;
+  activeErrors: number;
+}
+
 /**
- * Platform Owner Overview — CQRS reads only (Architecture §28), all
- * aggregate counts computed with Promise.all in one round-trip batch
- * rather than sequentially (M7 performance discipline). Every number here
- * comes from a real table; "active system errors" is
+ * Platform Owner Overview — CQRS reads only (Architecture §28). The 8 KPI
+ * counts are one round trip (subquery aggregates, cast to int since raw
+ * COUNT(*) comes back as bigint) instead of 8 separate `Promise.all`'d
+ * queries — Promise.all only parallelizes at the application-code level;
+ * under the pool's serverless-safe `max: 1` connection cap (src/lib/prisma.ts)
+ * those 8 "concurrent" queries were still executing one at a time against
+ * the single pooled connection, so merging them into one query is a real
+ * round-trip reduction, not just a code-style change (Perf sprint, M14).
+ * Every number still comes from a real table; "active system errors" is
  * ReportUpload.status='error' — the one persisted signal for "something is
  * currently broken and unresolved" this schema actually has, not a
  * fabricated health metric.
@@ -12,27 +28,18 @@ import { prisma } from '@/lib/prisma';
 export async function getPlatformOverview() {
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [
-    hotelsTotal,
-    hotelsActive,
-    hotelsSuspended,
-    usersTotal,
-    usersActive,
-    reportsTotal,
-    actionsLast24h,
-    activeErrors,
-    recentHotels,
-    recentUsers,
-    recentAudit,
-  ] = await Promise.all([
-    prisma.hotel.count(),
-    prisma.hotel.count({ where: { status: 'active' } }),
-    prisma.hotel.count({ where: { status: 'suspended' } }),
-    prisma.user.count({ where: { isSuperAdmin: false } }),
-    prisma.user.count({ where: { isSuperAdmin: false, status: 'active' } }),
-    prisma.reportUpload.count(),
-    prisma.auditLog.count({ where: { createdAt: { gte: oneDayAgo } } }),
-    prisma.reportUpload.count({ where: { status: 'error' } }),
+  const [[counts], recentHotels, recentUsers, recentAudit] = await Promise.all([
+    prisma.$queryRaw<OverviewCountsRow[]>`
+      SELECT
+        (SELECT COUNT(*) FROM "Hotel")::int AS "hotelsTotal",
+        (SELECT COUNT(*) FROM "Hotel" WHERE status = 'active')::int AS "hotelsActive",
+        (SELECT COUNT(*) FROM "Hotel" WHERE status = 'suspended')::int AS "hotelsSuspended",
+        (SELECT COUNT(*) FROM "User" WHERE "isSuperAdmin" = false)::int AS "usersTotal",
+        (SELECT COUNT(*) FROM "User" WHERE "isSuperAdmin" = false AND status = 'active')::int AS "usersActive",
+        (SELECT COUNT(*) FROM "ReportUpload")::int AS "reportsTotal",
+        (SELECT COUNT(*) FROM "AuditLog" WHERE "createdAt" >= ${oneDayAgo})::int AS "actionsLast24h",
+        (SELECT COUNT(*) FROM "ReportUpload" WHERE status = 'error')::int AS "activeErrors"
+    `,
     prisma.hotel.findMany({ orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, name: true, status: true, createdAt: true } }),
     prisma.user.findMany({
       where: { isSuperAdmin: false },
@@ -47,17 +54,13 @@ export async function getPlatformOverview() {
     }),
   ]);
 
+  // A single-row aggregate SELECT (no FROM/WHERE on the outer query) always
+  // returns exactly one row — the array-typed return of $queryRaw is what
+  // makes TS treat `counts` as possibly undefined, not any real runtime path.
+  if (!counts) throw new Error('getPlatformOverview: aggregate query returned no rows');
+
   return {
-    kpis: {
-      hotelsTotal,
-      hotelsActive,
-      hotelsSuspended,
-      usersTotal,
-      usersActive,
-      reportsTotal,
-      actionsLast24h,
-      activeErrors,
-    },
+    kpis: counts,
     recentHotels,
     recentUsers,
     recentAudit,

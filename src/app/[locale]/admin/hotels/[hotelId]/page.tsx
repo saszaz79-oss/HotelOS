@@ -1,8 +1,13 @@
+import Link from 'next/link';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { getHotelWithDetails } from '@/server/modules/hotels/queries';
 import { updateHotelAction, setHotelStatusAction } from './actions';
+import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { hotelStatusTone } from '@/lib/status-tone';
 
-const inputClass = 'w-full rounded-md border border-ink/10 bg-surface-raised px-3 py-2 text-sm';
+const inputClass = 'w-full rounded-md border border-ink/10 bg-surface-raised px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -30,86 +35,101 @@ export default async function AdminHotelDetailPage(
   if (!hotel) return <p className="text-ink-muted">Not found.</p>;
 
   return (
-    <div className="max-w-2xl space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-medium">{hotel.name}</h1>
+    <div className="max-w-3xl space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-medium text-ink">{hotel.name}</h1>
+          <StatusBadge tone={hotelStatusTone(hotel.status)}>{hotel.status}</StatusBadge>
+        </div>
         <div className="flex gap-2">
           <form action={setHotelStatusAction.bind(null, locale, hotel.id, 'active')}>
-            <button type="submit" className="rounded-md border border-ink/10 px-3 py-1.5 text-xs hover:bg-surface-raised">
+            <Button type="submit" variant="secondary" size="sm">
               {dict.admin.hotels.activate}
-            </button>
+            </Button>
           </form>
           <form action={setHotelStatusAction.bind(null, locale, hotel.id, 'suspended')}>
-            <button type="submit" className="rounded-md border border-ink/10 px-3 py-1.5 text-xs hover:bg-surface-raised">
+            <Button type="submit" variant="secondary" size="sm">
               {dict.admin.hotels.suspend}
-            </button>
+            </Button>
           </form>
           <form action={setHotelStatusAction.bind(null, locale, hotel.id, 'archived')}>
-            <button type="submit" className="rounded-md border border-ink/10 px-3 py-1.5 text-xs hover:bg-surface-raised">
+            <Button type="submit" variant="danger" size="sm">
               {dict.admin.hotels.archive}
-            </button>
+            </Button>
           </form>
         </div>
       </div>
-      <p className="text-sm">
-        {dict.admin.hotels.status}: <span className="metric-value">{hotel.status}</span>
-      </p>
 
-      <form action={updateHotelAction.bind(null, locale, hotel.id)} className="grid grid-cols-2 gap-4">
-        <Field label={dict.admin.hotels.name}>
-          <input name="name" defaultValue={hotel.name} required className={inputClass} />
-        </Field>
-        <Field label={dict.admin.hotels.logo}>
-          <input name="logoUrl" type="url" defaultValue={hotel.logoUrl ?? ''} className={inputClass} />
-        </Field>
-        <Field label={dict.admin.hotels.country}>
-          <input name="country" defaultValue={hotel.country} required className={inputClass} />
-        </Field>
-        <Field label={dict.admin.hotels.city}>
-          <input name="city" defaultValue={hotel.city} required className={inputClass} />
-        </Field>
-        <Field label={dict.admin.hotels.currency}>
-          <input name="currency" defaultValue={hotel.currency} required className={inputClass} />
-        </Field>
-        <Field label={dict.admin.hotels.timezone}>
-          <input name="timezone" defaultValue={hotel.timezone} required className={inputClass} />
-        </Field>
-        <Field label={dict.admin.hotels.totalRooms}>
-          <input name="totalRooms" type="number" min={1} defaultValue={hotel.totalRooms} required className={inputClass} />
-        </Field>
-        <Field label={dict.admin.hotels.pmsType}>
-          <input name="pmsType" defaultValue={hotel.pmsType ?? ''} className={inputClass} />
-        </Field>
-        <Field label={dict.admin.hotels.licenseStart}>
-          <input name="licenseStartDate" type="date" defaultValue={isoDate(hotel.licenseStartDate)} className={inputClass} />
-        </Field>
-        <Field label={dict.admin.hotels.licenseExpiry}>
-          <input name="licenseExpiryDate" type="date" defaultValue={isoDate(hotel.licenseExpiryDate)} className={inputClass} />
-        </Field>
-        <Field label={dict.admin.hotels.subscriptionPlan}>
-          <select name="subscriptionPlan" defaultValue={hotel.subscription?.plan ?? 'pilot'} className={inputClass}>
-            <option value="pilot">Pilot</option>
-            <option value="standard">Standard</option>
-            <option value="enterprise">Enterprise</option>
-          </select>
-        </Field>
-        <div className="col-span-2">
-          <button type="submit" className="rounded-md bg-accent px-4 py-2 text-sm text-white">
-            {dict.admin.hotels.saveEdit}
-          </button>
-        </div>
-      </form>
+      <div className="flex flex-wrap gap-2">
+        <Link href={`/${locale}/admin/feature-flags/${hotel.id}`}>
+          <Button variant="secondary" size="sm">{dict.admin.nav.featureFlags}</Button>
+        </Link>
+        <Link href={`/${locale}/admin/support/${hotel.id}`}>
+          <Button variant="secondary" size="sm">{dict.admin.nav.support}</Button>
+        </Link>
+      </div>
 
-      <section>
-        <h2 className="text-sm font-medium text-ink-muted">{dict.admin.hotels.members}</h2>
-        <ul className="mt-2 space-y-1 text-sm">
+      <Card>
+        <CardHeader>
+          <CardTitle>{dict.admin.hotels.title}</CardTitle>
+        </CardHeader>
+        <form action={updateHotelAction.bind(null, locale, hotel.id)} className="grid grid-cols-2 gap-4">
+          <Field label={dict.admin.hotels.name}>
+            <input name="name" defaultValue={hotel.name} required className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.logo}>
+            <input name="logoUrl" type="url" defaultValue={hotel.logoUrl ?? ''} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.country}>
+            <input name="country" defaultValue={hotel.country} required className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.city}>
+            <input name="city" defaultValue={hotel.city} required className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.currency}>
+            <input name="currency" defaultValue={hotel.currency} required className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.timezone}>
+            <input name="timezone" defaultValue={hotel.timezone} required className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.totalRooms}>
+            <input name="totalRooms" type="number" min={1} defaultValue={hotel.totalRooms} required className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.pmsType}>
+            <input name="pmsType" defaultValue={hotel.pmsType ?? ''} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.licenseStart}>
+            <input name="licenseStartDate" type="date" defaultValue={isoDate(hotel.licenseStartDate)} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.licenseExpiry}>
+            <input name="licenseExpiryDate" type="date" defaultValue={isoDate(hotel.licenseExpiryDate)} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.subscriptionPlan}>
+            <select name="subscriptionPlan" defaultValue={hotel.subscription?.plan ?? 'pilot'} className={inputClass}>
+              <option value="pilot">Pilot</option>
+              <option value="standard">Standard</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </Field>
+          <div className="col-span-2">
+            <Button type="submit">{dict.admin.hotels.saveEdit}</Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{dict.admin.hotels.members}</CardTitle>
+        </CardHeader>
+        <ul className="divide-y divide-ink/5 text-sm">
           {hotel.memberships.map((m) => (
-            <li key={m.id}>
-              {m.user.displayName} ({m.user.username}) — {m.role}
+            <li key={m.id} className="flex items-center justify-between py-2">
+              <span className="text-ink">{m.user.displayName} ({m.user.username})</span>
+              <span className="text-ink-muted">{m.role}</span>
             </li>
           ))}
         </ul>
-      </section>
+      </Card>
     </div>
   );
 }

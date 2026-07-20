@@ -61,11 +61,33 @@ function resolveConnection(): { connectionString: string; ssl?: ReturnType<typeo
 
 const globalForPrisma = globalThis as unknown as { __hotelosPrisma?: PrismaClient };
 
+/**
+ * Capped to 1 connection per pool, always — this process/isolate is one of
+ * potentially many concurrent Vercel serverless instances (or Cloudflare
+ * Worker isolates behind Hyperdrive, which already pools centrally on its
+ * own side), each getting its own `pg.Pool` here. Supabase's session-mode
+ * pooler caps *global* concurrent clients at a fixed number (15 on this
+ * project) — several instances each defaulting to `pg`'s standard pool max
+ * (10) can exhaust that from a handful of concurrent requests alone
+ * (reproduced in production: EMAXCONNSESSION on /admin from ordinary
+ * traffic, not a leak). `max: 1` bounds each instance's worst-case
+ * contribution to exactly one connection, matching how the Vercel
+ * DATABASE_URL should also point at Supabase's *transaction*-mode pooler
+ * (port 6543, not the session-mode 5432 used only by migrate/seed) for the
+ * same reason: transaction mode hands the underlying connection back after
+ * each query instead of holding it for the connection's lifetime.
+ */
+const POOL_MAX_CONNECTIONS = 1;
+
 /** Constructed once per isolate/process, cached on globalThis — same reuse pattern already documented for the in-process Event Bus (Architecture §17). */
 function getRealClient(): PrismaClient {
   if (!globalForPrisma.__hotelosPrisma) {
     const { connectionString, ssl } = resolveConnection();
-    const adapter = new PrismaPg(ssl !== undefined ? { connectionString, ssl } : { connectionString });
+    const adapter = new PrismaPg({
+      connectionString,
+      ...(ssl !== undefined ? { ssl } : {}),
+      max: POOL_MAX_CONNECTIONS,
+    });
     globalForPrisma.__hotelosPrisma = new PrismaClient({ adapter });
   }
   return globalForPrisma.__hotelosPrisma;

@@ -3,31 +3,57 @@
 @tailwind utilities;
 
 /*
- * Placeholder token values (Phase 1, M1). Final palette/typography is
- * finalized against Apple/Linear/Stripe/Tesla mission-control references
- * before Mission Control screens are built out (DECISIONS.md D11).
+ * Enterprise design system, Phase 1 (HotelOS Enterprise v2). Replaces the
+ * placeholder tokens from the original MVP scaffold — every existing screen
+ * already consumes these same variable names via Tailwind's bg-surface/
+ * text-ink/bg-accent/text-status-* classes (tailwind.config.ts), so
+ * redefining the values here re-skins the entire product without touching
+ * component code. `primary` (deep navy) is new: large brand surfaces
+ * (sidebars, headers) built from Phase 2 onward use it; `accent` (muted
+ * gold) keeps its existing role as the interactive/CTA color, since every
+ * current button/link already targets bg-accent — gold reads well as a
+ * button color against both the ivory light background and the navy dark
+ * background, so this is a deliberate, low-risk mapping rather than a
+ * forced rename across every file in one pass.
  */
 :root {
-  --surface: 40 20% 98%;
+  --surface: 38 35% 97%;
   --surface-raised: 0 0% 100%;
-  --ink: 220 15% 15%;
-  --ink-muted: 220 10% 45%;
-  --accent: 205 60% 30%;
-  --status-positive: 150 45% 35%;
-  --status-warning: 38 80% 45%;
-  --status-critical: 5 65% 45%;
-  --status-info: 210 50% 45%;
+  --ink: 222 25% 14%;
+  --ink-muted: 222 12% 42%;
+
+  --primary: 220 45% 20%;
+  --primary-hover: 220 42% 27%;
+
+  --accent: 38 55% 48%;
+  --accent-hover: 38 58% 40%;
+
+  --status-positive: 150 38% 32%;
+  --status-warning: 36 78% 46%;
+  --status-critical: 4 62% 44%;
+  --status-info: 210 45% 42%;
 
   --font-sans: 'Inter', system-ui, sans-serif;
-  --font-arabic: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-arabic: 'Cairo', system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --surface: 220 20% 10%;
-    --surface-raised: 220 18% 14%;
-    --ink: 220 15% 95%;
-    --ink-muted: 220 10% 65%;
+    --surface: 222 28% 10%;
+    --surface-raised: 222 24% 15%;
+    --ink: 38 20% 95%;
+    --ink-muted: 220 10% 68%;
+
+    --primary: 220 40% 55%;
+    --primary-hover: 220 45% 62%;
+
+    --accent: 40 60% 58%;
+    --accent-hover: 40 62% 65%;
+
+    --status-positive: 150 40% 45%;
+    --status-warning: 38 80% 55%;
+    --status-critical: 4 65% 58%;
+    --status-info: 210 50% 60%;
   }
 }
 

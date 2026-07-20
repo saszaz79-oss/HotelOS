@@ -1,11 +1,13 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Design tokens are intentionally minimal at this stage (Phase 1, M1).
- * UX_SYSTEM.md's visual language (Apple/Linear/Stripe/Tesla mission-control
- * references) will be translated into finalized tokens before Mission
- * Control screens are built (see DECISIONS.md D11 consequences) — this file
- * is the seam they land in, not the final system.
+ * Enterprise design system (HotelOS Enterprise v2, Phase 1). Values live in
+ * src/app/globals.css as HSL CSS custom properties — this file only maps
+ * them to Tailwind utility names, so every existing bg-surface/text-ink/
+ * bg-accent/text-status-* class across the app picks up the new palette
+ * automatically. `primary` (deep navy) is new, for large brand surfaces
+ * built from Phase 2 onward; `accent` (muted gold) keeps its existing role
+ * as the interactive/CTA color already used throughout the MVP.
  */
 const config: Config = {
   darkMode: ['class'],
@@ -21,8 +23,13 @@ const config: Config = {
           DEFAULT: 'hsl(var(--ink))',
           muted: 'hsl(var(--ink-muted))',
         },
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          hover: 'hsl(var(--primary-hover))',
+        },
         accent: {
           DEFAULT: 'hsl(var(--accent))',
+          hover: 'hsl(var(--accent-hover))',
         },
         status: {
           positive: 'hsl(var(--status-positive))',

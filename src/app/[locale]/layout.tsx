@@ -1,6 +1,30 @@
 import type { Metadata } from 'next';
+import { Inter, Cairo } from 'next/font/google';
 import { locales, defaultLocale, dirFor, type Locale } from '@/i18n/config';
 import '../globals.css';
+
+/**
+ * Enterprise design system, Phase 1 (v2): the CSS custom properties in
+ * globals.css referenced 'Inter'/'IBM Plex Sans Arabic' by name since the
+ * project's earliest commit, but nothing ever actually loaded them — every
+ * screen has been rendering in the browser's system-ui fallback the whole
+ * time. next/font self-hosts both (no external request at runtime, no
+ * layout shift) and exposes them as the same --font-sans/--font-arabic
+ * variables globals.css already consumes, so no other file needs to change.
+ */
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+const cairo = Cairo({
+  subsets: ['arabic', 'latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-arabic',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'HotelOS',
@@ -28,7 +52,7 @@ export default async function LocaleLayout(
   const dir = dirFor(locale);
 
   return (
-    <html lang={locale} dir={dir}>
+    <html lang={locale} dir={dir} className={`${inter.variable} ${cairo.variable}`}>
       <body>{children}</body>
     </html>
   );

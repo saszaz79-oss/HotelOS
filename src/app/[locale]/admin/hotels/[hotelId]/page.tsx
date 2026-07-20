@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { hotelStatusTone } from '@/lib/status-tone';
 
-const inputClass = 'w-full rounded-md border border-ink/10 bg-surface-raised px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
+const inputClass =
+  'w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm backdrop-blur-xl transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -38,7 +39,7 @@ export default async function AdminHotelDetailPage(
     <div className="max-w-3xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-medium text-ink">{hotel.name}</h1>
+          <h1 className="text-lg font-semibold text-ink">{hotel.name}</h1>
           <StatusBadge tone={hotelStatusTone(hotel.status)}>{hotel.status}</StatusBadge>
         </div>
         <div className="flex gap-2">

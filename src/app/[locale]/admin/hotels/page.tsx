@@ -5,7 +5,12 @@ import type { HotelStatus } from '@prisma/client';
 import { Card } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
+import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
 import { hotelStatusTone } from '@/lib/status-tone';
+
+const filterFieldClass =
+  'rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm backdrop-blur-xl transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 const STATUS_VALUES: HotelStatus[] = ['active', 'suspended', 'archived'];
 
@@ -37,9 +42,9 @@ export default async function AdminHotelsPage(
   return (
     <div className="max-w-5xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-medium text-ink">{dict.admin.hotels.title}</h1>
-        <Link href={`/${locale}/admin/hotels/new`} className="rounded-md bg-accent px-4 py-2 text-sm text-white hover:bg-accent-hover">
-          {dict.admin.hotels.create}
+        <h1 className="text-lg font-semibold text-ink">{dict.admin.hotels.title}</h1>
+        <Link href={`/${locale}/admin/hotels/new`}>
+          <Button size="sm">{dict.admin.hotels.create}</Button>
         </Link>
       </div>
 
@@ -51,22 +56,18 @@ export default async function AdminHotelsPage(
           name="q"
           defaultValue={search}
           placeholder={dict.admin.hotels.searchPlaceholder}
-          className="min-w-[220px] flex-1 rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className={`min-w-[220px] flex-1 ${filterFieldClass}`}
         />
-        <select
-          name="status"
-          defaultValue={statusFilter ?? ''}
-          className="rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-        >
+        <select name="status" defaultValue={statusFilter ?? ''} className={filterFieldClass}>
           {filterOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
           ))}
         </select>
-        <button type="submit" className="rounded-md border border-ink/15 bg-surface-raised px-4 py-2 text-sm text-ink hover:bg-surface">
+        <Button type="submit" variant="secondary" size="sm">
           {dict.admin.hotels.searchPlaceholder.split(' ')[0]}
-        </button>
+        </Button>
       </form>
 
       {hotels.length === 0 ? (
@@ -74,40 +75,40 @@ export default async function AdminHotelsPage(
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden overflow-hidden rounded-lg border border-ink/10 md:block">
+          <TableShell className="hidden md:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-ink/10 bg-surface-raised text-start text-ink-muted">
-                  <th className="px-4 py-2.5 text-start">{dict.admin.hotels.name}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.admin.hotels.country}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.admin.hotels.subscriptionPlan}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.admin.hotels.status}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.admin.hotels.members}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.admin.hotels.reportsCount}</th>
+                <tr className={tableHeadRowClass}>
+                  <th className={tableHeadCellClass}>{dict.admin.hotels.name}</th>
+                  <th className={tableHeadCellClass}>{dict.admin.hotels.country}</th>
+                  <th className={tableHeadCellClass}>{dict.admin.hotels.subscriptionPlan}</th>
+                  <th className={tableHeadCellClass}>{dict.admin.hotels.status}</th>
+                  <th className={tableHeadCellClass}>{dict.admin.hotels.members}</th>
+                  <th className={tableHeadCellClass}>{dict.admin.hotels.reportsCount}</th>
                 </tr>
               </thead>
               <tbody>
                 {hotels.map((h) => (
-                  <tr key={h.id} className="border-b border-ink/5 last:border-0">
-                    <td className="px-4 py-2.5">
-                      <Link href={`/${locale}/admin/hotels/${h.id}`} className="text-ink hover:text-accent hover:underline">
+                  <tr key={h.id} className={tableRowClass}>
+                    <td className={tableCellClass}>
+                      <Link href={`/${locale}/admin/hotels/${h.id}`} className="font-medium text-ink hover:text-accent hover:underline">
                         {h.name}
                       </Link>
                     </td>
-                    <td className="px-4 py-2.5 text-ink-muted">
+                    <td className={`${tableCellClass} text-ink-muted`}>
                       {h.city}, {h.country}
                     </td>
-                    <td className="px-4 py-2.5 text-ink-muted">{h.subscription?.plan ?? '—'}</td>
-                    <td className="px-4 py-2.5">
+                    <td className={`${tableCellClass} text-ink-muted`}>{h.subscription?.plan ?? '—'}</td>
+                    <td className={tableCellClass}>
                       <StatusBadge tone={hotelStatusTone(h.status)}>{h.status}</StatusBadge>
                     </td>
-                    <td className="metric-value px-4 py-2.5">{h._count.memberships}</td>
-                    <td className="metric-value px-4 py-2.5">{h._count.reportUploads}</td>
+                    <td className={`metric-value ${tableCellClass}`}>{h._count.memberships}</td>
+                    <td className={`metric-value ${tableCellClass}`}>{h._count.reportUploads}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableShell>
 
           {/* Mobile cards */}
           <div className="space-y-3 md:hidden">

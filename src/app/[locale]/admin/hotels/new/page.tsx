@@ -8,7 +8,7 @@ export default async function NewHotelPage(props: { params: Promise<{ locale: st
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-medium">{dict.admin.hotels.create}</h1>
+      <h1 className="text-lg font-semibold text-ink">{dict.admin.hotels.create}</h1>
       <NewHotelForm locale={locale} dict={dict.admin.hotels} />
     </div>
   );

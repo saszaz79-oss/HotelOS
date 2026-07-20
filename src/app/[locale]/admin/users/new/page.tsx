@@ -10,7 +10,7 @@ export default async function NewUserPage(props: { params: Promise<{ locale: str
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-medium">{dict.admin.users.create}</h1>
+      <h1 className="text-lg font-semibold text-ink">{dict.admin.users.create}</h1>
       <NewUserForm dict={dict.admin.users} hotels={hotels.map((h) => ({ id: h.id, name: h.name }))} />
     </div>
   );

@@ -9,7 +9,8 @@ import { userStatusTone } from '@/lib/status-tone';
 
 const ROLES = ['HOTEL_ADMIN', 'GENERAL_MANAGER', 'FRONT_OFFICE_MANAGER', 'REVENUE_MANAGER', 'ANALYST', 'READ_ONLY'];
 
-const selectClass = 'rounded-md border border-ink/15 bg-surface-raised px-3 py-1.5 text-xs focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
+const selectClass =
+  'rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-1.5 text-xs backdrop-blur-xl transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 export default async function AdminUserDetailPage(
   props: {
@@ -26,7 +27,7 @@ export default async function AdminUserDetailPage(
   return (
     <div className="max-w-2xl space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-medium text-ink">{user.displayName}</h1>
+        <h1 className="text-lg font-semibold text-ink">{user.displayName}</h1>
         <StatusBadge tone={userStatusTone(user.status)}>{user.status}</StatusBadge>
         {user.isSuperAdmin ? <StatusBadge tone="info">{locale === 'ar' ? 'مالك المنصة' : 'Platform Owner'}</StatusBadge> : null}
         {user.mustChangePassword ? <StatusBadge tone="warning">{dict.admin.users.mustChangePassword}</StatusBadge> : null}

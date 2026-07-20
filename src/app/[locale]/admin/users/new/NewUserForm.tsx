@@ -2,6 +2,8 @@
 
 import { useFormState, useFormStatus } from 'react-dom';
 import { createUserAction, type CreateUserActionState } from './actions';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 
 interface Dict {
   username: string;
@@ -15,14 +17,15 @@ interface Dict {
 
 const ROLES = ['HOTEL_ADMIN', 'GENERAL_MANAGER', 'FRONT_OFFICE_MANAGER', 'REVENUE_MANAGER', 'ANALYST', 'READ_ONLY'];
 
-const inputClass = 'w-full rounded-md border border-ink/10 bg-surface-raised px-3 py-2 text-sm';
+const inputClass =
+  'w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm backdrop-blur-xl transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className="rounded-md bg-accent px-4 py-2 text-sm text-white disabled:opacity-60">
-      {pending ? '…' : label}
-    </button>
+    <Button type="submit" loading={pending}>
+      {label}
+    </Button>
   );
 }
 
@@ -33,13 +36,13 @@ export function NewUserForm({ dict, hotels }: { dict: Dict; hotels: { id: string
 
   if (state.result) {
     return (
-      <div className="max-w-md space-y-3 rounded-md border border-status-positive/40 bg-status-positive/10 p-4">
+      <Card className="max-w-md space-y-3">
         <p className="text-sm">{dict.createdSuccess}</p>
-        <div className="rounded bg-surface-raised p-3 font-mono text-sm">
+        <div className="rounded-lg bg-ink/5 p-3 font-mono text-sm">
           <div>Username: {state.result.username}</div>
           <div>Password: {state.result.temporaryPassword}</div>
         </div>
-      </div>
+      </Card>
     );
   }
 

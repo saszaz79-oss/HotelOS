@@ -5,7 +5,12 @@ import type { UserStatus } from '@prisma/client';
 import { Card } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
+import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
 import { userStatusTone } from '@/lib/status-tone';
+
+const filterFieldClass =
+  'rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm backdrop-blur-xl transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 const STATUS_VALUES: UserStatus[] = ['active', 'disabled'];
 
@@ -47,9 +52,9 @@ export default async function AdminUsersPage(
   return (
     <div className="max-w-5xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-medium text-ink">{dict.admin.users.title}</h1>
-        <Link href={`/${locale}/admin/users/new`} className="rounded-md bg-accent px-4 py-2 text-sm text-white hover:bg-accent-hover">
-          {dict.admin.users.create}
+        <h1 className="text-lg font-semibold text-ink">{dict.admin.users.title}</h1>
+        <Link href={`/${locale}/admin/users/new`}>
+          <Button size="sm">{dict.admin.users.create}</Button>
         </Link>
       </div>
 
@@ -59,62 +64,58 @@ export default async function AdminUsersPage(
           name="q"
           defaultValue={search}
           placeholder={dict.admin.users.searchPlaceholder}
-          className="min-w-[220px] flex-1 rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className={`min-w-[220px] flex-1 ${filterFieldClass}`}
         />
-        <select
-          name="status"
-          defaultValue={statusFilter ?? ''}
-          className="rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-        >
+        <select name="status" defaultValue={statusFilter ?? ''} className={filterFieldClass}>
           {filterOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
           ))}
         </select>
-        <button type="submit" className="rounded-md border border-ink/15 bg-surface-raised px-4 py-2 text-sm text-ink hover:bg-surface">
+        <Button type="submit" variant="secondary" size="sm">
           {dict.admin.users.searchPlaceholder.split(' ')[0]}
-        </button>
+        </Button>
       </form>
 
       {users.length === 0 ? (
         <EmptyState title={dict.admin.users.noResults} />
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-lg border border-ink/10 md:block">
+          <TableShell className="hidden md:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-ink/10 bg-surface-raised text-start text-ink-muted">
-                  <th className="px-4 py-2.5 text-start">{dict.admin.users.username}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.admin.users.displayName}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.admin.users.hotel}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.admin.users.role}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.admin.users.status}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.admin.users.lastLogin}</th>
+                <tr className={tableHeadRowClass}>
+                  <th className={tableHeadCellClass}>{dict.admin.users.username}</th>
+                  <th className={tableHeadCellClass}>{dict.admin.users.displayName}</th>
+                  <th className={tableHeadCellClass}>{dict.admin.users.hotel}</th>
+                  <th className={tableHeadCellClass}>{dict.admin.users.role}</th>
+                  <th className={tableHeadCellClass}>{dict.admin.users.status}</th>
+                  <th className={tableHeadCellClass}>{dict.admin.users.lastLogin}</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((u) => (
-                  <tr key={u.id} className="border-b border-ink/5 last:border-0">
-                    <td className="px-4 py-2.5">
-                      <Link href={`/${locale}/admin/users/${u.id}`} className="text-ink hover:text-accent hover:underline">
+                  <tr key={u.id} className={tableRowClass}>
+                    <td className={tableCellClass}>
+                      <Link href={`/${locale}/admin/users/${u.id}`} className="font-medium text-ink hover:text-accent hover:underline">
                         {u.username}
                       </Link>
                     </td>
-                    <td className="px-4 py-2.5 text-ink-muted">{u.displayName}</td>
-                    <td className="px-4 py-2.5 text-ink-muted">{hotelSummary(u, allHotelsLabel)}</td>
-                    <td className="px-4 py-2.5 text-ink-muted">{roleSummary(u)}</td>
-                    <td className="px-4 py-2.5">
+                    <td className={`${tableCellClass} text-ink-muted`}>{u.displayName}</td>
+                    <td className={`${tableCellClass} text-ink-muted`}>{hotelSummary(u, allHotelsLabel)}</td>
+                    <td className={`${tableCellClass} text-ink-muted`}>{roleSummary(u)}</td>
+                    <td className={tableCellClass}>
                       <StatusBadge tone={userStatusTone(u.status)}>{u.status}</StatusBadge>
                     </td>
-                    <td className="px-4 py-2.5 text-ink-muted">
+                    <td className={`${tableCellClass} text-ink-muted`}>
                       {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString(locale) : dict.admin.users.never}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableShell>
 
           <div className="space-y-3 md:hidden">
             {users.map((u) => (

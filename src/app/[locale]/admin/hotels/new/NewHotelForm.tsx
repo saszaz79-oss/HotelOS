@@ -3,6 +3,8 @@
 import { useFormState, useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { createHotelAction, type CreateHotelActionState } from './actions';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import type { Locale } from '@/i18n/config';
 
 interface Dict {
@@ -34,14 +36,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const inputClass = 'w-full rounded-md border border-ink/10 bg-surface-raised px-3 py-2 text-sm';
+const inputClass =
+  'w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm backdrop-blur-xl transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className="rounded-md bg-accent px-4 py-2 text-sm text-white disabled:opacity-60">
-      {pending ? '…' : label}
-    </button>
+    <Button type="submit" loading={pending}>
+      {label}
+    </Button>
   );
 }
 
@@ -52,16 +55,16 @@ export function NewHotelForm({ locale, dict }: { locale: Locale; dict: Dict }) {
 
   if (state.result) {
     return (
-      <div className="max-w-md space-y-3 rounded-md border border-status-positive/40 bg-status-positive/10 p-4">
+      <Card className="max-w-md space-y-3 border-status-positive/30">
         <p className="text-sm">{dict.createdSuccess}</p>
-        <div className="rounded bg-surface-raised p-3 font-mono text-sm">
+        <div className="rounded-lg bg-ink/5 p-3 font-mono text-sm">
           <div>Username: {state.result.adminUsername}</div>
           <div>Password: {state.result.temporaryPassword}</div>
         </div>
         <Link href={`/${locale}/admin/hotels/${state.result.hotelId}`} className="text-sm text-accent hover:underline">
           View hotel →
         </Link>
-      </div>
+      </Card>
     );
   }
 
@@ -107,8 +110,8 @@ export function NewHotelForm({ locale, dict }: { locale: Locale; dict: Dict }) {
         </Field>
       </div>
 
-      <div className="space-y-4 rounded-md border border-ink/10 p-4">
-        <h2 className="text-sm font-medium">{dict.adminSectionTitle}</h2>
+      <Card className="space-y-4">
+        <h2 className="text-sm font-medium text-ink">{dict.adminSectionTitle}</h2>
         <div className="grid grid-cols-2 gap-4">
           <Field label={dict.adminUsername}>
             <input name="adminUsername" required className={inputClass} />
@@ -117,7 +120,7 @@ export function NewHotelForm({ locale, dict }: { locale: Locale; dict: Dict }) {
             <input name="adminDisplayName" required className={inputClass} />
           </Field>
         </div>
-      </div>
+      </Card>
 
       {state.error ? (
         <p role="alert" className="text-sm text-status-critical">

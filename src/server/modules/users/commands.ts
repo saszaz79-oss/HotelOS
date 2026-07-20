@@ -84,3 +84,30 @@ export async function setUserStatus(actingUser: User, targetUserId: string, stat
   }
   await audit({ hotelId: null, userId: actingUser.id, action: 'admin.user_status_change', metadata: { targetUserId, status } });
 }
+
+/**
+ * Forces mustChangePassword=true without issuing a new password (unlike
+ * resetUserPassword) — the user keeps their current password but is
+ * required to change it on next login. Still invalidates existing
+ * sessions so the requirement can't be bypassed by an already-open tab.
+ */
+export async function forceChangePassword(actingUser: User, targetUserId: string): Promise<void> {
+  requireSuperAdmin(actingUser);
+  await prisma.user.update({ where: { id: targetUserId }, data: { mustChangePassword: true } });
+  await prisma.session.deleteMany({ where: { userId: targetUserId } });
+  await audit({ hotelId: null, userId: actingUser.id, action: 'admin.password_change_forced', metadata: { targetUserId } });
+}
+
+export async function changeUserRole(actingUser: User, membershipId: string, role: HotelRole): Promise<void> {
+  requireSuperAdmin(actingUser);
+  const membership = await prisma.hotelMembership.update({
+    where: { id: membershipId },
+    data: { role },
+  });
+  await audit({
+    hotelId: membership.hotelId,
+    userId: actingUser.id,
+    action: 'admin.user_role_change',
+    metadata: { targetUserId: membership.userId, membershipId, role },
+  });
+}

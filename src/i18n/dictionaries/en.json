@@ -111,6 +111,13 @@
       "suspend": "Suspend",
       "archive": "Archive",
       "members": "Members",
+      "reportsCount": "Reports",
+      "searchPlaceholder": "Search by name, city, or country…",
+      "filterAll": "All",
+      "filterActive": "Active",
+      "filterSuspended": "Suspended",
+      "filterArchived": "Archived",
+      "noResults": "No hotels match your search.",
       "createdSuccess": "Hotel created. Share these credentials with the Hotel Admin securely — this password is shown only once:",
       "usernameTaken": "That username is already taken."
     },

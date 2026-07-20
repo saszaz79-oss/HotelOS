@@ -111,6 +111,13 @@
       "suspend": "تعليق",
       "archive": "أرشفة",
       "members": "الأعضاء",
+      "reportsCount": "التقارير",
+      "searchPlaceholder": "ابحث بالاسم أو المدينة أو الدولة…",
+      "filterAll": "الكل",
+      "filterActive": "نشط",
+      "filterSuspended": "معلّق",
+      "filterArchived": "مؤرشف",
+      "noResults": "لا توجد فنادق مطابقة لبحثك.",
       "createdSuccess": "تم إنشاء الفندق. شارك بيانات الاعتماد التالية مع مسؤول الفندق بشكل آمن — تُعرض كلمة المرور هذه مرة واحدة فقط:",
       "usernameTaken": "اسم المستخدم هذا مستخدم بالفعل."
     },

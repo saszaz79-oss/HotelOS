@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatusBadge, type StatusTone } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
+import { hotelStatusTone, userStatusTone } from '@/lib/status-tone';
 
 async function checkDatabase(): Promise<boolean> {
   try {
@@ -15,16 +16,6 @@ async function checkDatabase(): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function hotelStatusTone(status: string): StatusTone {
-  if (status === 'active') return 'positive';
-  if (status === 'suspended') return 'warning';
-  return 'neutral';
-}
-
-function userStatusTone(status: string): StatusTone {
-  return status === 'active' ? 'positive' : 'neutral';
 }
 
 export default async function AdminOverviewPage(props: { params: Promise<{ locale: string }> }) {

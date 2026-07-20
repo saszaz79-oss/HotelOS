@@ -4,6 +4,9 @@ import { getCurrentUser } from '@/server/modules/auth/session';
 import { getActiveMembership } from '@/server/modules/hotels/access';
 import { listReportUploads } from '@/server/modules/reports/queries';
 import { UploadForm } from './UploadForm';
+import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { reportStatusTone } from '@/lib/status-tone';
 
 export default async function ReportsUploadPage(props: { params: Promise<{ locale: string }> }) {
   const params = await props.params;
@@ -32,25 +35,28 @@ export default async function ReportsUploadPage(props: { params: Promise<{ local
 
       <UploadForm locale={locale} hotelId={membership.hotelId} dict={dict.reportsUpload} />
 
-      <div>
-        <h2 className="text-sm font-medium text-ink-muted">{dict.reportsUpload.recentUploads}</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>{dict.reportsUpload.recentUploads}</CardTitle>
+        </CardHeader>
         {uploads.length === 0 ? (
-          <p className="mt-2 text-sm text-ink-muted">{dict.reportsUpload.noUploads}</p>
+          <p className="text-sm text-ink-muted">{dict.reportsUpload.noUploads}</p>
         ) : (
-          <ul className="mt-2 divide-y divide-ink/10 rounded-md border border-ink/10">
+          <ul className="divide-y divide-ink/5 text-sm">
             {uploads.map((u) => (
-              <li key={u.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                <Link href={`/${locale}/reports/${u.id}`} className="hover:underline">
+              <li key={u.id} className="flex items-center justify-between gap-3 py-2.5">
+                <Link href={`/${locale}/reports/${u.id}`} className="truncate text-ink hover:underline">
                   {u.originalFilename}
                 </Link>
-                <span className="text-ink-muted">
-                  {u.status} · {new Date(u.createdAt).toLocaleString(locale)}
-                </span>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-xs text-ink-muted">{new Date(u.createdAt).toLocaleString(locale)}</span>
+                  <StatusBadge tone={reportStatusTone(u.status)}>{u.status}</StatusBadge>
+                </div>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

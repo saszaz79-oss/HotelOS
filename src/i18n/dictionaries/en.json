@@ -210,7 +210,13 @@
       "STORAGE_UNAVAILABLE": "Upload storage is temporarily unavailable. Please try again shortly or contact support if this continues.",
       "UPLOAD_FAILED": "The upload could not be completed. Please try again."
     },
-    "success": "Uploaded successfully."
+    "success": "Uploaded successfully.",
+    "dragDropHint": "Drag and drop PDF files here, or",
+    "browse": "browse to select files",
+    "remove": "Remove",
+    "retry": "Retry",
+    "clear": "Clear finished",
+    "queued": "Queued"
   },
   "reportsArchive": {
     "title": "Reports Archive",

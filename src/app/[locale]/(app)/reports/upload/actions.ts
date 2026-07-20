@@ -10,16 +10,13 @@ import type { Locale } from '@/i18n/config';
 // `ReportUploaded` (Architecture §17) — see report-extraction/index.ts.
 import '@/server/modules/report-extraction';
 
-export interface UploadActionState {
-  results: { filename: string; result: UploadReportResult }[];
-}
-
-export async function uploadReportsAction(
-  locale: Locale,
-  hotelId: string,
-  _prevState: UploadActionState,
-  formData: FormData
-): Promise<UploadActionState> {
+/**
+ * One file per call — the upload UI drives its own per-file queue
+ * (progress/retry/removal client-side) rather than submitting one big
+ * batch, so a single failed file never blocks or has to be redone
+ * alongside files that already succeeded.
+ */
+export async function uploadSingleReportAction(locale: Locale, hotelId: string, formData: FormData): Promise<UploadReportResult> {
   const user = await getCurrentUser();
   // Session can expire between page load and submit — redirect to sign in
   // again instead of an uncaught throw (same crash class as digest
@@ -38,22 +35,21 @@ export async function uploadReportsAction(
     redirect(`/${locale}/mission-control`);
   }
 
-  const files = formData.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
-  const results: UploadActionState['results'] = [];
-
-  for (const file of files) {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const result = await uploadReport({
-      hotelId,
-      uploadedByUserId: user.id,
-      scope,
-      originalFilename: file.name,
-      mimeType: file.type,
-      data: buffer,
-    });
-    results.push({ filename: file.name, result });
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: 'EMPTY_FILE' };
   }
 
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const result = await uploadReport({
+    hotelId,
+    uploadedByUserId: user.id,
+    scope,
+    originalFilename: file.name,
+    mimeType: file.type,
+    data: buffer,
+  });
+
   revalidatePath(`/${locale}/reports/upload`);
-  return { results };
+  return result;
 }

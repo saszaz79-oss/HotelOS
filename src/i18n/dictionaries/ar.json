@@ -175,7 +175,9 @@
       "database": "قاعدة البيانات",
       "storage": "محرك التخزين",
       "aiProvider": "مزود الذكاء الاصطناعي",
-      "notifications": "مزود الإشعارات",
+      "notifications": "الإشعارات داخل التطبيق",
+      "notificationsExternal": "التسليم الخارجي (بريد/رسائل نصية)",
+      "notificationsExternalNotConfigured": "الإشعارات الخارجية غير مفعلة",
       "version": "إصدار النشر",
       "environment": "البيئة",
       "connected": "متصل",
@@ -348,6 +350,12 @@
     "range7": "آخر 7 أيام",
     "range30": "آخر 30 يوماً",
     "noMetricsYet": "لا توجد مقاييس منتهية بعد — ارفع وأنهِ تقريراً لعرض المقارنات هنا."
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "empty": "لا توجد إشعارات بعد.",
+    "markAllRead": "تعليم الكل كمقروء",
+    "unreadBadge": "غير مقروء"
   },
   "executiveExport": {
     "title": "التقرير التنفيذي",

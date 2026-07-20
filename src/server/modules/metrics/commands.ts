@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { publishTimelineEvent } from '@/server/modules/timeline';
 import { publish } from '@/server/modules/events/bus';
 import { audit } from '@/server/modules/audit';
+import { notifyUser } from '@/server/modules/notifications/commands';
 import type { ExtractedField } from '@/server/modules/report-extraction/types';
 
 /**
@@ -107,4 +108,16 @@ export async function normalizeReportDocument(
     action: 'report.finalize',
     metadata: { reportDocumentId, metricDate: confirmedReportDate.toISOString(), metricsWritten: writes.length },
   });
+
+  try {
+    await notifyUser(userId, hotelId, 'brief_ready', {
+      titleEn: 'Morning Brief updated',
+      titleAr: 'تم تحديث موجز الصباح',
+      bodyEn: `New metrics for ${confirmedReportDate.toLocaleDateString('en')}`,
+      bodyAr: `مقاييس جديدة لتاريخ ${confirmedReportDate.toLocaleDateString('ar')}`,
+      sourceRef: reportDocumentId,
+    });
+  } catch (err) {
+    console.error('[metrics.normalizeReportDocument] brief_ready notification failed', { hotelId, reportDocumentId, error: err });
+  }
 }

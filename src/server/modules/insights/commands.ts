@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import { publishTimelineEvent } from '@/server/modules/timeline';
+import { notifyHotelMembers } from '@/server/modules/notifications/commands';
 import { computeHealthScore } from './scoring';
 import { evaluateRules } from './rules';
 
@@ -68,6 +69,18 @@ export async function recomputeInsight(hotelId: string, date: Date): Promise<voi
       payload: { category: a.category, severity: a.severity, alertId: created.id },
       sourceRef: primarySourceDocId,
     });
+
+    if (a.severity === 'critical' || a.severity === 'warning') {
+      try {
+        await notifyHotelMembers(hotelId, 'kpi_warning', {
+          titleEn: a.messageEn,
+          titleAr: a.messageAr,
+          sourceRef: created.id,
+        });
+      } catch (err) {
+        console.error('[insights.recomputeInsight] kpi_warning notification failed', { hotelId, alertId: created.id, error: err });
+      }
+    }
   }
 
   for (const r of recommendations) {

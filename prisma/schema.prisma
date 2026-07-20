@@ -56,6 +56,7 @@ model User {
   auditLogs         AuditLog[]
   timelineEvents    TimelineEvent[]
   groundTruthRecords ExtractionGroundTruth[]
+  notifications     Notification[]
 }
 
 model Session {
@@ -119,6 +120,7 @@ model Hotel {
   settings           HotelSetting[]
   subscription       Subscription?
   timelineEvents     TimelineEvent[]
+  notifications      Notification[]
 }
 
 enum HotelRole {
@@ -469,6 +471,50 @@ model ExportedReport {
   status            ExportStatus  @default(generated)
   createdAt         DateTime      @default(now())
 
+  @@index([hotelId, createdAt])
+}
+
+// ---------- Notifications ----------
+
+enum NotificationType {
+  upload_completed
+  upload_failed
+  needs_review
+  brief_ready
+  hotel_suspended
+  password_reset
+  feature_toggled
+  kpi_warning
+}
+
+enum NotificationScope {
+  platform
+  hotel
+}
+
+/**
+ * One row per recipient (not a broadcast + read-receipts join table) — a
+ * hotel-wide event (e.g. hotel_suspended) fans out into one row per active
+ * member at creation time, so each user's read/unread state is a plain
+ * column on their own row, not a derived join (Enterprise v2 Phase 12).
+ */
+model Notification {
+  id        String             @id @default(cuid())
+  scope     NotificationScope
+  hotelId   String?
+  hotel     Hotel?             @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  titleEn   String
+  titleAr   String
+  bodyEn    String?
+  bodyAr    String?
+  sourceRef String?
+  readAt    DateTime?
+  createdAt DateTime           @default(now())
+
+  @@index([userId, createdAt])
   @@index([hotelId, createdAt])
 }
 

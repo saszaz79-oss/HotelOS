@@ -175,7 +175,9 @@
       "database": "Database",
       "storage": "Storage Driver",
       "aiProvider": "AI Provider",
-      "notifications": "Notification Provider",
+      "notifications": "In-app Notifications",
+      "notificationsExternal": "External Delivery (email/SMS)",
+      "notificationsExternalNotConfigured": "External delivery is not enabled",
       "version": "Deployment Version",
       "environment": "Environment",
       "connected": "Connected",
@@ -348,6 +350,12 @@
     "range7": "Last 7 days",
     "range30": "Last 30 days",
     "noMetricsYet": "No finalized metrics yet — upload and finalize a report to see comparisons here."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet.",
+    "markAllRead": "Mark all as read",
+    "unreadBadge": "unread"
   },
   "executiveExport": {
     "title": "Executive Report",

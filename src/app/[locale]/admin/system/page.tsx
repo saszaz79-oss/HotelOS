@@ -24,7 +24,8 @@ export default async function AdminSystemPage(props: { params: Promise<{ locale:
     { label: dict.admin.system.database, value: dbConnected ? dict.admin.system.connected : dict.admin.system.unreachable, ok: dbConnected },
     { label: dict.admin.system.storage, value: env.STORAGE_DRIVER, ok: true },
     { label: dict.admin.system.aiProvider, value: `${env.AI_PROVIDER} — ${aiConfigured ? dict.admin.system.configured : dict.admin.system.notConfigured}`, ok: aiConfigured },
-    { label: dict.admin.system.notifications, value: `${env.NOTIFICATION_DRIVER} (mock — Roadmap v0.2 for real delivery)`, ok: true },
+    { label: dict.admin.system.notifications, value: dict.admin.system.configured, ok: true },
+    { label: dict.admin.system.notificationsExternal, value: dict.admin.system.notificationsExternalNotConfigured, ok: false },
   ];
 
   return (

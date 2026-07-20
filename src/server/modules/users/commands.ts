@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import type { HotelRole, User } from '@prisma/client';
 import { hashPassword, generateTemporaryPassword } from '@/server/modules/auth/password';
 import { audit } from '@/server/modules/audit';
+import { notifyUser } from '@/server/modules/notifications/commands';
 
 function requireSuperAdmin(actingUser: User): void {
   if (!actingUser.isSuperAdmin) {
@@ -72,6 +73,15 @@ export async function resetUserPassword(actingUser: User, targetUserId: string):
   await prisma.session.deleteMany({ where: { userId: targetUserId } });
 
   await audit({ hotelId: null, userId: actingUser.id, action: 'admin.password_reset', metadata: { targetUserId } });
+
+  try {
+    await notifyUser(targetUserId, null, 'password_reset', {
+      titleEn: 'Your password was reset',
+      titleAr: 'تمت إعادة تعيين كلمة المرور الخاصة بك',
+    });
+  } catch (err) {
+    console.error('[users.resetUserPassword] password_reset notification failed', { targetUserId, error: err });
+  }
 
   return { temporaryPassword };
 }

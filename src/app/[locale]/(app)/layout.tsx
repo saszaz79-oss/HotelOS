@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/server/modules/auth/session';
 import { getActiveMembership } from '@/server/modules/hotels/access';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { listAgentsForRole } from '@/server/modules/agents/registry';
+import { countUnreadNotifications } from '@/server/modules/notifications/queries';
 import { AppShell } from './AppShell';
 import { logoutAction } from './actions';
 
@@ -34,6 +35,7 @@ export default async function AppLayout(
   const membership = user.isSuperAdmin ? null : await getActiveMembership(user.id);
 
   const agents = membership ? listAgentsForRole(membership.role) : [];
+  const initialUnreadCount = await countUnreadNotifications(user.id);
 
   return (
     <AppShell
@@ -44,6 +46,7 @@ export default async function AppLayout(
       agents={agents}
       exitLabel={dict.app.signOut}
       signOutAction={logoutAction.bind(null, locale)}
+      initialUnreadCount={initialUnreadCount}
     >
       {children}
     </AppShell>

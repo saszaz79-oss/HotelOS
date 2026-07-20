@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
+import { NotificationBell } from './NotificationBell';
 import type { Locale } from '@/i18n/config';
 import type { AgentDefinition } from '@/server/modules/agents/registry';
 
@@ -17,6 +18,12 @@ interface Dict {
     askAI: string;
     reports: string;
     comingSoon: string;
+  };
+  notifications: {
+    title: string;
+    empty: string;
+    markAllRead: string;
+    unreadBadge: string;
   };
 }
 
@@ -37,6 +44,7 @@ export function AppShell({
   agents,
   exitLabel,
   signOutAction,
+  initialUnreadCount,
   children,
 }: {
   locale: Locale;
@@ -46,6 +54,7 @@ export function AppShell({
   agents: AgentDefinition[];
   exitLabel: string;
   signOutAction: () => Promise<void>;
+  initialUnreadCount: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -131,6 +140,7 @@ export function AppShell({
         </div>
 
         <div className={cn('space-y-3', collapsed && 'flex flex-col items-center')}>
+          <NotificationBell locale={locale} dict={dict.notifications} initialUnreadCount={initialUnreadCount} />
           {collapsed ? null : (
             <>
               <LanguageSwitch locale={locale} path={currentPath} />

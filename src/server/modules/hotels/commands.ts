@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import type { HotelStatus, User } from '@prisma/client';
 import { hashPassword, generateTemporaryPassword } from '@/server/modules/auth/password';
 import { audit } from '@/server/modules/audit';
+import { notifyHotelMembers } from '@/server/modules/notifications/commands';
 
 function requireSuperAdmin(actingUser: User): void {
   if (!actingUser.isSuperAdmin) {
@@ -121,8 +122,22 @@ export async function updateHotel(actingUser: User, hotelId: string, input: Upda
 /** Hotel Activation / Suspension (Super Admin Console requirement) — archive is separate from suspend and is one-way in v0.1 (no un-archive UI yet). */
 export async function setHotelStatus(actingUser: User, hotelId: string, status: HotelStatus): Promise<void> {
   requireSuperAdmin(actingUser);
-  await prisma.hotel.update({ where: { id: hotelId }, data: { status } });
+  const hotel = await prisma.hotel.update({ where: { id: hotelId }, data: { status } });
   await audit({ hotelId, userId: actingUser.id, action: 'admin.hotel_status_change', metadata: { status } });
+
+  if (status === 'suspended') {
+    try {
+      await notifyHotelMembers(hotelId, 'hotel_suspended', {
+        titleEn: 'Hotel account suspended',
+        titleAr: 'تم تعليق حساب الفندق',
+        bodyEn: hotel.name,
+        bodyAr: hotel.name,
+        sourceRef: hotelId,
+      });
+    } catch (err) {
+      console.error('[hotels.setHotelStatus] hotel_suspended notification failed', { hotelId, error: err });
+    }
+  }
 }
 
 export async function updateSubscriptionPlan(actingUser: User, hotelId: string, plan: string): Promise<void> {

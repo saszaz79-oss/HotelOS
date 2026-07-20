@@ -6,6 +6,7 @@ import { publish } from '@/server/modules/events/bus';
 import { audit } from '@/server/modules/audit';
 import { isModuleEnabled } from '@/server/modules/feature-flags';
 import { assertHotelAccess, type HotelScope } from '@/server/modules/hotels/access';
+import { notifyUser } from '@/server/modules/notifications/commands';
 
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB, matches next.config.mjs serverActions.bodySizeLimit
 const ALLOWED_MIME_TYPES = new Set(['application/pdf']);
@@ -153,6 +154,14 @@ export async function uploadReport(input: UploadReportInput): Promise<UploadRepo
       userId: input.uploadedByUserId,
       action: 'report.upload',
       metadata: { reportUploadId, originalFilename: input.originalFilename },
+    });
+
+    await notifyUser(input.uploadedByUserId, input.hotelId, 'upload_completed', {
+      titleEn: 'Report uploaded',
+      titleAr: 'تم رفع التقرير',
+      bodyEn: input.originalFilename,
+      bodyAr: input.originalFilename,
+      sourceRef: reportUploadId,
     });
   } catch (err) {
     console.error('[reports.uploadReport] post-upload side effect failed (timeline/event/audit) — upload itself succeeded', {

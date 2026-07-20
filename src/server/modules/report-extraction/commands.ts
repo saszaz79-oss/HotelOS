@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import { storage } from '@/server/modules/storage';
 import { publishTimelineEvent } from '@/server/modules/timeline';
+import { notifyUser } from '@/server/modules/notifications/commands';
 import { selectAdapter } from './adapters';
 import { assessDataQuality } from './data-quality';
 import type { ExtractedField, PdfPage } from './types';
@@ -91,6 +92,21 @@ export async function processReportUpload(hotelId: string, reportUploadId: strin
       },
       sourceRef: reportDocumentId,
     });
+
+    // Never let a notification-write failure downgrade an actually-
+    // successful extraction into an 'error' status by escaping into the
+    // outer catch below.
+    try {
+      await notifyUser(upload.uploadedByUserId, hotelId, 'needs_review', {
+        titleEn: 'Report ready for review',
+        titleAr: 'التقرير جاهز للمراجعة',
+        bodyEn: upload.originalFilename,
+        bodyAr: upload.originalFilename,
+        sourceRef: upload.id,
+      });
+    } catch (err) {
+      console.error('[report-extraction.processReportUpload] needs_review notification failed', { hotelId, reportUploadId, error: err });
+    }
   } catch (err) {
     if (job) {
       await prisma.extractionJob.update({
@@ -99,6 +115,18 @@ export async function processReportUpload(hotelId: string, reportUploadId: strin
       });
     }
     await prisma.reportUpload.update({ where: { id: upload.id }, data: { status: 'error' } });
+
+    try {
+      await notifyUser(upload.uploadedByUserId, hotelId, 'upload_failed', {
+        titleEn: 'Report processing failed',
+        titleAr: 'فشلت معالجة التقرير',
+        bodyEn: upload.originalFilename,
+        bodyAr: upload.originalFilename,
+        sourceRef: upload.id,
+      });
+    } catch (notifyErr) {
+      console.error('[report-extraction.processReportUpload] upload_failed notification failed', { hotelId, reportUploadId, error: notifyErr });
+    }
   }
 }
 

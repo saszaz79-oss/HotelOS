@@ -7,7 +7,9 @@ import { resolveHotelScope, type HotelScope } from '@/server/modules/hotels/acce
 import { getReportUpload } from '@/server/modules/reports/queries';
 import { updateExtractedField } from '@/server/modules/report-extraction/commands';
 import { normalizeReportDocument } from '@/server/modules/metrics/commands';
+import { deleteReportUpload, type DeleteReportResult } from '@/server/modules/reports/commands';
 import { audit } from '@/server/modules/audit';
+import { getActiveMembership } from '@/server/modules/hotels/access';
 import type { Locale } from '@/i18n/config';
 // Side-effect import: registers the insights recomputation subscriber on
 // `MetricsExtracted` (Architecture §17) — see insights/index.ts.
@@ -95,4 +97,25 @@ export async function finalizeReportAction(
 
   revalidatePath(`/${locale}/reports/${reportUploadId}`);
   revalidatePath(`/${locale}/mission-control`);
+}
+
+export async function deleteReportFromDetailAction(
+  locale: Locale,
+  hotelId: string,
+  reportUploadId: string,
+  _prevState: DeleteReportResult
+): Promise<DeleteReportResult> {
+  const user = await getCurrentUser();
+  if (!user) redirect(`/${locale}/login`);
+
+  const [scope, membership] = await Promise.all([resolveHotelScope(user), getActiveMembership(user.id)]);
+  const role = user.isSuperAdmin ? 'SUPER_ADMIN' : membership?.role ?? '';
+
+  const result = await deleteReportUpload(user, scope, hotelId, reportUploadId, role);
+  if (result.ok) {
+    revalidatePath(`/${locale}/reports/archive`);
+    revalidatePath(`/${locale}/reports/upload`);
+    redirect(`/${locale}/reports/archive`);
+  }
+  return result;
 }

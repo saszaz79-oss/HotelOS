@@ -228,7 +228,26 @@
     "date": "التاريخ",
     "previous": "السابق",
     "next": "التالي",
-    "pageOf": "صفحة {page} من {totalPages}"
+    "pageOf": "صفحة {page} من {totalPages}",
+    "searchPlaceholder": "ابحث باسم الملف…",
+    "filterAllTypes": "كل الأنواع",
+    "filterAllStatuses": "كل الحالات",
+    "filterAllUploaders": "كل من رفع تقارير",
+    "dateFrom": "من",
+    "dateTo": "إلى",
+    "search": "بحث",
+    "clearFilters": "مسح الفلاتر",
+    "dataQuality": "جودة البيانات",
+    "duration": "مدة المعالجة",
+    "inProgress": "قيد المعالجة",
+    "noResults": "لا توجد تقارير مطابقة لبحثك.",
+    "delete": "حذف",
+    "deleteSuccess": "تم حذف التقرير.",
+    "deleteErrors": {
+      "FORBIDDEN": "لا تملك صلاحية حذف هذا التقرير.",
+      "NOT_FOUND": "هذا التقرير لم يعد موجوداً.",
+      "ALREADY_FINALIZED": "تم إنهاء هذا التقرير ولا يمكن حذفه."
+    }
   },
   "reportsReview": {
     "title": "مراجعة القيم المستخرجة",

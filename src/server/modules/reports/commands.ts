@@ -164,3 +164,61 @@ export async function uploadReport(input: UploadReportInput): Promise<UploadRepo
 
   return { ok: true, reportUploadId };
 }
+
+export type DeleteReportResult =
+  | { ok: true }
+  | { ok: false; error: 'FORBIDDEN' | 'NOT_FOUND' | 'ALREADY_FINALIZED' };
+
+/**
+ * Deleting a finalized report is refused rather than attempted: once a
+ * ReportDocument has HotelMetric rows pointing at it as their source
+ * (sourceReportDocumentId has no cascade — see schema), deleting the
+ * document would either fail on the FK or silently orphan real,
+ * already-live metrics. Only pre-finalization uploads (never reached
+ * 'complete') can be removed this way.
+ */
+export async function deleteReportUpload(
+  actingUser: { id: string },
+  scope: HotelScope,
+  hotelId: string,
+  reportUploadId: string,
+  role: string
+): Promise<DeleteReportResult> {
+  assertHotelAccess(scope, hotelId);
+  if (role !== 'HOTEL_ADMIN' && scope.kind !== 'super_admin') {
+    return { ok: false, error: 'FORBIDDEN' };
+  }
+
+  const upload = await prisma.reportUpload.findFirst({ where: { id: reportUploadId, hotelId } });
+  if (!upload) {
+    return { ok: false, error: 'NOT_FOUND' };
+  }
+  if (upload.status === 'complete') {
+    return { ok: false, error: 'ALREADY_FINALIZED' };
+  }
+
+  try {
+    await storage.delete(upload.storageKey);
+  } catch (err) {
+    console.error('[reports.deleteReportUpload] storage.delete failed — proceeding with DB delete regardless', {
+      hotelId,
+      reportUploadId,
+      storageKey: upload.storageKey,
+      error: err,
+    });
+  }
+
+  // ReportDocument and ExtractionJob cascade from this delete (schema
+  // onDelete: Cascade); TimelineEvent.sourceRef is a plain string, not an
+  // FK, so historical timeline entries simply keep pointing at a now-gone id.
+  await prisma.reportUpload.delete({ where: { id: reportUploadId } });
+
+  await audit({
+    hotelId,
+    userId: actingUser.id,
+    action: 'report.delete',
+    metadata: { reportUploadId, originalFilename: upload.originalFilename },
+  });
+
+  return { ok: true };
+}

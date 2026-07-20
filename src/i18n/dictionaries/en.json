@@ -228,7 +228,26 @@
     "date": "Date",
     "previous": "Previous",
     "next": "Next",
-    "pageOf": "Page {page} of {totalPages}"
+    "pageOf": "Page {page} of {totalPages}",
+    "searchPlaceholder": "Search by filename…",
+    "filterAllTypes": "All types",
+    "filterAllStatuses": "All statuses",
+    "filterAllUploaders": "All uploaders",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "search": "Search",
+    "clearFilters": "Clear filters",
+    "dataQuality": "Data quality",
+    "duration": "Processing time",
+    "inProgress": "In progress",
+    "noResults": "No reports match your filters.",
+    "delete": "Delete",
+    "deleteSuccess": "Report deleted.",
+    "deleteErrors": {
+      "FORBIDDEN": "You don't have permission to delete this report.",
+      "NOT_FOUND": "This report no longer exists.",
+      "ALREADY_FINALIZED": "This report has been finalized and cannot be deleted."
+    }
   },
   "reportsReview": {
     "title": "Review Extracted Values",

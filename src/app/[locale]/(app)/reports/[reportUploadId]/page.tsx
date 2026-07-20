@@ -3,9 +3,12 @@ import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/confi
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { getActiveMembership } from '@/server/modules/hotels/access';
 import { getReportUpload, getReportUploadSignedUrl } from '@/server/modules/reports/queries';
-import { updateFieldAction, finalizeReportAction } from './actions';
+import { updateFieldAction, finalizeReportAction, deleteReportFromDetailAction } from './actions';
 import type { ExtractedField } from '@/server/modules/report-extraction/types';
 import type { QualityNote } from '@/server/modules/report-extraction/data-quality';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { reportStatusTone } from '@/lib/status-tone';
+import { DeleteReportButton } from '../DeleteReportButton';
 
 export default async function ReportReviewPage(
   props: {
@@ -30,14 +33,26 @@ export default async function ReportReviewPage(
 
   const document = upload.documents[0];
   const originalFileUrl = await getReportUploadSignedUrl(membership.hotelId, upload.id);
+  const canDelete = membership.role === 'HOTEL_ADMIN' && upload.status !== 'complete';
 
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <Link href={`/${locale}/reports/upload`} className="text-sm text-ink-muted hover:text-ink">
+        <Link href={`/${locale}/reports/archive`} className="text-sm text-ink-muted hover:text-ink">
           ← {dict.reportsReview.backToUploads}
         </Link>
-        <h1 className="mt-2 text-xl font-medium">{dict.reportsReview.title}</h1>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-xl font-medium text-ink">{dict.reportsReview.title}</h1>
+          <div className="flex items-center gap-2">
+            <StatusBadge tone={reportStatusTone(upload.status)}>{upload.status}</StatusBadge>
+            {canDelete ? (
+              <DeleteReportButton
+                action={deleteReportFromDetailAction.bind(null, locale, membership.hotelId, upload.id)}
+                dict={dict.reportsArchive}
+              />
+            ) : null}
+          </div>
+        </div>
         <p className="mt-1 text-sm text-ink-muted">
           {upload.originalFilename}
           {originalFileUrl ? (
@@ -48,6 +63,9 @@ export default async function ReportReviewPage(
               </a>
             </>
           ) : null}
+        </p>
+        <p className="mt-1 text-xs text-ink-muted">
+          {dict.reportsArchive.uploadedBy}: {upload.uploadedBy.displayName} · {new Date(upload.createdAt).toLocaleString(locale)}
         </p>
       </div>
 

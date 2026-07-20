@@ -64,12 +64,30 @@ export async function listReportUploaders(hotelId: string) {
   return uploads.map((u) => ({ id: u.uploadedByUserId, displayName: u.uploadedBy.displayName }));
 }
 
+/**
+ * `documents` is a narrow `select`, not `include: true` — neither this
+ * function's 3 call sites (the report detail page, and two server actions
+ * that only check `documents.some(d => d.id === reportDocumentId)`) ever
+ * read `extractionJobs` or `metrics`, so fetching those relations in full
+ * was pure wasted query cost (Perf sprint, M14).
+ */
 export async function getReportUpload(hotelId: string, reportUploadId: string) {
   return prisma.reportUpload.findFirst({
     where: { id: reportUploadId, hotelId },
     include: {
       uploadedBy: { select: { displayName: true } },
-      documents: { include: { extractionJobs: true, metrics: true } },
+      documents: {
+        select: {
+          id: true,
+          reportType: true,
+          detectedReportDate: true,
+          completenessScore: true,
+          validationStatus: true,
+          qualityNotes: true,
+          parserWarnings: true,
+          extractedFields: true,
+        },
+      },
     },
   });
 }
@@ -81,20 +99,18 @@ export async function getReportUpload(hotelId: string, reportUploadId: string) {
  * reportUploadId belonging to another hotel resolves to `null`, never a URL.
  * The signed URL itself is short-lived and never persisted.
  */
-export async function getReportUploadSignedUrl(
-  hotelId: string,
-  reportUploadId: string
-): Promise<string | null> {
-  const upload = await prisma.reportUpload.findFirst({
-    where: { id: reportUploadId, hotelId },
-    select: { storageKey: true },
-  });
-  if (!upload) return null;
-
+/**
+ * Takes `storageKey` directly rather than re-fetching the upload by id — its
+ * one caller (the report detail page) already has the full upload record
+ * (storageKey included) from its own `getReportUpload` call moments earlier;
+ * a second by-id lookup for a single already-known field was a wasted round
+ * trip (Perf sprint, M14).
+ */
+export async function getReportUploadSignedUrl(storageKey: string, context: { hotelId: string; reportUploadId: string }): Promise<string | null> {
   try {
-    return await storage.getSignedUrl(upload.storageKey);
+    return await storage.getSignedUrl(storageKey);
   } catch (err) {
-    console.error('[reports.getReportUploadSignedUrl] failed', { hotelId, reportUploadId, error: err });
+    console.error('[reports.getReportUploadSignedUrl] failed', { hotelId: context.hotelId, reportUploadId: context.reportUploadId, error: err });
     return null;
   }
 }

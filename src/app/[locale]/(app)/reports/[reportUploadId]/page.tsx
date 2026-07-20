@@ -32,7 +32,7 @@ export default async function ReportReviewPage(
   }
 
   const document = upload.documents[0];
-  const originalFileUrl = await getReportUploadSignedUrl(membership.hotelId, upload.id);
+  const originalFileUrl = await getReportUploadSignedUrl(upload.storageKey, { hotelId: membership.hotelId, reportUploadId: upload.id });
   const canDelete = membership.role === 'HOTEL_ADMIN' && upload.status !== 'complete';
 
   return (

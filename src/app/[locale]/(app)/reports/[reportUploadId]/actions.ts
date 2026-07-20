@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { resolveHotelScope, type HotelScope } from '@/server/modules/hotels/access';
 import { getReportUpload } from '@/server/modules/reports/queries';
-import { updateExtractedField } from '@/server/modules/report-extraction/commands';
+import { updateExtractedField } from '@/server/modules/report-extraction/review-commands';
 import { normalizeReportDocument } from '@/server/modules/metrics/commands';
 import { deleteReportUpload, type DeleteReportResult } from '@/server/modules/reports/commands';
 import { audit } from '@/server/modules/audit';

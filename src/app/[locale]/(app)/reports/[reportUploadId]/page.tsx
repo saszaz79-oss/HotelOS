@@ -45,6 +45,11 @@ export default async function ReportReviewPage(
           <h1 className="text-xl font-medium text-ink">{dict.reportsReview.title}</h1>
           <div className="flex items-center gap-2">
             <StatusBadge tone={reportStatusTone(upload.status)}>{upload.status}</StatusBadge>
+            {upload.status === 'complete' ? (
+              <Link href={`/${locale}/reports/export`} className="text-xs text-accent hover:underline">
+                {dict.executiveExport.exportLink}
+              </Link>
+            ) : null}
             {canDelete ? (
               <DeleteReportButton
                 action={deleteReportFromDetailAction.bind(null, locale, membership.hotelId, upload.id)}

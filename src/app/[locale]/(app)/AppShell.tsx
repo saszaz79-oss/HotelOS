@@ -80,7 +80,7 @@ export function AppShell({
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside
         className={cn(
-          'flex shrink-0 flex-col justify-between border-ink/10 bg-surface-raised p-4 md:border-e',
+          'print-hide flex shrink-0 flex-col justify-between border-ink/10 bg-surface-raised p-4 md:border-e',
           collapsed ? 'md:w-[68px]' : 'md:w-64'
         )}
       >

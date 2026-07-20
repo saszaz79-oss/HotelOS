@@ -349,6 +349,17 @@
     "range30": "Last 30 days",
     "noMetricsYet": "No finalized metrics yet — upload and finalize a report to see comparisons here."
   },
+  "executiveExport": {
+    "title": "Executive Report",
+    "printAction": "Print / Save as PDF",
+    "businessDate": "Business date",
+    "generatedAt": "Generated",
+    "executiveSummary": "Executive Summary",
+    "kpis": "Key Performance Indicators",
+    "recommendedActions": "Recommended Actions",
+    "sourceReports": "Source reports",
+    "exportLink": "Export Executive PDF"
+  },
   "timeline": {
     "title": "Mission Timeline",
     "empty": "No activity yet for this hotel.",

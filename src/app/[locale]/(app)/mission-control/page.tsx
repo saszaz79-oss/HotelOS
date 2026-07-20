@@ -135,7 +135,12 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
       </div>
 
       <Card className="space-y-4">
-        <CardTitle>{dict.missionControl.morningBrief}</CardTitle>
+        <CardHeader>
+          <CardTitle>{dict.missionControl.morningBrief}</CardTitle>
+          <Link href={`/${locale}/reports/export`} className="text-xs text-accent hover:underline">
+            {dict.executiveExport.exportLink}
+          </Link>
+        </CardHeader>
 
         <div>
           <h3 className="text-xs font-medium uppercase text-ink-muted">{dict.missionControl.brief.todaySummary}</h3>

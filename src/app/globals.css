@@ -75,3 +75,31 @@ body {
 .metric-value {
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * Executive PDF export (Phase 11): the export page renders inside the
+ * normal authenticated (app) layout (sidebar + main), then relies on the
+ * browser's native print-to-PDF for correct Arabic shaping/RTL — no
+ * server-side PDF renderer, so this is what makes "print-ready" real.
+ * `.print-hide` marks chrome that must never appear in the output
+ * (sidebar, the Print button itself); `.print-only` is content shown
+ * only in the printed/saved page (a plain-text data-quality disclosure
+ * that would be redundant styling on screen).
+ */
+@media print {
+  .print-hide {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  body {
+    background-color: white !important;
+  }
+}
+.print-only {
+  display: none;
+}

@@ -1,13 +1,22 @@
 {
-  "app": { "name": "HotelOS" },
+  "app": {
+    "name": "HotelOS",
+    "tagline": "The Intelligent Operating System for Hotels",
+    "brandStatement": "One command center for occupancy, revenue, and daily operations — built for hotels and hotel groups that run on real numbers, not guesswork."
+  },
   "login": {
-    "title": "Sign in to HotelOS",
+    "title": "Sign in",
+    "subtitle": "Enter your credentials to access your workspace.",
     "username": "Username",
     "password": "Password",
+    "showPassword": "Show",
+    "hidePassword": "Hide",
     "submit": "Sign in",
+    "signingIn": "Signing in…",
     "forgotPassword": "Forgot password?",
     "invalidCredentials": "Invalid username or password.",
-    "accountDisabled": "This account has been disabled. Contact your administrator."
+    "accountDisabled": "This account has been disabled. Contact your administrator.",
+    "secureFooter": "Your session is encrypted. Access is logged for security."
   },
   "nav": {
     "missionControl": "Mission Control",
@@ -20,11 +29,15 @@
   },
   "changePassword": {
     "title": "Set a new password",
+    "subtitle": "Choose a strong password for your account.",
     "temporaryNotice": "You're signing in with a temporary password. Choose a new password to continue.",
     "currentPassword": "Current password",
     "newPassword": "New password",
     "confirmPassword": "Confirm new password",
+    "showPassword": "Show",
+    "hidePassword": "Hide",
     "submit": "Update password",
+    "updating": "Updating…",
     "errors": {
       "INVALID_CURRENT_PASSWORD": "Current password is incorrect.",
       "PASSWORD_TOO_SHORT": "New password must be at least 8 characters.",

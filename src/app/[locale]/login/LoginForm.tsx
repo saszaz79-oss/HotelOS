@@ -2,28 +2,27 @@
 
 import { useFormState, useFormStatus } from 'react-dom';
 import { loginAction } from './actions';
+import { Input, PasswordInput } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 import type { Locale } from '@/i18n/config';
 
 interface Dict {
-  title: string;
   username: string;
   password: string;
+  showPassword: string;
+  hidePassword: string;
   submit: string;
-  forgotPassword: string;
+  signingIn: string;
   invalidCredentials: string;
   accountDisabled: string;
 }
 
-function SubmitButton({ label }: { label: string }) {
+function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full rounded-md bg-accent px-4 py-2.5 text-white disabled:opacity-60"
-    >
-      {pending ? '…' : label}
-    </button>
+    <Button type="submit" size="lg" className="w-full" loading={pending} loadingText={pendingLabel}>
+      {label}
+    </Button>
   );
 }
 
@@ -39,39 +38,23 @@ export function LoginForm({ locale, dict }: { locale: Locale; dict: Dict }) {
       : null;
 
   return (
-    <form action={formAction} className="w-full max-w-sm space-y-4">
-      <div className="space-y-1">
-        <label htmlFor="username" className="text-sm text-ink-muted">
-          {dict.username}
-        </label>
-        <input
-          id="username"
-          name="username"
-          type="text"
-          required
-          autoComplete="username"
-          className="w-full rounded-md border border-ink/10 bg-surface-raised px-3 py-2"
-        />
-      </div>
-      <div className="space-y-1">
-        <label htmlFor="password" className="text-sm text-ink-muted">
-          {dict.password}
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          required
-          autoComplete="current-password"
-          className="w-full rounded-md border border-ink/10 bg-surface-raised px-3 py-2"
-        />
-      </div>
+    <form action={formAction} className="space-y-5">
+      <Input id="username" name="username" type="text" required autoComplete="username" label={dict.username} />
+      <PasswordInput
+        id="password"
+        name="password"
+        required
+        autoComplete="current-password"
+        label={dict.password}
+        showLabel={dict.showPassword}
+        hideLabel={dict.hidePassword}
+      />
       {errorMessage ? (
-        <p role="alert" className="text-sm text-status-critical">
+        <p role="alert" className="rounded-md bg-status-critical/10 px-3 py-2 text-sm text-status-critical">
           {errorMessage}
         </p>
       ) : null}
-      <SubmitButton label={dict.submit} />
+      <SubmitButton label={dict.submit} pendingLabel={dict.signingIn} />
     </form>
   );
 }

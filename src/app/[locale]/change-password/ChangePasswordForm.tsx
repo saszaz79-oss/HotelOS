@@ -2,22 +2,27 @@
 
 import { useFormState, useFormStatus } from 'react-dom';
 import { changePasswordAction, type ChangePasswordActionState } from './actions';
+import { PasswordInput } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 import type { Locale } from '@/i18n/config';
 
 interface Dict {
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
+  showPassword: string;
+  hidePassword: string;
   submit: string;
+  updating: string;
   errors: Record<string, string>;
 }
 
-function SubmitButton({ label }: { label: string }) {
+function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className="w-full rounded-md bg-accent px-4 py-2.5 text-white disabled:opacity-60">
-      {pending ? '…' : label}
-    </button>
+    <Button type="submit" size="lg" className="w-full" loading={pending} loadingText={pendingLabel}>
+      {label}
+    </Button>
   );
 }
 
@@ -28,54 +33,42 @@ export function ChangePasswordForm({ locale, dict }: { locale: Locale; dict: Dic
   const [state, formAction] = useFormState(boundAction, initialState);
 
   return (
-    <form action={formAction} className="w-full max-w-sm space-y-4">
-      <div className="space-y-1">
-        <label htmlFor="currentPassword" className="text-sm text-ink-muted">
-          {dict.currentPassword}
-        </label>
-        <input
-          id="currentPassword"
-          name="currentPassword"
-          type="password"
-          required
-          autoComplete="current-password"
-          className="w-full rounded-md border border-ink/10 bg-surface-raised px-3 py-2"
-        />
-      </div>
-      <div className="space-y-1">
-        <label htmlFor="newPassword" className="text-sm text-ink-muted">
-          {dict.newPassword}
-        </label>
-        <input
-          id="newPassword"
-          name="newPassword"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className="w-full rounded-md border border-ink/10 bg-surface-raised px-3 py-2"
-        />
-      </div>
-      <div className="space-y-1">
-        <label htmlFor="confirmPassword" className="text-sm text-ink-muted">
-          {dict.confirmPassword}
-        </label>
-        <input
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className="w-full rounded-md border border-ink/10 bg-surface-raised px-3 py-2"
-        />
-      </div>
+    <form action={formAction} className="space-y-5">
+      <PasswordInput
+        id="currentPassword"
+        name="currentPassword"
+        required
+        autoComplete="current-password"
+        label={dict.currentPassword}
+        showLabel={dict.showPassword}
+        hideLabel={dict.hidePassword}
+      />
+      <PasswordInput
+        id="newPassword"
+        name="newPassword"
+        required
+        minLength={8}
+        autoComplete="new-password"
+        label={dict.newPassword}
+        showLabel={dict.showPassword}
+        hideLabel={dict.hidePassword}
+      />
+      <PasswordInput
+        id="confirmPassword"
+        name="confirmPassword"
+        required
+        minLength={8}
+        autoComplete="new-password"
+        label={dict.confirmPassword}
+        showLabel={dict.showPassword}
+        hideLabel={dict.hidePassword}
+      />
       {state.error ? (
-        <p role="alert" className="text-sm text-status-critical">
+        <p role="alert" className="rounded-md bg-status-critical/10 px-3 py-2 text-sm text-status-critical">
           {dict.errors[state.error]}
         </p>
       ) : null}
-      <SubmitButton label={dict.submit} />
+      <SubmitButton label={dict.submit} pendingLabel={dict.updating} />
     </form>
   );
 }

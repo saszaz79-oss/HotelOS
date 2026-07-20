@@ -4,10 +4,61 @@ import { prisma } from '@/lib/prisma';
 import { env } from '@/lib/env';
 import { getPlatformOverview } from '@/server/modules/platform/queries';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
-import { StatusBadge, type StatusTone } from '@/components/ui/StatusBadge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
+import { KpiCard, type KpiTone } from '@/components/ui/KpiCard';
 import { hotelStatusTone, userStatusTone } from '@/lib/status-tone';
+
+const KPI_ICONS: Record<string, React.ReactNode> = {
+  hotelsTotal: (
+    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+      <path d="M4 17V4.5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1V17M16 17V9a1 1 0 0 0-1-1h-2M7 7h1M10 7h1M7 10h1M10 10h1M7 13h1M10 13h1" strokeLinecap="round" />
+    </svg>
+  ),
+  hotelsActive: (
+    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+      <circle cx="10" cy="10" r="7" />
+      <path d="M7 10.2 9 12l4-4.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  hotelsSuspended: (
+    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+      <circle cx="10" cy="10" r="7" />
+      <path d="M8.2 7.5v5M11.8 7.5v5" strokeLinecap="round" />
+    </svg>
+  ),
+  usersTotal: (
+    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+      <circle cx="7.5" cy="7" r="2.5" />
+      <path d="M2.8 16c.6-2.6 2.4-4 4.7-4s4.1 1.4 4.7 4M13 6.2a2.3 2.3 0 1 1 1.2 4.3M15.5 12.3c1.8.5 3 1.7 3.4 3.7" strokeLinecap="round" />
+    </svg>
+  ),
+  usersActive: (
+    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+      <circle cx="8" cy="7" r="3" />
+      <path d="M2.5 16.5c.7-3 2.7-4.7 5.5-4.7M12.5 9.5l1.5 1.5 3-3.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  reportsTotal: (
+    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+      <path d="M6 2.5h6l3 3V17a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1Z" strokeLinejoin="round" />
+      <path d="M7.5 10h5M7.5 13h5" strokeLinecap="round" />
+    </svg>
+  ),
+  actionsLast24h: (
+    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+      <path d="M2.5 10.5h3.2l1.8-5 3 9 1.8-4h4.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  activeErrors: (
+    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+      <path d="M10 2.5 18 16H2L10 2.5Z" strokeLinejoin="round" />
+      <path d="M10 8v3.5" strokeLinecap="round" />
+      <circle cx="10" cy="13.7" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+};
 
 async function checkDatabase(): Promise<boolean> {
   try {
@@ -27,15 +78,15 @@ export default async function AdminOverviewPage(props: { params: Promise<{ local
   const { kpis, recentHotels, recentUsers, recentAudit } = overview;
   const aiConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
 
-  const kpiCards: { label: string; value: number; tone?: StatusTone }[] = [
-    { label: dict.admin.overview.kpis.hotelsTotal, value: kpis.hotelsTotal },
-    { label: dict.admin.overview.kpis.hotelsActive, value: kpis.hotelsActive, tone: 'positive' },
-    { label: dict.admin.overview.kpis.hotelsSuspended, value: kpis.hotelsSuspended, tone: kpis.hotelsSuspended > 0 ? 'warning' : undefined },
-    { label: dict.admin.overview.kpis.usersTotal, value: kpis.usersTotal },
-    { label: dict.admin.overview.kpis.usersActive, value: kpis.usersActive, tone: 'positive' },
-    { label: dict.admin.overview.kpis.reportsTotal, value: kpis.reportsTotal },
-    { label: dict.admin.overview.kpis.actionsLast24h, value: kpis.actionsLast24h },
-    { label: dict.admin.overview.kpis.activeErrors, value: kpis.activeErrors, tone: kpis.activeErrors > 0 ? 'critical' : 'positive' },
+  const kpiCards: { key: string; label: string; value: number; tone?: KpiTone }[] = [
+    { key: 'hotelsTotal', label: dict.admin.overview.kpis.hotelsTotal, value: kpis.hotelsTotal },
+    { key: 'hotelsActive', label: dict.admin.overview.kpis.hotelsActive, value: kpis.hotelsActive, tone: 'positive' },
+    { key: 'hotelsSuspended', label: dict.admin.overview.kpis.hotelsSuspended, value: kpis.hotelsSuspended, tone: kpis.hotelsSuspended > 0 ? 'warning' : undefined },
+    { key: 'usersTotal', label: dict.admin.overview.kpis.usersTotal, value: kpis.usersTotal },
+    { key: 'usersActive', label: dict.admin.overview.kpis.usersActive, value: kpis.usersActive, tone: 'positive' },
+    { key: 'reportsTotal', label: dict.admin.overview.kpis.reportsTotal, value: kpis.reportsTotal },
+    { key: 'actionsLast24h', label: dict.admin.overview.kpis.actionsLast24h, value: kpis.actionsLast24h },
+    { key: 'activeErrors', label: dict.admin.overview.kpis.activeErrors, value: kpis.activeErrors, tone: kpis.activeErrors > 0 ? 'critical' : 'positive' },
   ];
 
   const serviceRows: { label: string; value: string; ok: boolean }[] = [
@@ -50,21 +101,7 @@ export default async function AdminOverviewPage(props: { params: Promise<{ local
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {kpiCards.map((kpi) => (
-          <Card key={kpi.label} className="p-4">
-            <p className="text-xs text-ink-muted">{kpi.label}</p>
-            <p
-              className={
-                'metric-value mt-1 text-2xl font-semibold ' +
-                (kpi.tone === 'critical'
-                  ? 'text-status-critical'
-                  : kpi.tone === 'warning'
-                  ? 'text-status-warning'
-                  : 'text-ink')
-              }
-            >
-              {kpi.value}
-            </p>
-          </Card>
+          <KpiCard key={kpi.key} label={kpi.label} value={kpi.value} tone={kpi.tone ?? 'neutral'} icon={KPI_ICONS[kpi.key]} />
         ))}
       </div>
 

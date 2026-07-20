@@ -53,7 +53,16 @@ export default async function LocaleLayout(
 
   return (
     <html lang={locale} dir={dir} className={`${inter.variable} ${cairo.variable}`}>
-      <body>{children}</body>
+      <body>
+        {/* Runs before first paint to apply any explicitly-stored theme choice, avoiding a flash of the wrong theme. No-op (falls through to the CSS prefers-color-scheme default) when the visitor has never toggled. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('hotelos-theme');if(t==='dark'||t==='light'){document.documentElement.classList.add(t);}}catch(e){}",
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

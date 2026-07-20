@@ -3,7 +3,9 @@
     "name": "HotelOS",
     "tagline": "The Intelligent Operating System for Hotels",
     "brandStatement": "One command center for occupancy, revenue, and daily operations — built for hotels and hotel groups that run on real numbers, not guesswork.",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "themeLight": "Switch to light theme",
+    "themeDark": "Switch to dark theme"
   },
   "login": {
     "title": "Sign in",

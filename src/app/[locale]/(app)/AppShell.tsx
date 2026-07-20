@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { LanguageSwitch } from '@/components/LanguageSwitch';
 import { NotificationBell } from './NotificationBell';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import type { Locale } from '@/i18n/config';
 import type { AgentDefinition } from '@/server/modules/agents/registry';
 
@@ -45,6 +46,7 @@ export function AppShell({
   exitLabel,
   signOutAction,
   initialUnreadCount,
+  themeLabels,
   children,
 }: {
   locale: Locale;
@@ -55,6 +57,7 @@ export function AppShell({
   exitLabel: string;
   signOutAction: () => Promise<void>;
   initialUnreadCount: number;
+  themeLabels: { light: string; dark: string };
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -89,7 +92,7 @@ export function AppShell({
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside
         className={cn(
-          'print-hide flex shrink-0 flex-col justify-between border-ink/10 bg-surface-raised p-4 md:border-e',
+          'print-hide flex shrink-0 flex-col justify-between border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] p-4 backdrop-blur-xl transition-[width] duration-300 ease-out md:border-e',
           collapsed ? 'md:w-[68px]' : 'md:w-64'
         )}
       >
@@ -104,7 +107,7 @@ export function AppShell({
             <button
               type="button"
               onClick={toggle}
-              className="hidden shrink-0 rounded-md p-1.5 text-ink-muted hover:bg-surface hover:text-ink md:block"
+              className="hidden shrink-0 rounded-md p-1.5 text-ink-muted transition-colors hover:bg-surface hover:text-ink md:block"
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <ChevronIcon collapsed={collapsed} />
@@ -120,8 +123,10 @@ export function AppShell({
                   href={item.href}
                   title={collapsed ? item.label : undefined}
                   className={cn(
-                    'block truncate rounded-md px-3 py-2 text-sm transition-colors',
-                    active ? 'bg-primary text-white' : 'text-ink hover:bg-surface'
+                    'relative block truncate rounded-md px-3 py-2 text-sm transition-all duration-200',
+                    active
+                      ? 'bg-primary text-white shadow-[0_2px_12px_-2px_hsl(var(--glow-accent))]'
+                      : 'text-ink hover:translate-x-0.5 hover:bg-surface rtl:hover:-translate-x-0.5'
                   )}
                 >
                   {collapsed ? item.label.slice(0, 1) : item.label}
@@ -140,7 +145,10 @@ export function AppShell({
         </div>
 
         <div className={cn('space-y-3', collapsed && 'flex flex-col items-center')}>
-          <NotificationBell locale={locale} dict={dict.notifications} initialUnreadCount={initialUnreadCount} />
+          <div className={cn('flex items-center gap-1', collapsed && 'flex-col')}>
+            <NotificationBell locale={locale} dict={dict.notifications} initialUnreadCount={initialUnreadCount} />
+            <ThemeToggle labels={themeLabels} />
+          </div>
           {collapsed ? null : (
             <>
               <LanguageSwitch locale={locale} path={currentPath} />
@@ -148,7 +156,7 @@ export function AppShell({
             </>
           )}
           <form action={signOutAction}>
-            <button type="submit" className="text-sm text-ink-muted hover:text-ink">
+            <button type="submit" className="text-sm text-ink-muted transition-colors hover:text-ink">
               {collapsed ? null : exitLabel}
             </button>
           </form>

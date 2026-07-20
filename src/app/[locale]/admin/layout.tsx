@@ -69,6 +69,7 @@ export default async function AdminLayout(
         signOutAction={logoutAction.bind(null, locale)}
         notificationsDict={dict.notifications}
         initialUnreadCount={initialUnreadCount}
+        themeLabels={{ light: dict.app.themeLight, dark: dict.app.themeDark }}
       />
       <main className="flex-1 p-4 md:p-8">{children}</main>
     </div>

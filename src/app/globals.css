@@ -3,18 +3,17 @@
 @tailwind utilities;
 
 /*
- * Enterprise design system, Phase 1 (HotelOS Enterprise v2). Replaces the
- * placeholder tokens from the original MVP scaffold — every existing screen
- * already consumes these same variable names via Tailwind's bg-surface/
- * text-ink/bg-accent/text-status-* classes (tailwind.config.ts), so
- * redefining the values here re-skins the entire product without touching
- * component code. `primary` (deep navy) is new: large brand surfaces
- * (sidebars, headers) built from Phase 2 onward use it; `accent` (muted
- * gold) keeps its existing role as the interactive/CTA color, since every
- * current button/link already targets bg-accent — gold reads well as a
- * button color against both the ivory light background and the navy dark
- * background, so this is a deliberate, low-risk mapping rather than a
- * forced rename across every file in one pass.
+ * Enterprise design system, Phase 2 (HotelOS Enterprise v2 — premium visual
+ * pass). Every existing screen consumes these same variable names via
+ * Tailwind's bg-surface/text-ink/bg-accent/text-status-* classes
+ * (tailwind.config.ts), so redefining the values here re-skins the entire
+ * product without touching component code. Theme is class-driven
+ * (`.dark`/`.light` on <html>, set by the no-FOUC inline script in
+ * layout.tsx + ThemeToggle, persisted to localStorage) with the OS
+ * preference as the fallback when the visitor has never chosen — `:root`
+ * carries the light values, `@media (prefers-color-scheme: dark)` applies
+ * dark values only when no explicit `.light` class overrides it, and `.dark`
+ * applies unconditionally.
  */
 :root {
   --surface: 38 35% 97%;
@@ -35,10 +34,16 @@
 
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-arabic: 'Cairo', system-ui, sans-serif;
+
+  /* Glassmorphism + elevation — premium pass tokens, additive to the palette above. */
+  --glass-bg: 0 0% 100% / 0.6;
+  --glass-border: 222 25% 14% / 0.08;
+  --glow-accent: 38 55% 48% / 0.35;
+  --shadow-color: 222 30% 20%;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --surface: 222 28% 10%;
     --surface-raised: 222 24% 15%;
     --ink: 38 20% 95%;
@@ -54,13 +59,52 @@
     --status-warning: 38 80% 55%;
     --status-critical: 4 65% 58%;
     --status-info: 210 50% 60%;
+
+    --glass-bg: 222 24% 15% / 0.55;
+    --glass-border: 38 20% 95% / 0.08;
+    --glow-accent: 40 60% 58% / 0.4;
+    --shadow-color: 222 60% 3%;
   }
+}
+
+:root.dark {
+  --surface: 222 28% 10%;
+  --surface-raised: 222 24% 15%;
+  --ink: 38 20% 95%;
+  --ink-muted: 220 10% 68%;
+
+  --primary: 220 40% 55%;
+  --primary-hover: 220 45% 62%;
+
+  --accent: 40 60% 58%;
+  --accent-hover: 40 62% 65%;
+
+  --status-positive: 150 40% 45%;
+  --status-warning: 38 80% 55%;
+  --status-critical: 4 65% 58%;
+  --status-info: 210 50% 60%;
+
+  --glass-bg: 222 24% 15% / 0.55;
+  --glass-border: 38 20% 95% / 0.08;
+  --glow-accent: 40 60% 58% / 0.4;
+  --shadow-color: 222 60% 3%;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
 }
 
 html,
 body {
   background-color: hsl(var(--surface));
   color: hsl(var(--ink));
+}
+
+body {
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 [dir='rtl'] body {
@@ -74,6 +118,32 @@ body {
 /* Tabular figures for all metric values (UX_SYSTEM.md §5). */
 .metric-value {
   font-variant-numeric: tabular-nums;
+}
+
+/* Skeleton shimmer — a static pulse when the visitor prefers reduced motion. */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--ink) / 0.06) 25%,
+    hsl(var(--ink) / 0.12) 37%,
+    hsl(var(--ink) / 0.06) 63%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background: hsl(var(--ink) / 0.08);
+  }
 }
 
 /*

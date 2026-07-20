@@ -47,6 +47,7 @@ export default async function AppLayout(
       exitLabel={dict.app.signOut}
       signOutAction={logoutAction.bind(null, locale)}
       initialUnreadCount={initialUnreadCount}
+      themeLabels={{ light: dict.app.themeLight, dark: dict.app.themeDark }}
     >
       {children}
     </AppShell>

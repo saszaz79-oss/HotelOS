@@ -10,7 +10,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   // rather than introducing a second, inconsistent "primary button" color
   // mid-migration. Deep navy (bg-primary) is reserved for large brand
   // surfaces (sidebars, headers), not buttons — see globals.css comment.
-  primary: 'bg-accent text-white hover:bg-accent-hover',
+  primary:
+    'bg-accent text-white shadow-[0_2px_10px_-2px_hsl(var(--glow-accent))] hover:bg-accent-hover hover:shadow-[0_4px_18px_-2px_hsl(var(--glow-accent))]',
   secondary: 'border border-ink/15 bg-surface-raised text-ink hover:bg-surface',
   ghost: 'text-ink-muted hover:bg-surface hover:text-ink',
   danger: 'bg-status-critical text-white hover:opacity-90',
@@ -45,8 +46,8 @@ export function Button({
     <button
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors',
-        'disabled:cursor-not-allowed disabled:opacity-60',
+        'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-all duration-150 active:scale-[0.97]',
+        'disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],

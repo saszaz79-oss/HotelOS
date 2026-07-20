@@ -17,7 +17,8 @@
     "forgotPassword": "Forgot password?",
     "invalidCredentials": "Invalid username or password.",
     "accountDisabled": "This account has been disabled. Contact your administrator.",
-    "secureFooter": "Your session is encrypted. Access is logged for security."
+    "secureFooter": "Your session is encrypted. Access is logged for security.",
+    "footer": "A secure platform for managing and operating hotels."
   },
   "nav": {
     "missionControl": "Mission Control",

@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/server/modules/auth/session';
 import { logoutAction } from '../(app)/actions';
 import { getDictionary, locales, defaultLocale, dirFor, type Locale } from '@/i18n/config';
 import { AdminSidebar, type AdminNavItem } from './AdminSidebar';
+import { countUnreadNotifications } from '@/server/modules/notifications/queries';
 
 /**
  * Super Admin Console (Product Owner directive: "Normal hotel users must
@@ -55,14 +56,19 @@ export default async function AdminLayout(
     { href: `/${locale}/admin/settings`, label: dict.admin.nav.settings },
   ];
 
+  const initialUnreadCount = await countUnreadNotifications(user.id);
+
   return (
     <div className="flex min-h-screen flex-col bg-surface md:flex-row" dir={dir}>
       <AdminSidebar
+        locale={locale}
         title={dict.admin.title}
         subtitle={dict.admin.subtitle}
         navItems={navItems}
         exitLabel={dict.admin.exit}
         signOutAction={logoutAction.bind(null, locale)}
+        notificationsDict={dict.notifications}
+        initialUnreadCount={initialUnreadCount}
       />
       <main className="flex-1 p-4 md:p-8">{children}</main>
     </div>

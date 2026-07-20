@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
+import { NotificationBell } from '../(app)/NotificationBell';
+import type { Locale } from '@/i18n/config';
 
 const COLLAPSE_STORAGE_KEY = 'hotelos-admin-sidebar-collapsed';
 
@@ -12,19 +14,32 @@ export interface AdminNavItem {
   label: string;
 }
 
+interface NotificationsDict {
+  title: string;
+  empty: string;
+  markAllRead: string;
+  unreadBadge: string;
+}
+
 export function AdminSidebar({
+  locale,
   title,
   subtitle,
   navItems,
   exitLabel,
   signOutAction,
+  notificationsDict,
+  initialUnreadCount,
 }: {
+  locale: Locale;
   title: string;
   subtitle: string;
   navItems: AdminNavItem[];
   exitLabel: string;
   /** A Server Action reference — Next.js allows passing these to Client Components as props and using them directly as a <form action>. */
   signOutAction: () => Promise<void>;
+  notificationsDict: NotificationsDict;
+  initialUnreadCount: number;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -87,11 +102,14 @@ export function AdminSidebar({
           })}
         </nav>
       </div>
-      <form action={signOutAction}>
-        <button type="submit" className="text-sm text-ink-muted hover:text-ink">
-          {collapsed ? null : exitLabel}
-        </button>
-      </form>
+      <div className={cn('space-y-3', collapsed && 'flex flex-col items-center')}>
+        <NotificationBell locale={locale} dict={notificationsDict} initialUnreadCount={initialUnreadCount} />
+        <form action={signOutAction}>
+          <button type="submit" className="text-sm text-ink-muted hover:text-ink">
+            {collapsed ? null : exitLabel}
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }

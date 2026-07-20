@@ -97,13 +97,19 @@ html.dark {
   color-scheme: dark;
 }
 
-html,
+/*
+ * background-color deliberately lives on `body` only, not `html`+`body`
+ * together — declaring it on both triggers a Chromium quirk where the
+ * canvas-background propagated from body to the viewport gets cached at
+ * first paint and doesn't re-invalidate on a live class toggle (confirmed:
+ * a fresh page load with .dark pre-set renders correctly, but toggling
+ * .dark after mount left body's painted background stuck on the old value
+ * even though the underlying --surface custom property had already updated
+ * correctly). Single-selector declaration avoids the propagation path.
+ */
 body {
   background-color: hsl(var(--surface));
   color: hsl(var(--ink));
-}
-
-body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 

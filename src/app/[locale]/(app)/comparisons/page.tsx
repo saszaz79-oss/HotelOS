@@ -12,6 +12,11 @@ import { formatMetricValue } from '@/lib/format-metric';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { TrendChart } from '@/components/ui/TrendChart';
+import { Button } from '@/components/ui/Button';
+import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
+
+const filterFieldClass =
+  'rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
@@ -102,38 +107,40 @@ export default async function ComparisonsPage(
         <CardHeader>
           <CardTitle>{dict.comparisons.todayVsPrevious}</CardTitle>
         </CardHeader>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-ink/10 text-start text-ink-muted">
-              <th className="py-2 text-start">{dict.comparisons.metric}</th>
-              <th className="py-2 text-start">{dict.comparisons.current}</th>
-              <th className="py-2 text-start">{dict.comparisons.previous}</th>
-              <th className="py-2 text-start">{dict.comparisons.change}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.key} className="border-b border-ink/5 last:border-0">
-                <td className="py-2 text-ink">{r.label}</td>
-                <td className="metric-value py-2 text-ink">{formatMetricValue(r.current, r.unit)}</td>
-                <td className="metric-value py-2 text-ink-muted">
-                  {r.previous !== null ? formatMetricValue(r.previous, r.unit) : dict.comparisons.notAvailable}
-                </td>
-                <td className="metric-value py-2">
-                  {r.delta === null ? (
-                    <span className="text-ink-muted">{dict.comparisons.notAvailable}</span>
-                  ) : (
-                    <span className={r.delta >= 0 ? 'text-status-positive' : 'text-status-critical'}>
-                      {r.delta >= 0 ? '+' : ''}
-                      {formatMetricValue(r.delta, r.unit)}
-                      {r.pctChange !== null ? ` (${r.pctChange >= 0 ? '+' : ''}${round1(r.pctChange)}%)` : ''}
-                    </span>
-                  )}
-                </td>
+        <TableShell>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={tableHeadRowClass}>
+                <th className={tableHeadCellClass}>{dict.comparisons.metric}</th>
+                <th className={tableHeadCellClass}>{dict.comparisons.current}</th>
+                <th className={tableHeadCellClass}>{dict.comparisons.previous}</th>
+                <th className={tableHeadCellClass}>{dict.comparisons.change}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.key} className={tableRowClass}>
+                  <td className={`${tableCellClass} text-ink`}>{r.label}</td>
+                  <td className={`metric-value ${tableCellClass} text-ink`}>{formatMetricValue(r.current, r.unit)}</td>
+                  <td className={`metric-value ${tableCellClass} text-ink-muted`}>
+                    {r.previous !== null ? formatMetricValue(r.previous, r.unit) : dict.comparisons.notAvailable}
+                  </td>
+                  <td className={`metric-value ${tableCellClass}`}>
+                    {r.delta === null ? (
+                      <span className="text-ink-muted">{dict.comparisons.notAvailable}</span>
+                    ) : (
+                      <span className={r.delta >= 0 ? 'text-status-positive' : 'text-status-critical'}>
+                        {r.delta >= 0 ? '+' : ''}
+                        {formatMetricValue(r.delta, r.unit)}
+                        {r.pctChange !== null ? ` (${r.pctChange >= 0 ? '+' : ''}${round1(r.pctChange)}%)` : ''}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableShell>
       </Card>
 
       <Card>
@@ -145,20 +152,20 @@ export default async function ComparisonsPage(
         ) : (
           <>
             <form className="mb-4 flex flex-wrap gap-2" action={`/${locale}/comparisons`}>
-              <select name="metric" defaultValue={selectedMetric} className="rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm">
+              <select name="metric" defaultValue={selectedMetric} className={filterFieldClass}>
                 {availableMetrics.map((m) => (
                   <option key={m.key} value={m.key}>
                     {locale === 'ar' ? m.labelAr : m.labelEn}
                   </option>
                 ))}
               </select>
-              <select name="range" defaultValue={String(range)} className="rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm">
+              <select name="range" defaultValue={String(range)} className={filterFieldClass}>
                 <option value="7">{dict.comparisons.range7}</option>
                 <option value="30">{dict.comparisons.range30}</option>
               </select>
-              <button type="submit" className="rounded-md border border-ink/15 bg-surface-raised px-4 py-2 text-sm text-ink hover:bg-surface">
+              <Button type="submit" variant="secondary" size="sm">
                 {dict.reportsArchive.search}
-              </button>
+              </Button>
             </form>
             <TrendChart
               points={trendPoints}

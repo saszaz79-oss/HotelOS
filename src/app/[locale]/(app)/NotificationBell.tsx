@@ -72,8 +72,8 @@ export function NotificationBell({ locale, dict, initialUnreadCount }: { locale:
       </button>
 
       {open ? (
-        <div className="absolute bottom-full start-0 z-20 mb-2 w-80 rounded-lg border border-ink/10 bg-surface-raised shadow-lg">
-          <div className="flex items-center justify-between border-b border-ink/10 px-3 py-2">
+        <div className="absolute bottom-full start-0 z-20 mb-2 w-80 rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] shadow-[0_1px_2px_hsl(var(--shadow-color)/0.06),0_18px_44px_-16px_hsl(var(--shadow-color)/0.45)]">
+          <div className="flex items-center justify-between border-b border-[hsl(var(--glass-border))] px-3 py-2.5">
             <span className="text-sm font-medium text-ink">{dict.title}</span>
             {items && items.some((i) => !i.readAt) ? (
               <button type="button" onClick={onMarkAllRead} className="text-xs text-accent hover:underline">
@@ -87,13 +87,13 @@ export function NotificationBell({ locale, dict, initialUnreadCount }: { locale:
             ) : items.length === 0 ? (
               <p className="p-4 text-center text-sm text-ink-muted">{dict.empty}</p>
             ) : (
-              <ul className="divide-y divide-ink/5">
+              <ul className="divide-y divide-[hsl(var(--glass-border))]">
                 {items.map((item) => (
                   <li key={item.id}>
                     <button
                       type="button"
                       onClick={() => onItemClick(item)}
-                      className={cn('block w-full px-3 py-2.5 text-start text-sm hover:bg-surface', !item.readAt && 'bg-accent/5')}
+                      className={cn('block w-full px-3 py-2.5 text-start text-sm transition-colors hover:bg-ink/[0.03]', !item.readAt && 'bg-accent/5')}
                     >
                       <div className="flex items-start gap-2">
                         {!item.readAt ? <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" /> : <span className="mt-1.5 h-1.5 w-1.5 shrink-0" />}

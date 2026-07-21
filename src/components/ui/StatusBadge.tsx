@@ -11,7 +11,7 @@ const TONE_CLASSES: Record<StatusTone, string> = {
   neutral: 'bg-ink/8 text-ink-muted ring-1 ring-inset ring-ink/10',
 };
 
-const DOT_CLASSES: Record<StatusTone, string> = {
+export const STATUS_DOT_CLASSES: Record<StatusTone, string> = {
   positive: 'bg-status-positive',
   warning: 'bg-status-warning',
   critical: 'bg-status-critical',
@@ -39,7 +39,7 @@ export function StatusBadge({ tone, className, children, ...props }: StatusBadge
       )}
       {...props}
     >
-      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', DOT_CLASSES[tone])} aria-hidden="true" />
+      <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', STATUS_DOT_CLASSES[tone])} aria-hidden="true" />
       {children}
     </span>
   );

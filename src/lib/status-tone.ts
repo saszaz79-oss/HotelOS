@@ -19,3 +19,12 @@ export function reportStatusTone(status: string): StatusTone {
   if (status === 'needs_review') return 'warning';
   return 'info'; // uploaded, processing
 }
+
+/** TimelineEvent.eventType → dot tone, shared by the hotel Timeline page. */
+export function timelineEventTone(eventType: string): StatusTone {
+  if (eventType === 'report_finalized' || eventType === 'alert_resolved') return 'positive';
+  if (eventType === 'alert_raised') return 'critical';
+  if (eventType === 'metric_corrected') return 'warning';
+  if (eventType === 'report_uploaded' || eventType === 'report_extracted' || eventType === 'ai_summary_generated' || eventType === 'recommendation_issued') return 'info';
+  return 'neutral'; // ai_conversation, export_generated, decision_logged
+}

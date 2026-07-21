@@ -4,12 +4,21 @@ import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/confi
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { prisma } from '@/lib/prisma';
 import { getActiveMembership } from '@/server/modules/hotels/access';
-import { getLatestMetricDate, getRecentMetricDates, getMetricsForDates, getAllMetricDefinitions } from '@/server/modules/metrics/queries';
+import {
+  getLatestMetricDate,
+  getRecentMetricDates,
+  getMetricsForDates,
+  getAllMetricDefinitions,
+  getMetricCorrectionHistory,
+  parseMetricCorrectionHistory,
+} from '@/server/modules/metrics/queries';
 import { getLatestInsight } from '@/server/modules/insights/queries';
 import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
 import { resolveSupportingMetrics } from '@/server/modules/insights/evidence';
 import { generateExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
 import { listReportUploads } from '@/server/modules/reports/queries';
+import { correctMetricAction } from './actions';
+import { MetricCorrectionControl } from './MetricCorrectionControl';
 import { formatMetricValue } from '@/lib/format-metric';
 import { reportTypeLabel } from '@/lib/report-type-label';
 import type { HealthFactor } from '@/server/modules/insights/scoring';
@@ -114,6 +123,28 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
 
   const metricByKey = new Map(metrics.map((m) => [m.metricKey, m]));
   const previousByKey = new Map(previousMetrics.map((m) => [m.metricKey, m.value]));
+
+  // Consistency checks (Analytics fix, Phase 4) — only KpiCards for a
+  // flagged key get a correction control; everyone else's card renders
+  // exactly as before. Only ever HOTEL_ADMIN/GENERAL_MANAGER sees the edit
+  // control itself (checked again server-side in the action).
+  const canCorrectMetrics = membership.role === 'HOTEL_ADMIN' || membership.role === 'GENERAL_MANAGER';
+  const consistencyAlertsByKey = new Map(
+    (insight?.alerts ?? [])
+      .filter((a) => a.category === 'consistency' && a.relatedMetricKey)
+      .map((a) => [a.relatedMetricKey as string, a])
+  );
+  const flaggedKeys = Array.from(consistencyAlertsByKey.keys());
+  const correctionHistoryByKey = new Map(
+    flaggedKeys.length > 0
+      ? await Promise.all(
+          flaggedKeys.map(async (key) => {
+            const rows = parseMetricCorrectionHistory(await getMetricCorrectionHistory(hotelId, latestDate, key));
+            return [key, rows.map((r) => ({ ...r, createdAt: r.createdAt.toLocaleString(locale) }))] as const;
+          })
+        )
+      : []
+  );
 
   const qualityScores = metrics
     .map((m) => m.sourceReportDocument?.completenessScore)
@@ -278,12 +309,13 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
             const previousValue = previousByKey.get(key);
             const delta = previousValue !== undefined && previousValue !== null ? m.value - previousValue : null;
             const label = locale === 'ar' ? m.metricDefinition.labelAr : m.metricDefinition.labelEn;
+            const consistencyAlert = consistencyAlertsByKey.get(key);
             return (
               <KpiCard
                 key={key}
                 label={label}
                 value={formatMetricValue(m.value, m.metricDefinition.unit)}
-                tone={delta !== null ? (delta >= 0 ? 'positive' : 'critical') : 'neutral'}
+                tone={consistencyAlert ? 'warning' : delta !== null ? (delta >= 0 ? 'positive' : 'critical') : 'neutral'}
                 trend={
                   <>
                     {delta !== null ? (
@@ -303,6 +335,15 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
                           {dict.missionControl.source}: {reportTypeLabel(doc.reportType, dict.reportsCommon.reportTypes)}
                         </div>
                       </>
+                    ) : null}
+                    {consistencyAlert ? (
+                      <MetricCorrectionControl
+                        action={correctMetricAction.bind(null, locale, hotelId, latestDate.toISOString(), key)}
+                        canCorrect={canCorrectMetrics}
+                        alertMessage={locale === 'ar' ? consistencyAlert.messageAr : consistencyAlert.messageEn}
+                        history={correctionHistoryByKey.get(key) ?? []}
+                        dict={dict.missionControl.correction}
+                      />
                     ) : null}
                   </>
                 }

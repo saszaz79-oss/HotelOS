@@ -125,3 +125,51 @@ export const getAllMetricDefinitions = cache(async () => {
     select: { key: true, labelEn: true, labelAr: true, unit: true },
   });
 });
+
+/**
+ * Post-finalize correction history for one metric (Analytics fix, Phase 4)
+ * — read from the existing AuditLog table (action: 'metric.manual_correction'),
+ * not a dedicated table, matching the "reuse existing infrastructure, no
+ * schema change" approach for this feature. Filtered via Postgres JSON-path
+ * conditions on AuditLog.metadata; only ever called for the small number of
+ * metrics a consistency check actually flagged, never for every KPI on the
+ * page.
+ */
+export const getMetricCorrectionHistory = cache(async (hotelId: string, metricDate: Date, metricKey: string) => {
+  return prisma.auditLog.findMany({
+    where: {
+      hotelId,
+      action: 'metric.manual_correction',
+      AND: [
+        { metadata: { path: ['metricDate'], equals: metricDate.toISOString() } },
+        { metadata: { path: ['metricKey'], equals: metricKey } },
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, createdAt: true, metadata: true, user: { select: { displayName: true } } },
+  });
+});
+
+export interface ParsedMetricCorrection {
+  id: string;
+  correctedByDisplayName: string;
+  createdAt: Date;
+  previousValue: number | null;
+  newValue: number | null;
+  reason: string | null;
+}
+
+/** Defensive JSON parsing (AuditLog.metadata is an untyped Json column) — never fabricates a value it can't confirm, shows null/omits instead. */
+export function parseMetricCorrectionHistory(rows: Awaited<ReturnType<typeof getMetricCorrectionHistory>>): ParsedMetricCorrection[] {
+  return rows.map((r) => {
+    const meta = r.metadata as Record<string, unknown> | null;
+    return {
+      id: r.id,
+      correctedByDisplayName: r.user.displayName,
+      createdAt: r.createdAt,
+      previousValue: typeof meta?.previousValue === 'number' ? meta.previousValue : null,
+      newValue: typeof meta?.newValue === 'number' ? meta.newValue : null,
+      reason: typeof meta?.reason === 'string' ? meta.reason : null,
+    };
+  });
+}

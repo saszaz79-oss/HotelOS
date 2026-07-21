@@ -5,6 +5,72 @@ import { audit } from '@/server/modules/audit';
 import { notifyUser } from '@/server/modules/notifications/commands';
 import type { ExtractedField } from '@/server/modules/report-extraction/types';
 
+export type CorrectHotelMetricResult = { ok: true } | { ok: false; reason: 'NOT_FOUND' };
+
+/**
+ * Post-finalize KPI correction (Analytics fix, Phase 4) — distinct from
+ * `updateExtractedField` (report-extraction/review-commands.ts), which
+ * edits a ReportDocument's candidate fields *before* finalize. This edits
+ * an already-finalized HotelMetric row directly, for the case where a
+ * consistency check flags a mismatch after the fact. User-submitted and
+ * reason-required only — this function is never called by the rule
+ * engine itself (Constitution truth test: flag a discrepancy, never
+ * silently "fix" it). Reuses the existing `isManuallyCorrected`/
+ * `correctedByUserId` fields (already on HotelMetric, previously only
+ * written by normalizeReportDocument) and the existing AuditLog model —
+ * no schema change.
+ */
+export async function correctHotelMetric(
+  hotelId: string,
+  metricDate: Date,
+  metricKey: string,
+  newValue: number,
+  userId: string,
+  reason: string
+): Promise<CorrectHotelMetricResult> {
+  const existing = await prisma.hotelMetric.findUnique({
+    where: { hotelId_metricDate_metricKey: { hotelId, metricDate, metricKey } },
+  });
+  if (!existing) return { ok: false, reason: 'NOT_FOUND' };
+
+  const previousValue = existing.value;
+
+  await prisma.hotelMetric.update({
+    where: { hotelId_metricDate_metricKey: { hotelId, metricDate, metricKey } },
+    data: { value: newValue, isManuallyCorrected: true, correctedByUserId: userId },
+  });
+
+  // Re-derive Health Score/Alerts/Recommendations from the corrected value
+  // via the same event-driven path normalizeReportDocument uses — a
+  // correction that doesn't propagate to derived insights would leave
+  // them silently stale against the number the user just fixed.
+  if (existing.sourceReportDocumentId) {
+    await publish({
+      type: 'MetricsExtracted',
+      hotelId,
+      payload: { metricDate: metricDate.toISOString(), reportDocumentId: existing.sourceReportDocumentId },
+      causationRef: existing.sourceReportDocumentId,
+    });
+  }
+
+  await publishTimelineEvent({
+    hotelId,
+    eventType: 'metric_corrected',
+    actorUserId: userId,
+    payload: { stage: 'post_finalize', metricKey, metricDate: metricDate.toISOString(), previousValue, newValue, reason },
+    sourceRef: existing.sourceReportDocumentId,
+  });
+
+  await audit({
+    hotelId,
+    userId,
+    action: 'metric.manual_correction',
+    metadata: { metricKey, metricDate: metricDate.toISOString(), previousValue, newValue, reason },
+  });
+
+  return { ok: true };
+}
+
 /**
  * Normalization (Roadmap M4, Architecture §3 data flow step 3): the only
  * place reviewed candidate values become authoritative `HotelMetric` rows.

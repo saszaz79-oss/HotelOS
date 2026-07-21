@@ -366,6 +366,20 @@
       "toggle": "عرض الأدلة",
       "asOf": "حتى تاريخ",
       "unresolvedMetric": "مقياس غير معروف"
+    },
+    "correction": {
+      "correctAction": "تصحيح القيمة",
+      "cancel": "إلغاء",
+      "newValueLabel": "القيمة المصححة",
+      "reasonLabel": "سبب التصحيح",
+      "submit": "حفظ التصحيح",
+      "success": "تم حفظ التصحيح.",
+      "history": "سجل التصحيحات",
+      "errors": {
+        "NOT_FOUND": "تعذر العثور على هذا المقياس لهذا التاريخ.",
+        "FORBIDDEN": "ليست لديك صلاحية تصحيح هذه القيمة.",
+        "INVALID_INPUT": "أدخل قيمة وسبباً قبل الحفظ."
+      }
     }
   },
   "reportsCommon": {

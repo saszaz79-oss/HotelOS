@@ -366,6 +366,20 @@
       "toggle": "View evidence",
       "asOf": "as of",
       "unresolvedMetric": "Unrecognized metric"
+    },
+    "correction": {
+      "correctAction": "Correct value",
+      "cancel": "Cancel",
+      "newValueLabel": "Corrected value",
+      "reasonLabel": "Reason for correction",
+      "submit": "Save correction",
+      "success": "Correction saved.",
+      "history": "Correction history",
+      "errors": {
+        "NOT_FOUND": "This metric could not be found for this date.",
+        "FORBIDDEN": "You don't have permission to correct this value.",
+        "INVALID_INPUT": "Enter a value and a reason before saving."
+      }
     }
   },
   "reportsCommon": {

@@ -4,6 +4,7 @@ import { publishTimelineEvent } from '@/server/modules/timeline';
 import { notifyHotelMembers } from '@/server/modules/notifications/commands';
 import { computeHealthScore } from './scoring';
 import { evaluateRules } from './rules';
+import { checkMetricConsistency } from './consistency';
 
 /**
  * Recomputes Insight (health score + factors), Alert, and Recommendation
@@ -54,7 +55,9 @@ export async function recomputeInsight(hotelId: string, date: Date): Promise<voi
     metricDate: m.metricDate,
     sourceReportDocumentId: m.sourceReportDocumentId,
   }));
-  const { alerts, recommendations } = evaluateRules(rulePoints, avgCompleteness);
+  const { alerts: ruleAlerts, recommendations } = evaluateRules(rulePoints, avgCompleteness);
+  const consistencyAlerts = checkMetricConsistency(todayPoints);
+  const alerts = [...ruleAlerts, ...consistencyAlerts];
 
   // Individual create() calls (not createMany) — Validation Phase §6
   // requires every timeline event to reference its actual related entity,

@@ -1,4 +1,4 @@
-import type { ReportType } from '@prisma/client';
+import type { HotelRole, ReportType } from '@prisma/client';
 import type { getMetricsForDates } from '@/server/modules/metrics/queries';
 import { formatMetricValue } from '@/lib/format-metric';
 import type { getLatestInsight } from './queries';
@@ -45,28 +45,11 @@ export interface MorningBrief {
   opportunities: string[];
   todayActions: string[];
   priority: string | null;
-  suggestedOwner: string | null;
+  suggestedOwner: HotelRole | null;
   dataQuality: MorningBriefDataQuality;
 }
 
 const KEY_KEYS = ['occupancy_pct', 'adr', 'revpar'] as const;
-
-// Coarse, deterministic role inference from which real metrics fed a
-// recommendation (Recommendation.supportingMetrics) — not a stored fact
-// (no schema field for "owner" exists), so this is re-derived at display
-// time rather than fabricated once and persisted as if it were data.
-const REVENUE_METRIC_KEYS = new Set(['occupancy_pct', 'adr', 'revpar', 'room_revenue', 'total_revenue']);
-const FRONT_OFFICE_METRIC_KEYS = new Set(['open_balance', 'arrivals', 'departures', 'stayovers', 'no_shows', 'cancellations']);
-
-function inferSuggestedOwner(supportingMetrics: unknown): string | null {
-  if (!Array.isArray(supportingMetrics)) return null;
-  const keys = supportingMetrics
-    .map((m) => (m && typeof m === 'object' && 'metricKey' in m ? String((m as { metricKey: unknown }).metricKey) : null))
-    .filter((k): k is string => k !== null);
-  if (keys.some((k) => REVENUE_METRIC_KEYS.has(k))) return 'REVENUE_MANAGER';
-  if (keys.some((k) => FRONT_OFFICE_METRIC_KEYS.has(k))) return 'FRONT_OFFICE_MANAGER';
-  return keys.length > 0 ? 'GENERAL_MANAGER' : null;
-}
 
 function trendPhrase(current: number, previous: number, locale: 'ar' | 'en'): string {
   const delta = Math.round((current - previous) * 10) / 10;
@@ -164,7 +147,11 @@ export function buildMorningBrief(input: {
 
   const topRecommendation = allRecommendations[0];
   const priority = topRecommendation ? (locale === 'ar' ? topRecommendation.textAr : topRecommendation.textEn) : null;
-  const suggestedOwner = topRecommendation ? inferSuggestedOwner(topRecommendation.supportingMetrics) : null;
+  // Reads the real persisted column (Analytics fix Phase 6) instead of
+  // re-deriving a guess from supportingMetrics on every render — null for
+  // recommendations created before this migration, shown as unavailable
+  // rather than backfilled with a heuristic.
+  const suggestedOwner = topRecommendation?.owner ?? null;
 
   const statusText =
     avgDataQuality !== null

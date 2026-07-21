@@ -387,6 +387,15 @@ model Recommendation {
   // "open" until a user accepts/dismisses/supersedes it.
   status            String                 @default("open")
   createdAt         DateTime               @default(now())
+  // Added Analytics fix Phase 6 — all three nullable and never backfilled:
+  // rows created before this migration show "not available" honestly rather
+  // than a fabricated guess (Constitution truth test). Populated
+  // deterministically by insights/rules.ts at rule-evaluation time, same
+  // vocabulary HotelRole already uses (owner is who should act on this).
+  owner             HotelRole?
+  timeframe         String?
+  expectedOutcomeEn String?
+  expectedOutcomeAr String?
 
   @@index([hotelId, createdAt])
   @@index([insightId])

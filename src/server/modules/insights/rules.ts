@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { HotelRole, Prisma } from '@prisma/client';
 
 interface MetricPoint {
   key: string;
@@ -24,6 +24,14 @@ export interface RuleRecommendation {
   confidence: number;
   category: 'risk' | 'opportunity' | 'action';
   supportingMetrics: Prisma.InputJsonValue;
+  // Added Analytics fix Phase 6 — who should act, by when, and what "solved"
+  // looks like, all fixed per rule family (not free-form generated text),
+  // so every recommendation stays mechanically checkable against
+  // "no generic phrases" the same way textEn/textAr already are.
+  owner: HotelRole;
+  timeframe: string;
+  expectedOutcomeEn: string;
+  expectedOutcomeAr: string;
 }
 
 function metric(points: MetricPoint[], key: string): MetricPoint | undefined {
@@ -87,6 +95,10 @@ export function evaluateRules(
       confidence: 1,
       category: 'risk',
       supportingMetrics: supporting(occupancy),
+      owner: 'REVENUE_MANAGER',
+      timeframe: 'Within 7 days',
+      expectedOutcomeEn: `Occupancy above 40% (currently ${occ}%).`,
+      expectedOutcomeAr: `نسبة إشغال أعلى من 40% (حالياً ${occ}%).`,
     });
   } else if (occupancy && occupancy.value! > 85) {
     const occ = round(occupancy.value!, 1);
@@ -100,6 +112,10 @@ export function evaluateRules(
       confidence: 1,
       category: 'opportunity',
       supportingMetrics: supporting(occupancy, adr),
+      owner: 'REVENUE_MANAGER',
+      timeframe: 'Within 3 days',
+      expectedOutcomeEn: `Rate increase implemented while occupancy remains above 85% (currently ${occ}%).`,
+      expectedOutcomeAr: `تنفيذ زيادة السعر مع استمرار نسبة الإشغال أعلى من 85% (حالياً ${occ}%).`,
     });
   }
 
@@ -123,6 +139,16 @@ export function evaluateRules(
         confidence: 1,
         category: 'risk',
         supportingMetrics: supporting(openBalance, totalRevenue),
+        owner: 'FRONT_OFFICE_MANAGER',
+        timeframe: 'Within 3 days',
+        expectedOutcomeEn:
+          ratio !== null
+            ? `Open balance reduced below 30% of total revenue (currently ${Math.round(ratio * 100)}%).`
+            : `Open balance reduced below 20,000 (currently ${round(openBalance.value!, 2)}).`,
+        expectedOutcomeAr:
+          ratio !== null
+            ? `خفض الرصيد المفتوح إلى أقل من 30% من إجمالي الإيرادات (حالياً ${Math.round(ratio * 100)}%).`
+            : `خفض الرصيد المفتوح إلى أقل من 20,000 (حالياً ${round(openBalance.value!, 2)}).`,
       });
     }
   }
@@ -155,6 +181,10 @@ export function evaluateRules(
           confidence: 1,
           category: 'risk',
           supportingMetrics: supporting(noShows, arrivals),
+          owner: 'FRONT_OFFICE_MANAGER',
+          timeframe: 'Within 7 days',
+          expectedOutcomeEn: `No-show rate reduced below 10% of arrivals (currently ${pct}%).`,
+          expectedOutcomeAr: `خفض معدل عدم الحضور إلى أقل من 10% من الوافدين (حالياً ${pct}%).`,
         });
       }
     }
@@ -171,6 +201,10 @@ export function evaluateRules(
           confidence: 1,
           category: 'risk',
           supportingMetrics: supporting(cancellations, arrivals),
+          owner: 'FRONT_OFFICE_MANAGER',
+          timeframe: 'Within 7 days',
+          expectedOutcomeEn: `Cancellation rate reduced below 15% of arrivals (currently ${pct}%).`,
+          expectedOutcomeAr: `خفض معدل الإلغاء إلى أقل من 15% من الوافدين (حالياً ${pct}%).`,
         });
       }
     }
@@ -193,6 +227,10 @@ export function evaluateRules(
         confidence: 1,
         category: 'risk',
         supportingMetrics: supporting(complimentaryRooms, houseUseRooms, roomsAvailable),
+        owner: 'GENERAL_MANAGER',
+        timeframe: 'Within 14 days',
+        expectedOutcomeEn: `Complimentary and house-use rooms reduced below 5% of available inventory (currently ${pct}%).`,
+        expectedOutcomeAr: `خفض غرف المجاملة والاستخدام الداخلي إلى أقل من 5% من الغرف المتاحة (حالياً ${pct}%).`,
       });
     }
   }
@@ -214,6 +252,10 @@ export function evaluateRules(
         confidence: 1,
         category: 'action',
         supportingMetrics: supporting(outOfOrderRooms, outOfInventoryRooms, roomsAvailable),
+        owner: 'GENERAL_MANAGER',
+        timeframe: 'Within 14 days',
+        expectedOutcomeEn: `Out-of-order/out-of-inventory rooms reduced below 10% of available inventory (currently ${pct}%).`,
+        expectedOutcomeAr: `خفض الغرف خارج الخدمة/خارج المخزون إلى أقل من 10% من الغرف المتاحة (حالياً ${pct}%).`,
       });
     }
   }

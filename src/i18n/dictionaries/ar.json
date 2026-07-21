@@ -453,5 +453,13 @@
       "export_generated": "تم تصدير تقرير",
       "decision_logged": "تم تسجيل قرار"
     }
+  },
+  "hotelRoles": {
+    "HOTEL_ADMIN": "مدير النظام",
+    "GENERAL_MANAGER": "المدير العام",
+    "FRONT_OFFICE_MANAGER": "مدير المكتب الأمامي",
+    "REVENUE_MANAGER": "مدير الإيرادات",
+    "ANALYST": "محلل",
+    "READ_ONLY": "مستخدم بصلاحية عرض فقط"
   }
 }

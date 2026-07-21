@@ -453,5 +453,13 @@
       "export_generated": "Report exported",
       "decision_logged": "Decision logged"
     }
+  },
+  "hotelRoles": {
+    "HOTEL_ADMIN": "Hotel Admin",
+    "GENERAL_MANAGER": "General Manager",
+    "FRONT_OFFICE_MANAGER": "Front Office Manager",
+    "REVENUE_MANAGER": "Revenue Manager",
+    "ANALYST": "Analyst",
+    "READ_ONLY": "Read Only"
   }
 }

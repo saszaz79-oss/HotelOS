@@ -254,7 +254,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
             {morningBrief.suggestedOwner ? (
               <div>
                 <h3 className="text-xs font-medium uppercase text-ink-muted">{dict.missionControl.brief.suggestedOwner}</h3>
-                <p className="metric-value mt-1 text-sm text-ink">{morningBrief.suggestedOwner}</p>
+                <p className="metric-value mt-1 text-sm text-ink">{dict.hotelRoles[morningBrief.suggestedOwner]}</p>
               </div>
             ) : null}
           </div>

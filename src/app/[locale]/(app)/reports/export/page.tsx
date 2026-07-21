@@ -320,12 +320,20 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
                       <td className={`${tableCellClass} print-hide`}>
                         <EvidenceDrawer items={evidence} toggleLabel={dict.missionControl.evidence.toggle} asOfLabel={dict.missionControl.evidence.asOf} />
                       </td>
-                      {/* Owner/Timeframe/Expected Outcome: not yet a stored field on
-                          Recommendation — shown honestly as unavailable rather than
-                          fabricated (Analytics fix, Phase 6 adds real columns here). */}
-                      <td className={`${tableCellClass} text-ink-muted`}>{dict.executiveExport.notYetAvailable}</td>
-                      <td className={`${tableCellClass} text-ink-muted`}>{dict.executiveExport.notYetAvailable}</td>
-                      <td className={`${tableCellClass} text-ink-muted`}>{dict.executiveExport.notYetAvailable}</td>
+                      {/* Owner/Timeframe/Expected Outcome (Analytics fix, Phase 6):
+                          null on recommendations created before this migration —
+                          shown honestly as unavailable rather than backfilled. */}
+                      <td className={`${tableCellClass} text-ink`}>
+                        {r.owner ? dict.hotelRoles[r.owner] : <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>}
+                      </td>
+                      <td className={`${tableCellClass} text-ink`}>
+                        {r.timeframe ?? <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>}
+                      </td>
+                      <td className={`${tableCellClass} text-ink`}>
+                        {(locale === 'ar' ? r.expectedOutcomeAr : r.expectedOutcomeEn) ?? (
+                          <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

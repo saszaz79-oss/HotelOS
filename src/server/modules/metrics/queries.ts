@@ -118,3 +118,10 @@ export const listAvailableMetricKeys = cache(async (hotelId: string) => {
   });
   return rows.map((r) => ({ key: r.metricKey, labelEn: r.metricDefinition.labelEn, labelAr: r.metricDefinition.labelAr, unit: r.metricDefinition.unit }));
 });
+
+/** Every MetricDefinition (key/label/unit only) — the whole table is small and static, so a single unfiltered fetch is cheap. Powers label/unit lookups for keys referenced indirectly (e.g. a Recommendation's supportingMetrics JSON), where the metricDate on the JSON entry may not match any date already loaded on the page. */
+export const getAllMetricDefinitions = cache(async () => {
+  return prisma.metricDefinition.findMany({
+    select: { key: true, labelEn: true, labelAr: true, unit: true },
+  });
+});

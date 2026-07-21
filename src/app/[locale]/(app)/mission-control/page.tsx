@@ -4,9 +4,10 @@ import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/confi
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { prisma } from '@/lib/prisma';
 import { getActiveMembership } from '@/server/modules/hotels/access';
-import { getLatestMetricDate, getRecentMetricDates, getMetricsForDates } from '@/server/modules/metrics/queries';
+import { getLatestMetricDate, getRecentMetricDates, getMetricsForDates, getAllMetricDefinitions } from '@/server/modules/metrics/queries';
 import { getLatestInsight } from '@/server/modules/insights/queries';
 import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
+import { resolveSupportingMetrics } from '@/server/modules/insights/evidence';
 import { generateExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
 import { listReportUploads } from '@/server/modules/reports/queries';
 import { formatMetricValue } from '@/lib/format-metric';
@@ -17,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { KpiCard } from '@/components/ui/KpiCard';
+import { EvidenceDrawer } from '@/components/ui/EvidenceDrawer';
 import { reportStatusTone } from '@/lib/status-tone';
 
 const KEY_METRIC_KEYS = [
@@ -98,10 +100,11 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
   // 3 separate round trips (getMetricsForDate(latest), getPreviousMetricDate,
   // getMetricsForDate(previous)) with 2 — see getRecentMetricDates'
   // docblock (Perf sprint round 2).
-  const [recentDates, insight, recentUploads] = await Promise.all([
+  const [recentDates, insight, recentUploads, metricDefinitions] = await Promise.all([
     getRecentMetricDates(hotelId, 2),
     getLatestInsight(hotelId),
     listReportUploads(hotelId, 5),
+    getAllMetricDefinitions(),
   ]);
   const previousDate = recentDates[1] ?? null;
   const allMetrics = await getMetricsForDates(hotelId, recentDates);
@@ -358,27 +361,31 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
           <p className="mt-2 text-sm text-ink-muted">{dict.missionControl.noRecommendations}</p>
         ) : (
           <ul className="mt-2 space-y-3">
-            {insight.recommendations.map((r) => (
-              <li key={r.id}>
-                <Card className="p-4 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">{dict.missionControl.categories[r.category]}</span>
-                    <span className="text-xs text-ink-muted">
-                      {dict.missionControl.priority}: {r.priority} · {dict.missionControl.confidence}:{' '}
-                      {Math.round(r.confidence * 100)}%
-                    </span>
-                  </div>
-                  <p className="mt-2">
-                    <span className="text-ink-muted">{dict.missionControl.why}: </span>
-                    {locale === 'ar' ? r.textAr : r.textEn}
-                  </p>
-                  <p className="mt-1">
-                    <span className="text-ink-muted">{dict.missionControl.suggestedAction}: </span>
-                    {locale === 'ar' ? r.suggestedActionAr : r.suggestedActionEn}
-                  </p>
-                </Card>
-              </li>
-            ))}
+            {insight.recommendations.map((r) => {
+              const evidence = resolveSupportingMetrics(r.supportingMetrics, metricDefinitions, locale, dict.missionControl.evidence.unresolvedMetric);
+              return (
+                <li key={r.id}>
+                  <Card className="p-4 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">{dict.missionControl.categories[r.category]}</span>
+                      <span className="text-xs text-ink-muted">
+                        {dict.missionControl.priority}: {r.priority} · {dict.missionControl.confidence}:{' '}
+                        {Math.round(r.confidence * 100)}%
+                      </span>
+                    </div>
+                    <p className="mt-2">
+                      <span className="text-ink-muted">{dict.missionControl.why}: </span>
+                      {locale === 'ar' ? r.textAr : r.textEn}
+                    </p>
+                    <p className="mt-1">
+                      <span className="text-ink-muted">{dict.missionControl.suggestedAction}: </span>
+                      {locale === 'ar' ? r.suggestedActionAr : r.suggestedActionEn}
+                    </p>
+                    <EvidenceDrawer items={evidence} toggleLabel={dict.missionControl.evidence.toggle} asOfLabel={dict.missionControl.evidence.asOf} />
+                  </Card>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

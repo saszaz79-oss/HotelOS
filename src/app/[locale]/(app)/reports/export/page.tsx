@@ -138,7 +138,11 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
       <section>
         <h2 className="text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.executiveSummary}</h2>
         <p className="mt-1 text-sm">{morningBrief.todaySummary}</p>
-        {aiSummary.ok ? <p className="mt-2 text-sm text-ink-muted">{aiSummary.summary}</p> : null}
+        {aiSummary.ok ? (
+          <p className="mt-2 text-sm text-ink-muted">{aiSummary.summary}</p>
+        ) : (
+          <p className="mt-2 text-xs text-ink-muted">{dict.missionControl.aiSummaryUnavailable[aiSummary.reason]}</p>
+        )}
       </section>
 
       <section>

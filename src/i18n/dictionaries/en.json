@@ -361,6 +361,11 @@
       "risk": "Risk",
       "opportunity": "Opportunity",
       "action": "Action"
+    },
+    "evidence": {
+      "toggle": "View evidence",
+      "asOf": "as of",
+      "unresolvedMetric": "Unrecognized metric"
     }
   },
   "reportsCommon": {

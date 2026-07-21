@@ -361,6 +361,11 @@
       "risk": "خطر",
       "opportunity": "فرصة",
       "action": "إجراء"
+    },
+    "evidence": {
+      "toggle": "عرض الأدلة",
+      "asOf": "حتى تاريخ",
+      "unresolvedMetric": "مقياس غير معروف"
     }
   },
   "reportsCommon": {

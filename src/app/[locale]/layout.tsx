@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter, Cairo } from 'next/font/google';
 import { locales, defaultLocale, dirFor, type Locale } from '@/i18n/config';
 import '../globals.css';
@@ -30,6 +30,10 @@ export const metadata: Metadata = {
   title: 'HotelOS',
   description: 'The Intelligent Operating System for Hotels',
   manifest: '/manifest.json',
+};
+
+export const viewport: Viewport = {
+  themeColor: '#1c2b4a',
 };
 
 export function generateStaticParams() {

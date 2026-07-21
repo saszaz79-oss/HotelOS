@@ -43,20 +43,31 @@ export async function generateExecutiveSummary(
   // this from their own membership lookup — skip the redundant by-id
   // fetch when it's handed in rather than re-querying for a value the
   // caller already holds (Perf sprint, M14).
-  knownHotelName?: string
+  knownHotelName?: string,
+  // Same idea, one level further (Perf sprint round 2): Mission Control
+  // switched from a standalone getMetricsForDate(latestDate) call to a
+  // batched getMetricsForDates([latest, previous]) call to save a round
+  // trip — which means getMetricsForDate(hotelId, latestDate) below would
+  // no longer be cache()-deduped against anything (it'd be the only caller
+  // with that exact args tuple), silently reintroducing the round trip it
+  // was meant to remove. Passing the already-resolved values in sidesteps
+  // that entirely rather than depending on cache() dedup staying aligned
+  // with every caller's fetch strategy.
+  known?: { latestDate: Date; metrics: Awaited<ReturnType<typeof getMetricsForDate>> }
 ): Promise<ExecutiveSummaryResult> {
   // Retrieval — verified metrics only, nothing inferred. getLatestMetricDate
   // and getMetricsForDate are both React cache()-wrapped, so when the
-  // caller already fetched the same (hotelId, date) this request, these
-  // resolve from the request-scoped cache rather than re-querying.
-  const latestDate = await getLatestMetricDate(hotelId);
+  // caller already fetched the same (hotelId, date) this request (and
+  // didn't pass `known`), these resolve from the request-scoped cache
+  // rather than re-querying.
+  const latestDate = known?.latestDate ?? (await getLatestMetricDate(hotelId));
   if (!latestDate) {
     return { ok: false, reason: 'NO_DATA', message: 'No finalized metrics available yet for this hotel.' };
   }
 
   const hotelName =
     knownHotelName ?? (await prisma.hotel.findUniqueOrThrow({ where: { id: hotelId }, select: { name: true } })).name;
-  const metrics = await getMetricsForDate(hotelId, latestDate);
+  const metrics = known?.metrics ?? (await getMetricsForDate(hotelId, latestDate));
   const availableKeys = new Set(metrics.map((m) => m.metricKey));
 
   const citedMetrics: CitedMetric[] = metrics

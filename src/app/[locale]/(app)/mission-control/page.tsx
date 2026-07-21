@@ -4,7 +4,7 @@ import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/confi
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { prisma } from '@/lib/prisma';
 import { getActiveMembership } from '@/server/modules/hotels/access';
-import { getLatestMetricDate, getMetricsForDate, getPreviousMetricDate } from '@/server/modules/metrics/queries';
+import { getLatestMetricDate, getRecentMetricDates, getMetricsForDates } from '@/server/modules/metrics/queries';
 import { getLatestInsight } from '@/server/modules/insights/queries';
 import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
 import { generateExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
@@ -93,14 +93,20 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
     );
   }
 
-  const [metrics, previousDate, insight, aiSummary, recentUploads] = await Promise.all([
-    getMetricsForDate(hotelId, latestDate),
-    getPreviousMetricDate(hotelId, latestDate),
+  // recentDates(2) + a single getMetricsForDates(both) replaces what was
+  // 3 separate round trips (getMetricsForDate(latest), getPreviousMetricDate,
+  // getMetricsForDate(previous)) with 2 — see getRecentMetricDates'
+  // docblock (Perf sprint round 2).
+  const [recentDates, insight, recentUploads] = await Promise.all([
+    getRecentMetricDates(hotelId, 2),
     getLatestInsight(hotelId),
-    generateExecutiveSummary(hotelId, locale, membership.hotel.name),
     listReportUploads(hotelId, 5),
   ]);
-  const previousMetrics = previousDate ? await getMetricsForDate(hotelId, previousDate) : [];
+  const previousDate = recentDates[1] ?? null;
+  const allMetrics = await getMetricsForDates(hotelId, recentDates);
+  const metrics = allMetrics.filter((m) => m.metricDate.getTime() === latestDate.getTime());
+  const previousMetrics = previousDate ? allMetrics.filter((m) => m.metricDate.getTime() === previousDate.getTime()) : [];
+  const aiSummary = await generateExecutiveSummary(hotelId, locale, membership.hotel.name, { latestDate, metrics });
 
   const metricByKey = new Map(metrics.map((m) => [m.metricKey, m]));
   const previousByKey = new Map(previousMetrics.map((m) => [m.metricKey, m.value]));

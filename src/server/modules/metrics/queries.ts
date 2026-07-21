@@ -71,6 +71,43 @@ export const getMetricsForDateRange = cache(async (hotelId: string, from: Date, 
   });
 });
 
+/**
+ * Most recent `limit` distinct metricDates for a hotel, newest first — pairs
+ * with `getMetricsForDates` so "latest vs previous" (Mission Control,
+ * Executive Export) costs 2 round trips total instead of 3
+ * (getLatestMetricDate + getPreviousMetricDate + two separate
+ * getMetricsForDate calls), removing the previousDate round trip entirely
+ * (Perf sprint round 2).
+ */
+export const getRecentMetricDates = cache(async (hotelId: string, limit: number): Promise<Date[]> => {
+  const rows = await prisma.hotelMetric.findMany({
+    where: { hotelId },
+    distinct: ['metricDate'],
+    orderBy: { metricDate: 'desc' },
+    take: limit,
+    select: { metricDate: true },
+  });
+  return rows.map((r) => r.metricDate);
+});
+
+/** Metrics for several dates in one round trip — same include shape as getMetricsForDate, for callers needing more than one date (e.g. latest + previous) without a separate query per date. */
+export const getMetricsForDates = cache(async (hotelId: string, dates: Date[]) => {
+  if (dates.length === 0) return [];
+  return prisma.hotelMetric.findMany({
+    where: { hotelId, metricDate: { in: dates } },
+    include: {
+      metricDefinition: true,
+      sourceReportDocument: {
+        select: {
+          completenessScore: true,
+          extractionConfidence: true,
+          reportUpload: { select: { originalFilename: true } },
+        },
+      },
+    },
+  });
+});
+
 /** Distinct metric keys with at least one real recorded value — backs the Comparisons page's metric selector, so it never offers a metric this hotel has no history for. */
 export const listAvailableMetricKeys = cache(async (hotelId: string) => {
   const rows = await prisma.hotelMetric.findMany({

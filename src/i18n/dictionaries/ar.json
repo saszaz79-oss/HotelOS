@@ -423,7 +423,19 @@
     "sourceReports": "التقارير المصدر",
     "sourceReportsSummary": "بناءً على {count} تقرير: {types}",
     "rawFilenamesToggle": "عرض أسماء الملفات المصدر",
-    "exportLink": "تصدير التقرير التنفيذي PDF"
+    "exportLink": "تصدير التقرير التنفيذي PDF",
+    "trend": "اتجاه 14 يوماً — نسبة الإشغال",
+    "actionPlan": "خطة العمل",
+    "evidence": "الأدلة",
+    "action": "الإجراء",
+    "owner": "المسؤول",
+    "timeframe": "الإطار الزمني",
+    "expectedOutcome": "النتيجة المتوقعة",
+    "notYetAvailable": "غير متاح بعد",
+    "dataQualityPanel": "جودة البيانات",
+    "consistencyChecks": "فحوصات الاتساق",
+    "noConsistencyIssues": "لم يتم رصد أي مشكلات اتساق.",
+    "correctionsNote": "يمكن إجراء التصحيحات من مركز القيادة."
   },
   "timeline": {
     "title": "الجدول الزمني للعمليات",

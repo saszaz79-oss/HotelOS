@@ -423,7 +423,19 @@
     "sourceReports": "Source reports",
     "sourceReportsSummary": "Based on {count} report(s): {types}",
     "rawFilenamesToggle": "View source file names",
-    "exportLink": "Export Executive PDF"
+    "exportLink": "Export Executive PDF",
+    "trend": "14-Day Trend — Occupancy",
+    "actionPlan": "Action Plan",
+    "evidence": "Evidence",
+    "action": "Action",
+    "owner": "Owner",
+    "timeframe": "Timeframe",
+    "expectedOutcome": "Expected Outcome",
+    "notYetAvailable": "Not yet available",
+    "dataQualityPanel": "Data Quality",
+    "consistencyChecks": "Consistency checks",
+    "noConsistencyIssues": "No consistency issues detected.",
+    "correctionsNote": "Corrections can be made from Mission Control."
   },
   "timeline": {
     "title": "Mission Timeline",

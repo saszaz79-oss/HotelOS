@@ -15,6 +15,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { KpiCard } from '@/components/ui/KpiCard';
 import { reportStatusTone } from '@/lib/status-tone';
 
 const KEY_METRIC_KEYS = [
@@ -123,7 +124,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
     <div className="max-w-5xl space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-medium text-ink">
+          <h1 className="text-2xl font-semibold text-ink">
             {dict.missionControl.greeting}, {user?.displayName}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
@@ -259,32 +260,34 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
             const delta = previousValue !== undefined && previousValue !== null ? m.value - previousValue : null;
             const label = locale === 'ar' ? m.metricDefinition.labelAr : m.metricDefinition.labelEn;
             return (
-              <Card key={key} className="p-4">
-                <div className="text-sm text-ink-muted">{label}</div>
-                <div className="metric-value mt-1 text-2xl font-semibold text-ink">
-                  {formatMetricValue(m.value, m.metricDefinition.unit)}
-                </div>
-                {delta !== null ? (
-                  <div className="metric-value mt-1 text-xs text-ink-muted">
-                    {delta >= 0 ? '+' : ''}
-                    {formatMetricValue(delta, m.metricDefinition.unit)} {dict.missionControl.vsPrevious}
-                  </div>
-                ) : null}
-                <div className="mt-2 space-y-0.5 text-xs text-ink-muted">
-                  {doc ? (
-                    <>
-                      <div>
-                        {dict.missionControl.confidence}: {Math.round((doc.extractionConfidence ?? 0) * 100)}%
-                        {' · '}
-                        {dict.missionControl.completeness}: {Math.round((doc.completenessScore ?? 0) * 100)}%
+              <KpiCard
+                key={key}
+                label={label}
+                value={formatMetricValue(m.value, m.metricDefinition.unit)}
+                tone={delta !== null ? (delta >= 0 ? 'positive' : 'critical') : 'neutral'}
+                trend={
+                  <>
+                    {delta !== null ? (
+                      <div className="metric-value text-ink">
+                        {delta >= 0 ? '+' : ''}
+                        {formatMetricValue(delta, m.metricDefinition.unit)} {dict.missionControl.vsPrevious}
                       </div>
-                      <div className="truncate">
-                        {dict.missionControl.source}: {doc.reportUpload.originalFilename}
-                      </div>
-                    </>
-                  ) : null}
-                </div>
-              </Card>
+                    ) : null}
+                    {doc ? (
+                      <>
+                        <div className="mt-1">
+                          {dict.missionControl.confidence}: {Math.round((doc.extractionConfidence ?? 0) * 100)}%
+                          {' · '}
+                          {dict.missionControl.completeness}: {Math.round((doc.completenessScore ?? 0) * 100)}%
+                        </div>
+                        <div className="truncate">
+                          {dict.missionControl.source}: {doc.reportUpload.originalFilename}
+                        </div>
+                      </>
+                    ) : null}
+                  </>
+                }
+              />
             );
           })}
         </div>
@@ -298,7 +301,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
           </Link>
         </CardHeader>
         {recentUploads.length === 0 ? (
-          <p className="text-sm text-ink-muted">{dict.reportsUpload.noUploads}</p>
+          <EmptyState title={dict.reportsUpload.noUploads} />
         ) : (
           <ul className="divide-y divide-ink/5 text-sm">
             {recentUploads.map((u) => (
@@ -323,18 +326,19 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
         ) : (
           <ul className="mt-2 space-y-2">
             {insight.alerts.map((a) => (
-              <li
-                key={a.id}
-                className={
-                  'rounded-md border p-3 text-sm ' +
-                  (a.severity === 'critical'
-                    ? 'border-status-critical/40 bg-status-critical/10'
-                    : a.severity === 'warning'
-                    ? 'border-status-warning/40 bg-status-warning/10'
-                    : 'border-status-info/40 bg-status-info/10')
-                }
-              >
-                {locale === 'ar' ? a.messageAr : a.messageEn}
+              <li key={a.id}>
+                <Card
+                  className={
+                    'p-3 text-sm ' +
+                    (a.severity === 'critical'
+                      ? 'border-status-critical/30 bg-status-critical/[0.06]'
+                      : a.severity === 'warning'
+                      ? 'border-status-warning/30 bg-status-warning/[0.06]'
+                      : 'border-status-info/30 bg-status-info/[0.06]')
+                  }
+                >
+                  {locale === 'ar' ? a.messageAr : a.messageEn}
+                </Card>
               </li>
             ))}
           </ul>
@@ -348,22 +352,24 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
         ) : (
           <ul className="mt-2 space-y-3">
             {insight.recommendations.map((r) => (
-              <li key={r.id} className="rounded-lg border border-ink/10 p-4 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium uppercase text-ink-muted">{r.category}</span>
-                  <span className="text-xs text-ink-muted">
-                    {dict.missionControl.priority}: {r.priority} · {dict.missionControl.confidence}:{' '}
-                    {Math.round(r.confidence * 100)}%
-                  </span>
-                </div>
-                <p className="mt-2">
-                  <span className="text-ink-muted">{dict.missionControl.why}: </span>
-                  {locale === 'ar' ? r.textAr : r.textEn}
-                </p>
-                <p className="mt-1">
-                  <span className="text-ink-muted">{dict.missionControl.suggestedAction}: </span>
-                  {locale === 'ar' ? r.suggestedActionAr : r.suggestedActionEn}
-                </p>
+              <li key={r.id}>
+                <Card className="p-4 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">{r.category}</span>
+                    <span className="text-xs text-ink-muted">
+                      {dict.missionControl.priority}: {r.priority} · {dict.missionControl.confidence}:{' '}
+                      {Math.round(r.confidence * 100)}%
+                    </span>
+                  </div>
+                  <p className="mt-2">
+                    <span className="text-ink-muted">{dict.missionControl.why}: </span>
+                    {locale === 'ar' ? r.textAr : r.textEn}
+                  </p>
+                  <p className="mt-1">
+                    <span className="text-ink-muted">{dict.missionControl.suggestedAction}: </span>
+                    {locale === 'ar' ? r.suggestedActionAr : r.suggestedActionEn}
+                  </p>
+                </Card>
               </li>
             ))}
           </ul>
@@ -373,12 +379,12 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
       <section>
         <h2 className="text-sm font-medium text-ink-muted">{dict.missionControl.aiSummary}</h2>
         {aiSummary.ok ? (
-          <div className="mt-2 rounded-lg border border-ink/10 p-4 text-sm">
+          <Card className="mt-2 text-sm">
             <p>{aiSummary.summary}</p>
             <p className="mt-3 text-xs text-ink-muted">
               {dict.missionControl.citedFrom}: {aiSummary.citedMetrics.map((c) => c.labelEn).join(', ')}
             </p>
-          </div>
+          </Card>
         ) : (
           <p className="mt-2 text-sm text-ink-muted">{dict.missionControl.aiSummaryUnavailable[aiSummary.reason]}</p>
         )}

@@ -157,7 +157,10 @@
     },
     "roles": {
       "title": "الأدوار والصلاحيات",
-      "note": "الأدوار ثابتة في الكود للإصدار v0.1 (راجع DECISIONS.md D10) — لا يوجد محرر أدوار مخصصة بعد."
+      "note": "الأدوار ثابتة في الكود للإصدار v0.1 (راجع DECISIONS.md D10) — لا يوجد محرر أدوار مخصصة بعد.",
+      "columnRole": "الدور",
+      "columnScope": "النطاق",
+      "columnPermissions": "الصلاحيات"
     },
     "featureFlags": {
       "title": "مفاتيح الميزات",
@@ -186,7 +189,9 @@
       "connected": "متصل",
       "unreachable": "غير متاح",
       "configured": "مهيّأ",
-      "notConfigured": "غير مهيّأ"
+      "notConfigured": "غير مهيّأ",
+      "technicalDetails": "التفاصيل التقنية",
+      "gitCommit": "إصدار البناء"
     },
     "support": {
       "title": "الوصول للدعم",
@@ -195,7 +200,13 @@
     },
     "settings": {
       "title": "إعدادات المنصة",
-      "note": "إعدادات تشغيلية غير سرية. لا تُعرض الأسرار هنا أبداً."
+      "note": "إعدادات تشغيلية غير سرية. لا تُعرض الأسرار هنا أبداً.",
+      "storageDriver": "محرك التخزين",
+      "aiProvider": "مزود الذكاء الاصطناعي",
+      "notificationDriver": "محرك الإشعارات",
+      "defaultLocale": "اللغة الافتراضية",
+      "defaultLocaleValue": "العربية أولاً، من اليمين لليسار",
+      "defaultCurrency": "العملة الافتراضية"
     }
   },
   "reportsUpload": {

@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { listHotels } from '@/server/modules/hotels/queries';
+import { Card } from '@/components/ui/Card';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { hotelStatusTone } from '@/lib/status-tone';
 
 export default async function AdminSupportPage(props: { params: Promise<{ locale: string }> }) {
   const params = await props.params;
@@ -10,17 +13,22 @@ export default async function AdminSupportPage(props: { params: Promise<{ locale
 
   return (
     <div className="max-w-md space-y-4">
-      <h1 className="text-lg font-medium">{dict.admin.support.title}</h1>
-      <p className="text-sm text-ink-muted">{dict.admin.support.note}</p>
-      <ul className="space-y-1 text-sm">
-        {hotels.map((h) => (
-          <li key={h.id}>
-            <Link href={`/${locale}/admin/support/${h.id}`} className="text-accent hover:underline">
-              {h.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <div>
+        <h1 className="text-xl font-semibold text-ink">{dict.admin.support.title}</h1>
+        <p className="mt-1 text-sm text-ink-muted">{dict.admin.support.note}</p>
+      </div>
+      <Card className="p-0">
+        <ul className="divide-y divide-ink/5">
+          {hotels.map((h) => (
+            <li key={h.id}>
+              <Link href={`/${locale}/admin/support/${h.id}`} className="flex items-center justify-between gap-3 px-5 py-3 text-sm text-ink transition-colors hover:bg-ink/[0.02]">
+                <span className="font-medium">{h.name}</span>
+                <StatusBadge tone={hotelStatusTone(h.status)}>{h.status}</StatusBadge>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Card>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
+import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
 
 const ROLES = [
   { role: 'SUPER_ADMIN (Platform Owner)', scope: 'All hotels', permissions: 'Full platform administration: create/suspend/archive hotels, manage all users, view/compare any hotels, full audit log, Support Access. Not a per-hotel membership — a User.isSuperAdmin flag.' },
@@ -17,26 +18,30 @@ export default async function AdminRolesPage(props: { params: Promise<{ locale: 
 
   return (
     <div className="max-w-3xl space-y-4">
-      <h1 className="text-lg font-medium">{dict.admin.roles.title}</h1>
-      <p className="text-sm text-ink-muted">{dict.admin.roles.note}</p>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-ink/10 text-start text-ink-muted">
-            <th className="py-2 text-start">Role</th>
-            <th className="py-2 text-start">Scope</th>
-            <th className="py-2 text-start">Permissions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ROLES.map((r) => (
-            <tr key={r.role} className="border-b border-ink/5 align-top">
-              <td className="py-2 font-medium">{r.role}</td>
-              <td className="py-2 text-ink-muted">{r.scope}</td>
-              <td className="py-2">{r.permissions}</td>
+      <div>
+        <h1 className="text-xl font-semibold text-ink">{dict.admin.roles.title}</h1>
+        <p className="mt-1 text-sm text-ink-muted">{dict.admin.roles.note}</p>
+      </div>
+      <TableShell>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className={tableHeadRowClass}>
+              <th className={tableHeadCellClass}>{dict.admin.roles.columnRole}</th>
+              <th className={tableHeadCellClass}>{dict.admin.roles.columnScope}</th>
+              <th className={tableHeadCellClass}>{dict.admin.roles.columnPermissions}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {ROLES.map((r) => (
+              <tr key={r.role} className={tableRowClass}>
+                <td className={`${tableCellClass} align-top font-medium text-ink`}>{r.role}</td>
+                <td className={`${tableCellClass} align-top text-ink-muted`}>{r.scope}</td>
+                <td className={`${tableCellClass} align-top text-ink-muted`}>{r.permissions}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableShell>
     </div>
   );
 }

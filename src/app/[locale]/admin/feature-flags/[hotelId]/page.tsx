@@ -2,6 +2,9 @@ import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/confi
 import { getAllModuleStates } from '@/server/modules/feature-flags';
 import { prisma } from '@/lib/prisma';
 import { toggleModuleAction } from './actions';
+import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Button } from '@/components/ui/Button';
 
 export default async function AdminHotelFeatureFlagsPage(
   props: {
@@ -16,26 +19,38 @@ export default async function AdminHotelFeatureFlagsPage(
 
   return (
     <div className="max-w-md space-y-4">
-      <h1 className="text-lg font-medium">
+      <h1 className="text-xl font-semibold text-ink">
         {dict.admin.featureFlags.title} — {hotel?.name}
       </h1>
-      <table className="w-full text-sm">
-        <tbody>
-          {states.map((s) => (
-            <tr key={s.key} className="border-b border-ink/5">
-              <td className="py-2">{s.key}</td>
-              <td className="py-2">{s.enabled ? dict.admin.featureFlags.enabled : dict.admin.featureFlags.disabled}</td>
-              <td className="py-2">
-                <form action={toggleModuleAction.bind(null, locale, params.hotelId, s.key, s.enabled)}>
-                  <button type="submit" className="rounded-md border border-ink/10 px-3 py-1 text-xs hover:bg-surface-raised">
-                    {dict.admin.featureFlags.toggle}
-                  </button>
-                </form>
-              </td>
+      <TableShell>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className={tableHeadRowClass}>
+              <th className={tableHeadCellClass} colSpan={2}>{dict.admin.featureFlags.title}</th>
+              <th className={tableHeadCellClass} />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {states.map((s) => (
+              <tr key={s.key} className={tableRowClass}>
+                <td className={`${tableCellClass} font-mono text-xs text-ink`}>{s.key}</td>
+                <td className={tableCellClass}>
+                  <StatusBadge tone={s.enabled ? 'positive' : 'neutral'}>
+                    {s.enabled ? dict.admin.featureFlags.enabled : dict.admin.featureFlags.disabled}
+                  </StatusBadge>
+                </td>
+                <td className={`${tableCellClass} text-end`}>
+                  <form action={toggleModuleAction.bind(null, locale, params.hotelId, s.key, s.enabled)}>
+                    <Button type="submit" variant="secondary" size="sm">
+                      {dict.admin.featureFlags.toggle}
+                    </Button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableShell>
     </div>
   );
 }

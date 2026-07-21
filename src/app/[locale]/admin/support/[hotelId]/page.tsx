@@ -6,6 +6,10 @@ import { prisma } from '@/lib/prisma';
 import { listReportUploads } from '@/server/modules/reports/queries';
 import { getLatestInsight } from '@/server/modules/insights/queries';
 import { listTimelineEvents } from '@/server/modules/timeline';
+import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { reportStatusTone } from '@/lib/status-tone';
 
 export default async function AdminSupportHotelPage(
   props: {
@@ -37,37 +41,54 @@ export default async function AdminSupportHotelPage(
   });
 
   return (
-    <div className="max-w-2xl space-y-8">
-      <h1 className="text-lg font-medium">
+    <div className="max-w-2xl space-y-6">
+      <h1 className="text-xl font-semibold text-ink">
         {dict.admin.support.title} — {hotel?.name}
       </h1>
 
-      <section>
-        <h2 className="text-sm font-medium text-ink-muted">Health Score</h2>
-        <p className="metric-value mt-1 text-xl">{insight?.healthScore ?? 'Not computed yet'}</p>
-      </section>
+      <Card className="p-4">
+        <p className="text-xs text-ink-muted">Health Score</p>
+        <p className="metric-value mt-1 text-2xl font-semibold text-ink">{insight?.healthScore ?? '—'}</p>
+      </Card>
 
-      <section>
-        <h2 className="text-sm font-medium text-ink-muted">Recent Uploads</h2>
-        <ul className="mt-2 space-y-1 text-sm">
-          {uploads.map((u) => (
-            <li key={u.id}>
-              {u.originalFilename} — {u.status} ({new Date(u.createdAt).toLocaleDateString(locale)})
-            </li>
-          ))}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Uploads</CardTitle>
+        </CardHeader>
+        {uploads.length === 0 ? (
+          <EmptyState title={dict.reportsUpload.noUploads} />
+        ) : (
+          <ul className="divide-y divide-ink/5 text-sm">
+            {uploads.map((u) => (
+              <li key={u.id} className="flex items-center justify-between gap-3 py-2.5">
+                <span className="truncate text-ink">{u.originalFilename}</span>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-xs text-ink-muted">{new Date(u.createdAt).toLocaleDateString(locale)}</span>
+                  <StatusBadge tone={reportStatusTone(u.status)}>{u.status}</StatusBadge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
-      <section>
-        <h2 className="text-sm font-medium text-ink-muted">Recent Timeline</h2>
-        <ul className="mt-2 space-y-1 text-sm">
-          {events.map((e) => (
-            <li key={e.id}>
-              {e.eventType} — {new Date(e.createdAt).toLocaleString(locale)}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Timeline</CardTitle>
+        </CardHeader>
+        {events.length === 0 ? (
+          <EmptyState title={locale === 'ar' ? 'لا توجد أحداث بعد.' : 'No timeline events yet.'} />
+        ) : (
+          <ul className="divide-y divide-ink/5 text-sm">
+            {events.map((e) => (
+              <li key={e.id} className="flex items-center justify-between py-2.5">
+                <span className="font-mono text-xs text-ink">{e.eventType}</span>
+                <span className="text-xs text-ink-muted">{new Date(e.createdAt).toLocaleString(locale)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

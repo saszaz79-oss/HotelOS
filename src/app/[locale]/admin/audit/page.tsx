@@ -1,5 +1,7 @@
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { prisma } from '@/lib/prisma';
+import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default async function AdminAuditPage(props: { params: Promise<{ locale: string }> }) {
   const params = await props.params;
@@ -14,30 +16,32 @@ export default async function AdminAuditPage(props: { params: Promise<{ locale: 
 
   return (
     <div className="max-w-4xl space-y-4">
-      <h1 className="text-lg font-medium">{dict.admin.audit.title}</h1>
+      <h1 className="text-xl font-semibold text-ink">{dict.admin.audit.title}</h1>
       {logs.length === 0 ? (
-        <p className="text-sm text-ink-muted">No audit entries yet.</p>
+        <EmptyState title={dict.reportsArchive.noResults} />
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-ink/10 text-start text-ink-muted">
-              <th className="py-2 text-start">{dict.admin.audit.action}</th>
-              <th className="py-2 text-start">{dict.admin.audit.user}</th>
-              <th className="py-2 text-start">{dict.admin.audit.hotel}</th>
-              <th className="py-2 text-start">{dict.admin.audit.timestamp}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((l) => (
-              <tr key={l.id} className="border-b border-ink/5">
-                <td className="py-2 font-mono text-xs">{l.action}</td>
-                <td className="py-2">{l.user.displayName}</td>
-                <td className="py-2">{l.hotel?.name ?? '—'}</td>
-                <td className="py-2 text-ink-muted">{new Date(l.createdAt).toLocaleString(locale)}</td>
+        <TableShell>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={tableHeadRowClass}>
+                <th className={tableHeadCellClass}>{dict.admin.audit.action}</th>
+                <th className={tableHeadCellClass}>{dict.admin.audit.user}</th>
+                <th className={tableHeadCellClass}>{dict.admin.audit.hotel}</th>
+                <th className={tableHeadCellClass}>{dict.admin.audit.timestamp}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {logs.map((l) => (
+                <tr key={l.id} className={tableRowClass}>
+                  <td className={`${tableCellClass} font-mono text-xs text-ink`}>{l.action}</td>
+                  <td className={`${tableCellClass} text-ink`}>{l.user.displayName}</td>
+                  <td className={`${tableCellClass} text-ink-muted`}>{l.hotel?.name ?? '—'}</td>
+                  <td className={`${tableCellClass} text-ink-muted`}>{new Date(l.createdAt).toLocaleString(locale)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableShell>
       )}
     </div>
   );

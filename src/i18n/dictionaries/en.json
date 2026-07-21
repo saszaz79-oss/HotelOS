@@ -157,7 +157,10 @@
     },
     "roles": {
       "title": "Roles & Permissions",
-      "note": "Roles are fixed in code for v0.1 (DECISIONS.md D10) — no custom role editor yet."
+      "note": "Roles are fixed in code for v0.1 (DECISIONS.md D10) — no custom role editor yet.",
+      "columnRole": "Role",
+      "columnScope": "Scope",
+      "columnPermissions": "Permissions"
     },
     "featureFlags": {
       "title": "Feature Flags",
@@ -186,7 +189,9 @@
       "connected": "Connected",
       "unreachable": "Unreachable",
       "configured": "Configured",
-      "notConfigured": "Not configured"
+      "notConfigured": "Not configured",
+      "technicalDetails": "Technical details",
+      "gitCommit": "Build commit"
     },
     "support": {
       "title": "Support Access",
@@ -195,7 +200,13 @@
     },
     "settings": {
       "title": "Platform Settings",
-      "note": "Non-secret operational configuration. Secrets are never displayed here."
+      "note": "Non-secret operational configuration. Secrets are never displayed here.",
+      "storageDriver": "Storage driver",
+      "aiProvider": "AI provider",
+      "notificationDriver": "Notification driver",
+      "defaultLocale": "Default locale",
+      "defaultLocaleValue": "Arabic-first, RTL",
+      "defaultCurrency": "Default currency"
     }
   },
   "reportsUpload": {

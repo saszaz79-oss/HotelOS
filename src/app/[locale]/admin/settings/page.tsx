@@ -1,5 +1,6 @@
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { env } from '@/lib/env';
+import { Card } from '@/components/ui/Card';
 
 export default async function AdminSettingsPage(props: { params: Promise<{ locale: string }> }) {
   const params = await props.params;
@@ -7,27 +8,29 @@ export default async function AdminSettingsPage(props: { params: Promise<{ local
   const dict = getDictionary(locale);
 
   const settings = [
-    { label: 'Storage driver', value: env.STORAGE_DRIVER },
-    { label: 'AI provider', value: env.AI_PROVIDER },
-    { label: 'Notification driver', value: env.NOTIFICATION_DRIVER },
-    { label: 'Default locale', value: 'ar (Arabic-first, RTL)' },
-    { label: 'Default currency', value: 'SAR' },
+    { label: dict.admin.settings.storageDriver, value: env.STORAGE_DRIVER },
+    { label: dict.admin.settings.aiProvider, value: env.AI_PROVIDER },
+    { label: dict.admin.settings.notificationDriver, value: env.NOTIFICATION_DRIVER },
+    { label: dict.admin.settings.defaultLocale, value: dict.admin.settings.defaultLocaleValue },
+    { label: dict.admin.settings.defaultCurrency, value: 'SAR' },
   ];
 
   return (
     <div className="max-w-md space-y-4">
-      <h1 className="text-lg font-medium">{dict.admin.settings.title}</h1>
-      <p className="text-sm text-ink-muted">{dict.admin.settings.note}</p>
-      <table className="w-full text-sm">
-        <tbody>
+      <div>
+        <h1 className="text-xl font-semibold text-ink">{dict.admin.settings.title}</h1>
+        <p className="mt-1 text-sm text-ink-muted">{dict.admin.settings.note}</p>
+      </div>
+      <Card>
+        <ul className="divide-y divide-ink/5">
           {settings.map((s) => (
-            <tr key={s.label} className="border-b border-ink/5">
-              <td className="py-2 text-ink-muted">{s.label}</td>
-              <td className="py-2">{s.value}</td>
-            </tr>
+            <li key={s.label} className="flex items-center justify-between py-2.5 text-sm first:pt-0 last:pb-0">
+              <span className="text-ink-muted">{s.label}</span>
+              <span className="metric-value text-ink">{s.value}</span>
+            </li>
           ))}
-        </tbody>
-      </table>
+        </ul>
+      </Card>
     </div>
   );
 }

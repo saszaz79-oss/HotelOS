@@ -7,9 +7,14 @@ import type { ReportType, ReportUploadStatus } from '@prisma/client';
 import { Card } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
+import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
 import { reportStatusTone } from '@/lib/status-tone';
 import { deleteReportAction } from './actions';
 import { DeleteReportButton } from '../DeleteReportButton';
+
+const filterFieldClass =
+  'rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 const REPORT_TYPES: ReportType[] = ['MANAGER_FLASH', 'RESERVATION_STATISTICS', 'RESERVATION_STATISTICS_1', 'OPEN_BALANCE', 'GENERIC'];
 const STATUSES: ReportUploadStatus[] = ['uploaded', 'processing', 'needs_review', 'complete', 'error'];
@@ -74,7 +79,7 @@ export default async function ReportsArchivePage(
   return (
     <div className="max-w-5xl space-y-6">
       <div>
-        <h1 className="text-xl font-medium text-ink">{dict.reportsArchive.title}</h1>
+        <h1 className="text-xl font-semibold text-ink">{dict.reportsArchive.title}</h1>
         <p className="mt-1 text-sm text-ink-muted">{dict.reportsArchive.count.replace('{count}', String(total))}</p>
       </div>
 
@@ -84,9 +89,9 @@ export default async function ReportsArchivePage(
           name="q"
           defaultValue={filter.search}
           placeholder={dict.reportsArchive.searchPlaceholder}
-          className="min-w-[200px] flex-1 rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+          className={`min-w-[200px] flex-1 ${filterFieldClass}`}
         />
-        <select name="type" defaultValue={filter.reportType ?? ''} className="rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm">
+        <select name="type" defaultValue={filter.reportType ?? ''} className={filterFieldClass}>
           <option value="">{dict.reportsArchive.filterAllTypes}</option>
           {REPORT_TYPES.map((t) => (
             <option key={t} value={t}>
@@ -94,7 +99,7 @@ export default async function ReportsArchivePage(
             </option>
           ))}
         </select>
-        <select name="status" defaultValue={filter.status ?? ''} className="rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm">
+        <select name="status" defaultValue={filter.status ?? ''} className={filterFieldClass}>
           <option value="">{dict.reportsArchive.filterAllStatuses}</option>
           {STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -102,7 +107,7 @@ export default async function ReportsArchivePage(
             </option>
           ))}
         </select>
-        <select name="uploadedBy" defaultValue={searchParams.uploadedBy ?? ''} className="rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm">
+        <select name="uploadedBy" defaultValue={searchParams.uploadedBy ?? ''} className={filterFieldClass}>
           <option value="">{dict.reportsArchive.filterAllUploaders}</option>
           {uploaders.map((u) => (
             <option key={u.id} value={u.id}>
@@ -115,19 +120,19 @@ export default async function ReportsArchivePage(
           name="from"
           defaultValue={searchParams.from}
           aria-label={dict.reportsArchive.dateFrom}
-          className="rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm"
+          className={filterFieldClass}
         />
         <input
           type="date"
           name="to"
           defaultValue={searchParams.to}
           aria-label={dict.reportsArchive.dateTo}
-          className="rounded-md border border-ink/15 bg-surface-raised px-3 py-2 text-sm"
+          className={filterFieldClass}
         />
-        <button type="submit" className="rounded-md border border-ink/15 bg-surface-raised px-4 py-2 text-sm text-ink hover:bg-surface">
+        <Button type="submit" variant="secondary" size="sm">
           {dict.reportsArchive.search}
-        </button>
-        <Link href={`/${locale}/reports/archive`} className="rounded-md px-4 py-2 text-sm text-ink-muted hover:text-ink">
+        </Button>
+        <Link href={`/${locale}/reports/archive`} className="rounded-md px-4 py-2 text-sm text-ink-muted transition-colors hover:text-ink">
           {dict.reportsArchive.clearFilters}
         </Link>
       </form>
@@ -136,44 +141,44 @@ export default async function ReportsArchivePage(
         <EmptyState title={dict.reportsArchive.noResults} />
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-lg border border-ink/10 md:block">
+          <TableShell className="hidden md:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-ink/10 bg-surface-raised text-start text-ink-muted">
-                  <th className="px-4 py-2.5 text-start">{dict.reportsArchive.file}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.reportsArchive.reportType}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.reportsArchive.uploadedBy}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.reportsArchive.status}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.reportsArchive.dataQuality}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.reportsArchive.duration}</th>
-                  <th className="px-4 py-2.5 text-start">{dict.reportsArchive.date}</th>
-                  {canDelete ? <th className="px-4 py-2.5 text-start" /> : null}
+                <tr className={tableHeadRowClass}>
+                  <th className={tableHeadCellClass}>{dict.reportsArchive.file}</th>
+                  <th className={tableHeadCellClass}>{dict.reportsArchive.reportType}</th>
+                  <th className={tableHeadCellClass}>{dict.reportsArchive.uploadedBy}</th>
+                  <th className={tableHeadCellClass}>{dict.reportsArchive.status}</th>
+                  <th className={tableHeadCellClass}>{dict.reportsArchive.dataQuality}</th>
+                  <th className={tableHeadCellClass}>{dict.reportsArchive.duration}</th>
+                  <th className={tableHeadCellClass}>{dict.reportsArchive.date}</th>
+                  {canDelete ? <th className={tableHeadCellClass} /> : null}
                 </tr>
               </thead>
               <tbody>
                 {uploads.map((u) => {
                   const doc = u.documents[0];
                   return (
-                    <tr key={u.id} className="border-b border-ink/5 last:border-0">
-                      <td className="px-4 py-2.5">
-                        <Link href={`/${locale}/reports/${u.id}`} className="text-ink hover:text-accent hover:underline">
+                    <tr key={u.id} className={tableRowClass}>
+                      <td className={tableCellClass}>
+                        <Link href={`/${locale}/reports/${u.id}`} className="font-medium text-ink hover:text-accent hover:underline">
                           {u.originalFilename}
                         </Link>
                       </td>
-                      <td className="px-4 py-2.5 text-ink-muted">{doc?.reportType ?? '—'}</td>
-                      <td className="px-4 py-2.5 text-ink-muted">{u.uploadedBy.displayName}</td>
-                      <td className="px-4 py-2.5">
+                      <td className={`${tableCellClass} text-ink-muted`}>{doc?.reportType ?? '—'}</td>
+                      <td className={`${tableCellClass} text-ink-muted`}>{u.uploadedBy.displayName}</td>
+                      <td className={tableCellClass}>
                         <StatusBadge tone={reportStatusTone(u.status)}>{u.status}</StatusBadge>
                       </td>
-                      <td className="metric-value px-4 py-2.5 text-ink-muted">
+                      <td className={`metric-value ${tableCellClass} text-ink-muted`}>
                         {doc?.completenessScore !== null && doc?.completenessScore !== undefined
                           ? `${Math.round(doc.completenessScore * 100)}%`
                           : '—'}
                       </td>
-                      <td className="metric-value px-4 py-2.5 text-ink-muted">{processingDuration(u, doc, dict.reportsArchive)}</td>
-                      <td className="px-4 py-2.5 text-ink-muted">{new Date(u.createdAt).toLocaleDateString(locale)}</td>
+                      <td className={`metric-value ${tableCellClass} text-ink-muted`}>{processingDuration(u, doc, dict.reportsArchive)}</td>
+                      <td className={`${tableCellClass} text-ink-muted`}>{new Date(u.createdAt).toLocaleDateString(locale)}</td>
                       {canDelete ? (
-                        <td className="px-4 py-2.5">
+                        <td className={tableCellClass}>
                           {u.status !== 'complete' ? (
                             <DeleteReportButton
                               action={deleteReportAction.bind(null, locale, membership.hotelId, u.id)}
@@ -187,7 +192,7 @@ export default async function ReportsArchivePage(
                 })}
               </tbody>
             </table>
-          </div>
+          </TableShell>
 
           <div className="space-y-3 md:hidden">
             {uploads.map((u) => {

@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { resolveHotelScope } from '@/server/modules/hotels/access';
 import { uploadReport, type UploadReportResult } from '@/server/modules/reports/commands';
+import { prisma } from '@/lib/prisma';
+import type { ReportUploadStatus } from '@prisma/client';
 import type { Locale } from '@/i18n/config';
 // Side-effect import: registers the extraction pipeline as a subscriber to
 // `ReportUploaded` (Architecture §17) — see report-extraction/index.ts.
@@ -52,4 +54,22 @@ export async function uploadSingleReportAction(locale: Locale, hotelId: string, 
 
   revalidatePath(`/${locale}/reports/upload`);
   return result;
+}
+
+/**
+ * Read-only status poll for the upload queue UI — lets the client reflect
+ * the async extraction pipeline's real progress (uploaded -> processing ->
+ * needs_review/complete/error, run by the ReportUploaded event subscriber
+ * in report-extraction/index.ts) instead of freezing at "uploaded" the
+ * moment the request returns. No new business logic: same tenant-scoped
+ * lookup pattern as every other query in this module.
+ */
+export async function getUploadStatusAction(hotelId: string, reportUploadId: string): Promise<ReportUploadStatus | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const scope = await resolveHotelScope(user);
+  if (scope.kind !== 'super_admin' && !scope.hotelIds.includes(hotelId)) return null;
+
+  const upload = await prisma.reportUpload.findFirst({ where: { id: reportUploadId, hotelId }, select: { status: true } });
+  return upload?.status ?? null;
 }

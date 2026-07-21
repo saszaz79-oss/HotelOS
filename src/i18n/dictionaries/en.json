@@ -232,7 +232,15 @@
     "remove": "Remove",
     "retry": "Retry",
     "clear": "Clear finished",
-    "queued": "Queued"
+    "queued": "Ready to upload",
+    "acceptedTypesHint": "PDF files only",
+    "maxSizeHint": "Up to 15MB per file",
+    "processingUploaded": "Uploaded",
+    "processingProcessing": "Processing",
+    "processingNeedsReview": "Needs review",
+    "processingComplete": "Complete",
+    "processingFailed": "Failed",
+    "viewReport": "View report"
   },
   "reportsArchive": {
     "title": "Reports Archive",

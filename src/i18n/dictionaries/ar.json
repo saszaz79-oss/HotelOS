@@ -232,7 +232,15 @@
     "remove": "إزالة",
     "retry": "إعادة المحاولة",
     "clear": "مسح المكتمل",
-    "queued": "في الانتظار"
+    "queued": "جاهز للرفع",
+    "acceptedTypesHint": "ملفات PDF فقط",
+    "maxSizeHint": "حتى 15 ميغابايت لكل ملف",
+    "processingUploaded": "تم الرفع",
+    "processingProcessing": "قيد المعالجة",
+    "processingNeedsReview": "يحتاج مراجعة",
+    "processingComplete": "مكتمل",
+    "processingFailed": "فشل",
+    "viewReport": "عرض التقرير"
   },
   "reportsArchive": {
     "title": "أرشيف التقارير",

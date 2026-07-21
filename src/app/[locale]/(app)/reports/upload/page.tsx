@@ -6,6 +6,7 @@ import { listReportUploads } from '@/server/modules/reports/queries';
 import { UploadForm } from './UploadForm';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { reportStatusTone } from '@/lib/status-tone';
 
 export default async function ReportsUploadPage(props: { params: Promise<{ locale: string }> }) {
@@ -29,7 +30,7 @@ export default async function ReportsUploadPage(props: { params: Promise<{ local
   return (
     <div className="max-w-2xl space-y-8">
       <div>
-        <h1 className="text-xl font-medium">{dict.reportsUpload.title}</h1>
+        <h1 className="text-xl font-semibold text-ink">{dict.reportsUpload.title}</h1>
         <p className="mt-1 text-sm text-ink-muted">{dict.reportsUpload.description}</p>
       </div>
 
@@ -40,7 +41,7 @@ export default async function ReportsUploadPage(props: { params: Promise<{ local
           <CardTitle>{dict.reportsUpload.recentUploads}</CardTitle>
         </CardHeader>
         {uploads.length === 0 ? (
-          <p className="text-sm text-ink-muted">{dict.reportsUpload.noUploads}</p>
+          <EmptyState title={dict.reportsUpload.noUploads} />
         ) : (
           <ul className="divide-y divide-ink/5 text-sm">
             {uploads.map((u) => (

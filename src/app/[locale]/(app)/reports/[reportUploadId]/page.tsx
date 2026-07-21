@@ -7,8 +7,14 @@ import { updateFieldAction, finalizeReportAction, deleteReportFromDetailAction }
 import type { ExtractedField } from '@/server/modules/report-extraction/types';
 import type { QualityNote } from '@/server/modules/report-extraction/data-quality';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
 import { reportStatusTone } from '@/lib/status-tone';
 import { DeleteReportButton } from '../DeleteReportButton';
+
+const fieldInputClass =
+  'metric-value w-28 rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-2 py-1.5 text-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 export default async function ReportReviewPage(
   props: {
@@ -38,11 +44,11 @@ export default async function ReportReviewPage(
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <Link href={`/${locale}/reports/archive`} className="text-sm text-ink-muted hover:text-ink">
+        <Link href={`/${locale}/reports/archive`} className="text-sm text-ink-muted transition-colors hover:text-ink">
           ← {dict.reportsReview.backToUploads}
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-medium text-ink">{dict.reportsReview.title}</h1>
+          <h1 className="text-xl font-semibold text-ink">{dict.reportsReview.title}</h1>
           <div className="flex items-center gap-2">
             <StatusBadge tone={reportStatusTone(upload.status)}>{upload.status}</StatusBadge>
             {upload.status === 'complete' ? (
@@ -75,12 +81,14 @@ export default async function ReportReviewPage(
       </div>
 
       {upload.status === 'processing' || upload.status === 'uploaded' ? (
-        <p className="text-sm text-ink-muted">{dict.reportsReview.processing}</p>
+        <Card className="text-sm text-ink-muted">{dict.reportsReview.processing}</Card>
       ) : upload.status === 'error' || !document ? (
-        <p className="text-sm text-status-critical">{dict.reportsReview.errorState}</p>
+        <Card className="border-status-critical/30 bg-status-critical/[0.06] text-sm text-status-critical">
+          {dict.reportsReview.errorState}
+        </Card>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 rounded-md border border-ink/10 p-4 text-sm sm:grid-cols-4">
+          <Card className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
             <div>
               <div className="text-ink-muted">{dict.reportsReview.reportType}</div>
               <div className="metric-value">{document.reportType}</div>
@@ -105,78 +113,76 @@ export default async function ReportReviewPage(
                   : '—'}
               </div>
             </div>
-          </div>
+          </Card>
 
           {document.reportType === 'MANAGER_FLASH' ? (
-            <p className="rounded-md border border-status-warning/40 bg-status-warning/10 p-3 text-sm">
-              {dict.reportsReview.unvalidatedNotice}
-            </p>
+            <Card className="border-status-warning/30 bg-status-warning/[0.06] text-sm">{dict.reportsReview.unvalidatedNotice}</Card>
           ) : (
-            <p className="rounded-md border border-ink/10 bg-surface-raised p-3 text-sm text-ink-muted">
-              {dict.reportsReview.genericNotice}
-            </p>
+            <Card className="text-sm text-ink-muted">{dict.reportsReview.genericNotice}</Card>
           )}
 
           {(document.extractedFields as unknown as ExtractedField[])?.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-ink/10 text-start text-ink-muted">
-                  <th className="py-2 text-start">{dict.reportsReview.field}</th>
-                  <th className="py-2 text-start">{dict.reportsReview.value}</th>
-                  <th className="py-2 text-start">{dict.reportsReview.confidenceCol}</th>
-                  <th className="py-2 text-start">{dict.reportsReview.sourcePage}</th>
-                  <th className="py-2 text-start">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(document.extractedFields as unknown as ExtractedField[]).map((field) => (
-                  <tr key={field.metricKey} className="border-b border-ink/5">
-                    <td className="py-2">{field.labelEn}</td>
-                    <td className="py-2">
-                      <form
-                        action={updateFieldAction.bind(
-                          null,
-                          locale,
-                          membership.hotelId,
-                          upload.id,
-                          document.id
-                        )}
-                        className="flex items-center gap-2"
-                      >
-                        <input type="hidden" name="metricKey" value={field.metricKey} />
-                        <input
-                          type="number"
-                          step="any"
-                          name="value"
-                          defaultValue={field.value ?? ''}
-                          placeholder={dict.reportsReview.notFound}
-                          className="metric-value w-28 rounded border border-ink/10 bg-surface-raised px-2 py-1"
-                        />
-                        <button type="submit" className="text-xs text-accent hover:underline">
-                          {dict.reportsReview.save}
-                        </button>
-                      </form>
-                    </td>
-                    <td className="py-2 text-ink-muted">{Math.round(field.confidence * 100)}%</td>
-                    <td className="py-2 text-ink-muted">{field.sourcePage ?? '—'}</td>
-                    <td className="py-2">
-                      <span
-                        className={
-                          'text-xs ' +
-                          (field.status === 'verified'
-                            ? 'text-status-positive'
-                            : field.status === 'ambiguous' || field.status === 'missing'
-                            ? 'text-status-critical'
-                            : 'text-status-warning')
-                        }
-                      >
-                        {dict.reportsReview.fieldStatus[field.status]}
-                      </span>
-                    </td>
+            <TableShell>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={tableHeadRowClass}>
+                    <th className={tableHeadCellClass}>{dict.reportsReview.field}</th>
+                    <th className={tableHeadCellClass}>{dict.reportsReview.value}</th>
+                    <th className={tableHeadCellClass}>{dict.reportsReview.confidenceCol}</th>
+                    <th className={tableHeadCellClass}>{dict.reportsReview.sourcePage}</th>
+                    <th className={tableHeadCellClass}>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(document.extractedFields as unknown as ExtractedField[]).map((field) => (
+                    <tr key={field.metricKey} className={tableRowClass}>
+                      <td className={`${tableCellClass} text-ink`}>{field.labelEn}</td>
+                      <td className={tableCellClass}>
+                        <form
+                          action={updateFieldAction.bind(
+                            null,
+                            locale,
+                            membership.hotelId,
+                            upload.id,
+                            document.id
+                          )}
+                          className="flex items-center gap-2"
+                        >
+                          <input type="hidden" name="metricKey" value={field.metricKey} />
+                          <input
+                            type="number"
+                            step="any"
+                            name="value"
+                            defaultValue={field.value ?? ''}
+                            placeholder={dict.reportsReview.notFound}
+                            className={fieldInputClass}
+                          />
+                          <button type="submit" className="text-xs text-accent hover:underline">
+                            {dict.reportsReview.save}
+                          </button>
+                        </form>
+                      </td>
+                      <td className={`${tableCellClass} text-ink-muted`}>{Math.round(field.confidence * 100)}%</td>
+                      <td className={`${tableCellClass} text-ink-muted`}>{field.sourcePage ?? '—'}</td>
+                      <td className={tableCellClass}>
+                        <span
+                          className={
+                            'text-xs ' +
+                            (field.status === 'verified'
+                              ? 'text-status-positive'
+                              : field.status === 'ambiguous' || field.status === 'missing'
+                              ? 'text-status-critical'
+                              : 'text-status-warning')
+                          }
+                        >
+                          {dict.reportsReview.fieldStatus[field.status]}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableShell>
           ) : null}
 
           {(document.parserWarnings as unknown as string[])?.length > 0 ? (
@@ -204,35 +210,35 @@ export default async function ReportReviewPage(
           ) : null}
 
           {upload.status === 'complete' ? (
-            <p className="rounded-md border border-status-positive/40 bg-status-positive/10 p-3 text-sm text-status-positive">
+            <Card className="border-status-positive/30 bg-status-positive/[0.06] text-sm text-status-positive">
               {dict.reportsReview.finalized}
-            </p>
+            </Card>
           ) : (
-            <form
-              action={finalizeReportAction.bind(null, locale, membership.hotelId, upload.id, document.id)}
-              className="flex items-end gap-3 rounded-md border border-ink/10 p-4"
-            >
-              <div className="space-y-1">
-                <label htmlFor="confirmedReportDate" className="text-sm text-ink-muted">
-                  {dict.reportsReview.confirmDate}
-                </label>
-                <input
-                  id="confirmedReportDate"
-                  name="confirmedReportDate"
-                  type="date"
-                  required
-                  defaultValue={
-                    document.detectedReportDate
-                      ? new Date(document.detectedReportDate).toISOString().slice(0, 10)
-                      : ''
-                  }
-                  className="rounded border border-ink/10 bg-surface-raised px-3 py-2 text-sm"
-                />
-              </div>
-              <button type="submit" className="rounded-md bg-accent px-4 py-2 text-sm text-white">
-                {dict.reportsReview.finalize}
-              </button>
-            </form>
+            <Card>
+              <form
+                action={finalizeReportAction.bind(null, locale, membership.hotelId, upload.id, document.id)}
+                className="flex flex-wrap items-end gap-3"
+              >
+                <div className="space-y-1">
+                  <label htmlFor="confirmedReportDate" className="text-sm text-ink-muted">
+                    {dict.reportsReview.confirmDate}
+                  </label>
+                  <input
+                    id="confirmedReportDate"
+                    name="confirmedReportDate"
+                    type="date"
+                    required
+                    defaultValue={
+                      document.detectedReportDate
+                        ? new Date(document.detectedReportDate).toISOString().slice(0, 10)
+                        : ''
+                    }
+                    className={fieldInputClass.replace('w-28', '')}
+                  />
+                </div>
+                <Button type="submit">{dict.reportsReview.finalize}</Button>
+              </form>
+            </Card>
           )}
         </>
       )}

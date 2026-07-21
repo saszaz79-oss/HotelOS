@@ -67,6 +67,14 @@ export function evaluateRules(
   const adr = metric(points, 'adr');
   const openBalance = metric(points, 'open_balance');
   const totalRevenue = metric(points, 'total_revenue');
+  const arrivals = metric(points, 'arrivals');
+  const noShows = metric(points, 'no_shows');
+  const cancellations = metric(points, 'cancellations');
+  const complimentaryRooms = metric(points, 'complimentary_rooms');
+  const houseUseRooms = metric(points, 'house_use_rooms');
+  const outOfOrderRooms = metric(points, 'out_of_order_rooms');
+  const outOfInventoryRooms = metric(points, 'out_of_inventory_rooms');
+  const roomsAvailable = metric(points, 'rooms_available');
 
   if (occupancy && occupancy.value! < 40) {
     const occ = round(occupancy.value!, 1);
@@ -127,6 +135,87 @@ export function evaluateRules(
       messageAr: `التقرير المصدر لهذا التاريخ مكتمل بنسبة ${Math.round(completenessScore * 100)}% فقط — تحقق من الأرقام مقابل ملف PDF الأصلي.`,
       relatedMetricKey: null,
     });
+  }
+
+  // No-show / cancellation rate spike (Analytics fix, Phase 3) — both
+  // measured against arrivals, the closest available proxy for expected
+  // bookings; thresholds are conservative hospitality-industry norms, not
+  // hotel-specific tuning (no historical baseline to calibrate against yet).
+  if (arrivals && arrivals.value! > 0) {
+    if (noShows) {
+      const rate = noShows.value! / arrivals.value!;
+      if (rate > 0.1) {
+        const pct = round(rate * 100, 1);
+        recommendations.push({
+          priority: 2,
+          textEn: `No-shows are ${pct}% of arrivals today (${noShows.value} of ${arrivals.value}).`,
+          textAr: `عدم الحضور يمثل ${pct}% من الوافدين اليوم (${noShows.value} من ${arrivals.value}).`,
+          suggestedActionEn: 'Review no-show/deposit policy and confirm high-risk reservations ahead of arrival.',
+          suggestedActionAr: 'راجع سياسة عدم الحضور والودائع، وأكّد الحجوزات عالية المخاطر قبل موعد الوصول.',
+          confidence: 1,
+          category: 'risk',
+          supportingMetrics: supporting(noShows, arrivals),
+        });
+      }
+    }
+    if (cancellations) {
+      const rate = cancellations.value! / arrivals.value!;
+      if (rate > 0.15) {
+        const pct = round(rate * 100, 1);
+        recommendations.push({
+          priority: 2,
+          textEn: `Cancellations are ${pct}% of arrivals today (${cancellations.value} of ${arrivals.value}).`,
+          textAr: `الإلغاءات تمثل ${pct}% من الوافدين اليوم (${cancellations.value} من ${arrivals.value}).`,
+          suggestedActionEn: 'Review cancellation policy and recent booking channels for a pattern.',
+          suggestedActionAr: 'راجع سياسة الإلغاء وقنوات الحجز الأخيرة لتحديد أي نمط متكرر.',
+          confidence: 1,
+          category: 'risk',
+          supportingMetrics: supporting(cancellations, arrivals),
+        });
+      }
+    }
+  }
+
+  // Complimentary / house-use room ratio (Analytics fix, Phase 3) — a
+  // common revenue-leakage signal when comp'd rooms exceed a normal
+  // allowance relative to total inventory.
+  if (roomsAvailable && roomsAvailable.value! > 0 && (complimentaryRooms || houseUseRooms)) {
+    const compTotal = (complimentaryRooms?.value ?? 0) + (houseUseRooms?.value ?? 0);
+    const ratio = compTotal / roomsAvailable.value!;
+    if (ratio > 0.05) {
+      const pct = round(ratio * 100, 1);
+      recommendations.push({
+        priority: 3,
+        textEn: `Complimentary and house-use rooms are ${pct}% of available inventory (${compTotal} of ${roomsAvailable.value}).`,
+        textAr: `غرف المجاملة والاستخدام الداخلي تمثل ${pct}% من الغرف المتاحة (${compTotal} من ${roomsAvailable.value}).`,
+        suggestedActionEn: 'Review comp/house-use approvals for the period against policy.',
+        suggestedActionAr: 'راجع موافقات غرف المجاملة والاستخدام الداخلي للفترة مقابل السياسة المعتمدة.',
+        confidence: 1,
+        category: 'risk',
+        supportingMetrics: supporting(complimentaryRooms, houseUseRooms, roomsAvailable),
+      });
+    }
+  }
+
+  // Out-of-order / out-of-inventory ratio (Analytics fix, Phase 3) — a
+  // large share of unavailable inventory both caps achievable occupancy
+  // and is itself an actionable maintenance/ops signal.
+  if (roomsAvailable && roomsAvailable.value! > 0 && (outOfOrderRooms || outOfInventoryRooms)) {
+    const downTotal = (outOfOrderRooms?.value ?? 0) + (outOfInventoryRooms?.value ?? 0);
+    const ratio = downTotal / roomsAvailable.value!;
+    if (ratio > 0.1) {
+      const pct = round(ratio * 100, 1);
+      recommendations.push({
+        priority: 2,
+        textEn: `${pct}% of inventory is out of order or out of service (${downTotal} of ${roomsAvailable.value} rooms).`,
+        textAr: `${pct}% من الغرف خارج الخدمة أو خارج المخزون (${downTotal} من ${roomsAvailable.value} غرفة).`,
+        suggestedActionEn: 'Review maintenance backlog and prioritize returning rooms to sellable inventory.',
+        suggestedActionAr: 'راجع قائمة أعمال الصيانة وأعطِ الأولوية لإعادة الغرف إلى المخزون القابل للبيع.',
+        confidence: 1,
+        category: 'action',
+        supportingMetrics: supporting(outOfOrderRooms, outOfInventoryRooms, roomsAvailable),
+      });
+    }
   }
 
   return { alerts, recommendations };

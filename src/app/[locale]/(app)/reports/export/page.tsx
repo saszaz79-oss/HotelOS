@@ -208,7 +208,16 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
       ) : null}
 
       <section className="border-t border-ink/10 pt-4 text-sm text-ink-muted">
-        <p>{morningBrief.dataStatus}</p>
+        <p>{morningBrief.dataQuality.statusText}</p>
+        {morningBrief.dataQuality.flaggedDocuments.length > 0 ? (
+          <ul className="mt-1 space-y-0.5 text-xs text-status-warning">
+            {morningBrief.dataQuality.flaggedDocuments.map((d, i) => (
+              <li key={i}>
+                {reportTypeLabel(d.reportType, dict.reportsCommon.reportTypes)}: {Math.round(d.completenessScore * 100)}%
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <p className="mt-1">
           {sourceDocuments.length > 0
             ? dict.executiveExport.sourceReportsSummary

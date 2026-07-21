@@ -1,8 +1,14 @@
-import type { getMetricsForDate } from '@/server/modules/metrics/queries';
+import type { ReportType } from '@prisma/client';
+import type { getMetricsForDates } from '@/server/modules/metrics/queries';
 import { formatMetricValue } from '@/lib/format-metric';
 import type { getLatestInsight } from './queries';
 
-type Metrics = Awaited<ReturnType<typeof getMetricsForDate>>;
+// Both real callers (Mission Control, Executive Export) pass metrics sourced
+// from getMetricsForDates (Perf sprint round 2's batched latest+previous
+// query), not the singular getMetricsForDate — this type must match that
+// shape (specifically: sourceReportDocument.reportType, added Analytics fix
+// Phase 1) or the dataQuality section below can't compile.
+type Metrics = Awaited<ReturnType<typeof getMetricsForDates>>;
 type Insight = Awaited<ReturnType<typeof getLatestInsight>>;
 
 export interface MorningBriefKeyNumber {
@@ -11,11 +17,25 @@ export interface MorningBriefKeyNumber {
   trend: string | null;
 }
 
+export interface MorningBriefFlaggedDocument {
+  reportType: ReportType;
+  completenessScore: number;
+}
+
+export interface MorningBriefDataQuality {
+  scorePct: number | null;
+  statusText: string;
+  flaggedDocuments: MorningBriefFlaggedDocument[];
+}
+
 /**
- * Structured to match the required section set (Enterprise v2 Phase 10)
- * exactly — todaySummary/keyNumbers/whatChanged/risks/opportunities/
- * todayActions/priority/suggestedOwner/dataStatus — instead of a flat
- * line list, so the UI can render each as its own labeled block.
+ * Structured to match the required section set (Enterprise v2 Phase 10,
+ * Analytics fix Phase 3) exactly — todaySummary/keyNumbers/whatChanged/
+ * risks/opportunities/todayActions/priority/suggestedOwner/dataQuality —
+ * instead of a flat line list, so the UI can render each as its own
+ * labeled block. `dataQuality` replaced the earlier bare `dataStatus`
+ * string with a first-class section (a completeness score alone wasn't
+ * enough to act on — which specific source document is the weak link?).
  */
 export interface MorningBrief {
   todaySummary: string;
@@ -26,7 +46,7 @@ export interface MorningBrief {
   todayActions: string[];
   priority: string | null;
   suggestedOwner: string | null;
-  dataStatus: string;
+  dataQuality: MorningBriefDataQuality;
 }
 
 const KEY_KEYS = ['occupancy_pct', 'adr', 'revpar'] as const;
@@ -146,7 +166,7 @@ export function buildMorningBrief(input: {
   const priority = topRecommendation ? (locale === 'ar' ? topRecommendation.textAr : topRecommendation.textEn) : null;
   const suggestedOwner = topRecommendation ? inferSuggestedOwner(topRecommendation.supportingMetrics) : null;
 
-  const dataStatus =
+  const statusText =
     avgDataQuality !== null
       ? locale === 'ar'
         ? `اكتمال البيانات ${Math.round(avgDataQuality * 100)}% لهذا التاريخ.`
@@ -155,5 +175,27 @@ export function buildMorningBrief(input: {
       ? 'لا تتوفر معلومات عن جودة البيانات لهذا التاريخ.'
       : 'No data-quality information available for this date.';
 
-  return { todaySummary, keyNumbers, whatChanged, risks, opportunities, todayActions, priority, suggestedOwner, dataStatus };
+  // Below 0.8 completeness matches the existing "not positive-tier" threshold
+  // used elsewhere (mission-control's dataQualityTone) — flagged here by the
+  // real source document that's actually weak, not just an aggregate number
+  // with nothing to act on.
+  const FLAG_THRESHOLD = 0.8;
+  const flaggedDocuments: MorningBriefFlaggedDocument[] = [];
+  const seenFlagged = new Set<string>();
+  for (const m of metrics) {
+    const doc = m.sourceReportDocument;
+    if (!doc || doc.completenessScore === null || doc.completenessScore >= FLAG_THRESHOLD) continue;
+    const dedupeKey = `${doc.reportType}:${doc.completenessScore}`;
+    if (seenFlagged.has(dedupeKey)) continue;
+    seenFlagged.add(dedupeKey);
+    flaggedDocuments.push({ reportType: doc.reportType, completenessScore: doc.completenessScore });
+  }
+
+  const dataQuality: MorningBriefDataQuality = {
+    scorePct: avgDataQuality !== null ? Math.round(avgDataQuality * 100) : null,
+    statusText,
+    flaggedDocuments,
+  };
+
+  return { todaySummary, keyNumbers, whatChanged, risks, opportunities, todayActions, priority, suggestedOwner, dataQuality };
 }

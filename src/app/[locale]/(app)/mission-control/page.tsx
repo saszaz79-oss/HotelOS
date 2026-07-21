@@ -231,7 +231,16 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
 
         <div>
           <h3 className="text-xs font-medium uppercase text-ink-muted">{dict.missionControl.brief.dataStatus}</h3>
-          <p className="mt-1 text-sm text-ink-muted">{morningBrief.dataStatus}</p>
+          <p className="mt-1 text-sm text-ink-muted">{morningBrief.dataQuality.statusText}</p>
+          {morningBrief.dataQuality.flaggedDocuments.length > 0 ? (
+            <ul className="mt-1.5 space-y-0.5 text-xs text-status-warning">
+              {morningBrief.dataQuality.flaggedDocuments.map((d, i) => (
+                <li key={i}>
+                  {reportTypeLabel(d.reportType, dict.reportsCommon.reportTypes)}: {Math.round(d.completenessScore * 100)}%
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       </Card>
 

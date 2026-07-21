@@ -8,6 +8,7 @@ import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
 import { generateExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
 import { recordExport } from '@/server/modules/exports/commands';
 import { formatMetricValue } from '@/lib/format-metric';
+import { reportTypeLabel } from '@/lib/report-type-label';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PrintButton } from './PrintButton';
 
@@ -65,13 +66,28 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
     avgDataQuality: avgQuality,
   });
 
-  const sourceFilenames = Array.from(
-    new Set(
+  // Deduped by filename (the only stable per-document identifier this select
+  // carries) — used to build both a humanized "N reports of type X" summary
+  // and the raw filenames, which stay available but collapsed behind a
+  // toggle rather than shown inline in executive-facing prose (Analytics
+  // fix, Phase 1: a QA/internal filename like "phase9-analytics-test.pdf"
+  // has no place in a document a hotel owner might forward externally).
+  const sourceDocuments = Array.from(
+    new Map(
       metrics
-        .map((m) => m.sourceReportDocument?.reportUpload.originalFilename)
-        .filter((f): f is string => !!f)
-    )
+        .filter((m) => m.sourceReportDocument)
+        .map((m) => [m.sourceReportDocument!.reportUpload.originalFilename, m.sourceReportDocument!])
+    ).values()
   );
+  const sourceFilenames = sourceDocuments.map((d) => d.reportUpload.originalFilename);
+  const sourceTypeCounts = new Map<string, number>();
+  for (const d of sourceDocuments) {
+    const label = reportTypeLabel(d.reportType, dict.reportsCommon.reportTypes);
+    sourceTypeCounts.set(label, (sourceTypeCounts.get(label) ?? 0) + 1);
+  }
+  const sourceTypesSummary = Array.from(sourceTypeCounts.entries())
+    .map(([label, count]) => (count > 1 ? `${label} (${count})` : label))
+    .join(locale === 'ar' ? '، ' : ', ');
 
   const rows = metrics
     .filter((m) => m.value !== null)
@@ -190,8 +206,25 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
       <section className="border-t border-ink/10 pt-4 text-sm text-ink-muted">
         <p>{morningBrief.dataStatus}</p>
         <p className="mt-1">
-          {dict.executiveExport.sourceReports}: {sourceFilenames.length > 0 ? sourceFilenames.join(', ') : dict.comparisons.notAvailable}
+          {sourceDocuments.length > 0
+            ? dict.executiveExport.sourceReportsSummary
+                .replace('{count}', String(sourceDocuments.length))
+                .replace('{types}', sourceTypesSummary)
+            : `${dict.executiveExport.sourceReports}: ${dict.comparisons.notAvailable}`}
         </p>
+        {sourceFilenames.length > 0 ? (
+          <details className="group mt-2">
+            <summary className="cursor-pointer text-xs text-ink-muted marker:content-none">
+              <span className="inline-flex items-center gap-1.5">
+                <svg viewBox="0 0 20 20" className="h-3 w-3 transition-transform group-open:rotate-90 rtl:group-open:-rotate-90" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
+                  <path d="M7 4.5 12.5 10 7 15.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {dict.executiveExport.rawFilenamesToggle}
+              </span>
+            </summary>
+            <p className="mt-1.5 text-xs">{sourceFilenames.join(', ')}</p>
+          </details>
+        ) : null}
       </section>
     </div>
   );

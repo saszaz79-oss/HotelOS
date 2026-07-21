@@ -91,7 +91,7 @@ export default async function TimelinePage(props: { params: Promise<{ locale: st
                     ) : null}
                     {relatedRec ? (
                       <div className="mt-1 text-xs text-ink-muted">
-                        {relatedRec.category} · {relatedRec.priority}
+                        {dict.missionControl.categories[relatedRec.category]} · {relatedRec.priority}
                       </div>
                     ) : null}
                   </div>

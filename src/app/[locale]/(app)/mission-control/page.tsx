@@ -10,6 +10,7 @@ import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
 import { generateExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
 import { listReportUploads } from '@/server/modules/reports/queries';
 import { formatMetricValue } from '@/lib/format-metric';
+import { reportTypeLabel } from '@/lib/report-type-label';
 import type { HealthFactor } from '@/server/modules/insights/scoring';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -241,7 +242,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
             {(insight.healthScoreFactors as unknown as HealthFactor[]).map((f) => (
               <div key={f.factorKey} className="flex items-center justify-between">
                 <dt className="text-ink-muted">
-                  {f.labelEn}
+                  {locale === 'ar' ? f.labelAr : f.labelEn}
                   {f.status === 'insufficient_data' ? (
                     <span className="ms-2 text-xs text-status-warning">({dict.missionControl.insufficientData})</span>
                   ) : null}
@@ -286,8 +287,8 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
                           {' · '}
                           {dict.missionControl.completeness}: {Math.round((doc.completenessScore ?? 0) * 100)}%
                         </div>
-                        <div className="truncate">
-                          {dict.missionControl.source}: {doc.reportUpload.originalFilename}
+                        <div className="truncate" title={doc.reportUpload.originalFilename}>
+                          {dict.missionControl.source}: {reportTypeLabel(doc.reportType, dict.reportsCommon.reportTypes)}
                         </div>
                       </>
                     ) : null}
@@ -361,7 +362,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
               <li key={r.id}>
                 <Card className="p-4 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">{r.category}</span>
+                    <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">{dict.missionControl.categories[r.category]}</span>
                     <span className="text-xs text-ink-muted">
                       {dict.missionControl.priority}: {r.priority} · {dict.missionControl.confidence}:{' '}
                       {Math.round(r.confidence * 100)}%

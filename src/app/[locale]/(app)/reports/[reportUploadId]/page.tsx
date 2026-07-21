@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/server/modules/auth/session';
 import { getActiveMembership } from '@/server/modules/hotels/access';
 import { getReportUpload, getReportUploadSignedUrl } from '@/server/modules/reports/queries';
 import { updateFieldAction, finalizeReportAction, deleteReportFromDetailAction } from './actions';
+import { reportTypeLabel } from '@/lib/report-type-label';
 import type { ExtractedField } from '@/server/modules/report-extraction/types';
 import type { QualityNote } from '@/server/modules/report-extraction/data-quality';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -91,7 +92,7 @@ export default async function ReportReviewPage(
           <Card className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
             <div>
               <div className="text-ink-muted">{dict.reportsReview.reportType}</div>
-              <div className="metric-value">{document.reportType}</div>
+              <div className="metric-value">{reportTypeLabel(document.reportType, dict.reportsCommon.reportTypes)}</div>
             </div>
             <div>
               <div className="text-ink-muted">{dict.reportsReview.detectedDate}</div>

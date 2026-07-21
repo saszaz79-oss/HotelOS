@@ -99,6 +99,7 @@ export const getMetricsForDates = cache(async (hotelId: string, dates: Date[]) =
       metricDefinition: true,
       sourceReportDocument: {
         select: {
+          reportType: true,
           completenessScore: true,
           extractionConfidence: true,
           reportUpload: { select: { originalFilename: true } },

@@ -356,7 +356,21 @@
     "recentUploads": "أحدث التقارير المرفوعة",
     "viewArchive": "عرض الأرشيف",
     "dataQuality": "جودة البيانات",
-    "vsPrevious": "مقابل السابق"
+    "vsPrevious": "مقابل السابق",
+    "categories": {
+      "risk": "خطر",
+      "opportunity": "فرصة",
+      "action": "إجراء"
+    }
+  },
+  "reportsCommon": {
+    "reportTypes": {
+      "MANAGER_FLASH": "تقرير المدير السريع",
+      "RESERVATION_STATISTICS": "إحصائيات الحجوزات",
+      "RESERVATION_STATISTICS_1": "إحصائيات الحجوزات (بديل)",
+      "OPEN_BALANCE": "الرصيد المفتوح",
+      "GENERIC": "تقرير"
+    }
   },
   "comparisons": {
     "title": "المقارنات",
@@ -388,6 +402,8 @@
     "kpis": "مؤشرات الأداء الرئيسية",
     "recommendedActions": "الإجراءات الموصى بها",
     "sourceReports": "التقارير المصدر",
+    "sourceReportsSummary": "بناءً على {count} تقرير: {types}",
+    "rawFilenamesToggle": "عرض أسماء الملفات المصدر",
     "exportLink": "تصدير التقرير التنفيذي PDF"
   },
   "timeline": {

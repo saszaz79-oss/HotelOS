@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/server/modules/auth/session';
 import { getActiveMembership } from '@/server/modules/hotels/access';
 import { listReportUploadsPage, listReportUploaders, type ListReportUploadsFilter } from '@/server/modules/reports/queries';
 import type { ReportType, ReportUploadStatus } from '@prisma/client';
+import { reportTypeLabel } from '@/lib/report-type-label';
 import { Card } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -95,7 +96,7 @@ export default async function ReportsArchivePage(
           <option value="">{dict.reportsArchive.filterAllTypes}</option>
           {REPORT_TYPES.map((t) => (
             <option key={t} value={t}>
-              {t}
+              {reportTypeLabel(t, dict.reportsCommon.reportTypes)}
             </option>
           ))}
         </select>
@@ -165,7 +166,7 @@ export default async function ReportsArchivePage(
                           {u.originalFilename}
                         </Link>
                       </td>
-                      <td className={`${tableCellClass} text-ink-muted`}>{doc?.reportType ?? '—'}</td>
+                      <td className={`${tableCellClass} text-ink-muted`}>{doc ? reportTypeLabel(doc.reportType, dict.reportsCommon.reportTypes) : '—'}</td>
                       <td className={`${tableCellClass} text-ink-muted`}>{u.uploadedBy.displayName}</td>
                       <td className={tableCellClass}>
                         <StatusBadge tone={reportStatusTone(u.status)}>{u.status}</StatusBadge>
@@ -206,7 +207,7 @@ export default async function ReportsArchivePage(
                     <StatusBadge tone={reportStatusTone(u.status)}>{u.status}</StatusBadge>
                   </div>
                   <p className="mt-1 text-xs text-ink-muted">
-                    {doc?.reportType ?? '—'} · {u.uploadedBy.displayName} · {new Date(u.createdAt).toLocaleDateString(locale)}
+                    {doc ? reportTypeLabel(doc.reportType, dict.reportsCommon.reportTypes) : '—'} · {u.uploadedBy.displayName} · {new Date(u.createdAt).toLocaleDateString(locale)}
                   </p>
                   <div className="mt-2 flex gap-4 text-xs text-ink-muted">
                     <span>

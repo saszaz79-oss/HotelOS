@@ -356,7 +356,21 @@
     "recentUploads": "Recent uploads",
     "viewArchive": "View archive",
     "dataQuality": "Data quality",
-    "vsPrevious": "vs previous"
+    "vsPrevious": "vs previous",
+    "categories": {
+      "risk": "Risk",
+      "opportunity": "Opportunity",
+      "action": "Action"
+    }
+  },
+  "reportsCommon": {
+    "reportTypes": {
+      "MANAGER_FLASH": "Manager Flash",
+      "RESERVATION_STATISTICS": "Reservation Statistics",
+      "RESERVATION_STATISTICS_1": "Reservation Statistics (Alt.)",
+      "OPEN_BALANCE": "Open Balance",
+      "GENERIC": "Report"
+    }
   },
   "comparisons": {
     "title": "Comparisons",
@@ -388,6 +402,8 @@
     "kpis": "Key Performance Indicators",
     "recommendedActions": "Recommended Actions",
     "sourceReports": "Source reports",
+    "sourceReportsSummary": "Based on {count} report(s): {types}",
+    "rawFilenamesToggle": "View source file names",
     "exportLink": "Export Executive PDF"
   },
   "timeline": {

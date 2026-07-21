@@ -31,40 +31,52 @@ export const getLatestMetricDate = cache(async (hotelId: string): Promise<Date |
  * + reportUpload), so deduping it is the higher-value half of the M7 fix
  * documented on getLatestMetricDate (Perf sprint, M14).
  */
+// `sourceReportDocument` is a narrow `select`, not `include: true` — every
+// caller (Mission Control, Comparisons) only ever reads completenessScore,
+// extractionConfidence, and the source filename; the prior `include` also
+// pulled rawExtractedText/qualityNotes/parserWarnings/extractedFields for
+// every metric row returned, none of which any consumer touches (Perf
+// sprint round 2).
 export const getMetricsForDate = cache(async (hotelId: string, date: Date) => {
   return prisma.hotelMetric.findMany({
     where: { hotelId, metricDate: date },
     include: {
       metricDefinition: true,
-      sourceReportDocument: { include: { reportUpload: { select: { originalFilename: true } } } },
+      sourceReportDocument: {
+        select: {
+          completenessScore: true,
+          extractionConfidence: true,
+          reportUpload: { select: { originalFilename: true } },
+        },
+      },
     },
   });
 });
 
-/** Most recent metricDate strictly before `beforeDate` — powers the Morning Brief's day-over-day trend, no other consumer needed this yet. */
-export async function getPreviousMetricDate(hotelId: string, beforeDate: Date): Promise<Date | null> {
+/** Most recent metricDate strictly before `beforeDate` — powers the Morning Brief's day-over-day trend and Comparisons' "vs previous". `cache()`-wrapped since Comparisons and Mission Control both derive it from the same `latestDate` within one request. */
+export const getPreviousMetricDate = cache(async (hotelId: string, beforeDate: Date): Promise<Date | null> => {
   const prev = await prisma.hotelMetric.findFirst({
     where: { hotelId, metricDate: { lt: beforeDate } },
     orderBy: { metricDate: 'desc' },
     select: { metricDate: true },
   });
   return prev?.metricDate ?? null;
-}
+});
 
-export async function getMetricsForDateRange(hotelId: string, from: Date, to: Date) {
+export const getMetricsForDateRange = cache(async (hotelId: string, from: Date, to: Date) => {
   return prisma.hotelMetric.findMany({
     where: { hotelId, metricDate: { gte: from, lte: to } },
     include: { metricDefinition: true },
     orderBy: { metricDate: 'asc' },
   });
-}
+});
 
 /** Distinct metric keys with at least one real recorded value — backs the Comparisons page's metric selector, so it never offers a metric this hotel has no history for. */
-export async function listAvailableMetricKeys(hotelId: string) {
+export const listAvailableMetricKeys = cache(async (hotelId: string) => {
   const rows = await prisma.hotelMetric.findMany({
     where: { hotelId, value: { not: null } },
     distinct: ['metricKey'],
     select: { metricKey: true, metricDefinition: { select: { labelEn: true, labelAr: true, unit: true } } },
   });
   return rows.map((r) => ({ key: r.metricKey, labelEn: r.metricDefinition.labelEn, labelAr: r.metricDefinition.labelAr, unit: r.metricDefinition.unit }));
-}
+});

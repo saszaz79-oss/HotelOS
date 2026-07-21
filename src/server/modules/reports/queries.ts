@@ -1,16 +1,26 @@
+import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 import { storage } from '@/server/modules/storage';
 import type { Prisma, ReportType, ReportUploadStatus } from '@prisma/client';
 
-/** CQRS naming convention (Architecture §28): reads only, no state changes. */
-export async function listReportUploads(hotelId: string, take = 50) {
+/**
+ * CQRS naming convention (Architecture §28): reads only, no state changes.
+ *
+ * No `documents` relation fetched — both callers (Mission Control's recent-
+ * uploads list, Reports Upload's history list) only ever render
+ * id/originalFilename/createdAt/status, never `u.documents`. The prior
+ * `documents: true` pulled every ReportDocument column (including
+ * rawExtractedText and JSON blobs) per upload for data nothing read
+ * (Perf sprint round 2).
+ */
+export const listReportUploads = cache(async (hotelId: string, take = 50) => {
   return prisma.reportUpload.findMany({
     where: { hotelId },
     orderBy: { createdAt: 'desc' },
     take,
-    include: { uploadedBy: { select: { displayName: true } }, documents: true },
+    include: { uploadedBy: { select: { displayName: true } } },
   });
-}
+});
 
 const ARCHIVE_PAGE_SIZE = 20;
 
@@ -24,7 +34,7 @@ export interface ListReportUploadsFilter {
 }
 
 /** Paginated report history (Reports Archive) — listReportUploads' fixed `take` was never meant for the full history, only a "recent uploads" preview on the upload page. */
-export async function listReportUploadsPage(hotelId: string, page: number, filter: ListReportUploadsFilter = {}) {
+export const listReportUploadsPage = cache(async (hotelId: string, page: number, filter: ListReportUploadsFilter = {}) => {
   const where: Prisma.ReportUploadWhereInput = { hotelId };
   if (filter.search) where.originalFilename = { contains: filter.search, mode: 'insensitive' };
   if (filter.status) where.status = filter.status;
@@ -52,17 +62,17 @@ export async function listReportUploadsPage(hotelId: string, page: number, filte
     prisma.reportUpload.count({ where }),
   ]);
   return { uploads, total, pageSize: ARCHIVE_PAGE_SIZE, totalPages: Math.max(1, Math.ceil(total / ARCHIVE_PAGE_SIZE)) };
-}
+});
 
 /** Distinct uploaders for a hotel — backs the archive's "uploaded by" filter. */
-export async function listReportUploaders(hotelId: string) {
+export const listReportUploaders = cache(async (hotelId: string) => {
   const uploads = await prisma.reportUpload.findMany({
     where: { hotelId },
     distinct: ['uploadedByUserId'],
     select: { uploadedByUserId: true, uploadedBy: { select: { displayName: true } } },
   });
   return uploads.map((u) => ({ id: u.uploadedByUserId, displayName: u.uploadedBy.displayName }));
-}
+});
 
 /**
  * `documents` is a narrow `select`, not `include: true` — neither this
@@ -71,7 +81,7 @@ export async function listReportUploaders(hotelId: string) {
  * read `extractionJobs` or `metrics`, so fetching those relations in full
  * was pure wasted query cost (Perf sprint, M14).
  */
-export async function getReportUpload(hotelId: string, reportUploadId: string) {
+export const getReportUpload = cache(async (hotelId: string, reportUploadId: string) => {
   return prisma.reportUpload.findFirst({
     where: { id: reportUploadId, hotelId },
     include: {
@@ -90,7 +100,7 @@ export async function getReportUpload(hotelId: string, reportUploadId: string) {
       },
     },
   });
-}
+});
 
 /**
  * Tenant isolation here comes from the same seam every other query in this

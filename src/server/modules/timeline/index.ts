@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 import type { Prisma, TimelineEventType } from '@prisma/client';
 
@@ -27,7 +28,7 @@ export async function publishTimelineEvent({
   });
 }
 
-export async function listTimelineEvents(hotelId: string, take = 50, cursor?: string) {
+export const listTimelineEvents = cache(async (hotelId: string, take = 50, cursor?: string) => {
   return prisma.timelineEvent.findMany({
     where: { hotelId },
     orderBy: { createdAt: 'desc' },
@@ -35,4 +36,4 @@ export async function listTimelineEvents(hotelId: string, take = 50, cursor?: st
     include: { actor: { select: { displayName: true } } },
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
-}
+});

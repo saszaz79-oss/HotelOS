@@ -29,19 +29,24 @@ export default async function TimelinePage(props: { params: Promise<{ locale: st
   // back to their parent ReportUpload so the timeline can link to the
   // hotel-user-facing review screen, not the internal Validation Workspace.
   const docIds = events.filter((e) => e.sourceRef && REPORT_DOCUMENT_EVENT_TYPES.has(e.eventType)).map((e) => e.sourceRef!);
-  const docs = docIds.length
-    ? await prisma.reportDocument.findMany({
-        where: { id: { in: docIds } },
-        select: { id: true, reportUploadId: true, reportUpload: { select: { originalFilename: true } } },
-      })
-    : [];
-  const docMap = new Map(docs.map((d) => [d.id, d]));
-
   // Related Recommendation (Validation Phase §6).
   const recIds = events.filter((e) => e.eventType === 'recommendation_issued' && e.sourceRef).map((e) => e.sourceRef!);
-  const recs = recIds.length
-    ? await prisma.recommendation.findMany({ where: { id: { in: recIds } }, select: { id: true, category: true, priority: true } })
-    : [];
+
+  // Both lookups derive only from `events` (already resolved) and are
+  // independent of each other — parallelized rather than sequential awaits
+  // (Perf sprint round 2).
+  const [docs, recs] = await Promise.all([
+    docIds.length
+      ? prisma.reportDocument.findMany({
+          where: { id: { in: docIds } },
+          select: { id: true, reportUploadId: true, reportUpload: { select: { originalFilename: true } } },
+        })
+      : Promise.resolve([]),
+    recIds.length
+      ? prisma.recommendation.findMany({ where: { id: { in: recIds } }, select: { id: true, category: true, priority: true } })
+      : Promise.resolve([]),
+  ]);
+  const docMap = new Map(docs.map((d) => [d.id, d]));
   const recMap = new Map(recs.map((r) => [r.id, r]));
 
   return (

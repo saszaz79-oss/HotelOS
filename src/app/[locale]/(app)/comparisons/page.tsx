@@ -60,7 +60,21 @@ export default async function ComparisonsPage(
     getPreviousMetricDate(hotelId, latestDate),
     listAvailableMetricKeys(hotelId),
   ]);
-  const previousMetrics = previousDate ? await getMetricsForDate(hotelId, previousDate) : [];
+
+  const range = searchParams.range === '30' ? 30 : 7;
+  const selectedMetric = availableMetrics.some((m) => m.key === searchParams.metric)
+    ? searchParams.metric!
+    : availableMetrics[0]?.key;
+  const rangeFrom = new Date(latestDate);
+  rangeFrom.setDate(rangeFrom.getDate() - (range - 1));
+
+  // previousMetrics and rangeMetrics have no data dependency on each other
+  // (both derive from values already resolved above) — parallelized rather
+  // than sequential awaits (Perf sprint round 2).
+  const [previousMetrics, rangeMetrics] = await Promise.all([
+    previousDate ? getMetricsForDate(hotelId, previousDate) : Promise.resolve([]),
+    selectedMetric ? getMetricsForDateRange(hotelId, rangeFrom, latestDate) : Promise.resolve([]),
+  ]);
   const previousByKey = new Map(previousMetrics.map((m) => [m.metricKey, m.value]));
 
   const rows = metrics
@@ -83,14 +97,6 @@ export default async function ComparisonsPage(
     })
     .sort((a, b) => Math.abs(b.pctChange ?? -1) - Math.abs(a.pctChange ?? -1));
 
-  const range = searchParams.range === '30' ? 30 : 7;
-  const selectedMetric = availableMetrics.some((m) => m.key === searchParams.metric)
-    ? searchParams.metric!
-    : availableMetrics[0]?.key;
-
-  const rangeFrom = new Date(latestDate);
-  rangeFrom.setDate(rangeFrom.getDate() - (range - 1));
-  const rangeMetrics = selectedMetric ? await getMetricsForDateRange(hotelId, rangeFrom, latestDate) : [];
   const trendPoints = rangeMetrics
     .filter((m) => m.metricKey === selectedMetric && m.value !== null)
     .map((m) => ({ date: m.metricDate.toISOString().slice(0, 10), value: m.value as number }));

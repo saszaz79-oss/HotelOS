@@ -23,12 +23,21 @@ export function createAnthropicProvider(apiKey: string | undefined): AIProvider 
       const userMessages = messages.filter((m) => m.role === 'user');
 
       try {
-        const response = await client.messages.create({
-          model: MODEL,
-          max_tokens: 1024,
-          system,
-          messages: userMessages.map((m) => ({ role: 'user' as const, content: m.content })),
-        });
+        // Hard timeout — this call sits on Mission Control's/Executive
+        // Export's synchronous render path (Architecture §30), so a slow or
+        // hung API response must not be able to stall the whole page
+        // indefinitely once a real API key is configured (Perf sprint
+        // round 2 — not reachable today with no key set, but a latent risk
+        // otherwise).
+        const response = await client.messages.create(
+          {
+            model: MODEL,
+            max_tokens: 1024,
+            system,
+            messages: userMessages.map((m) => ({ role: 'user' as const, content: m.content })),
+          },
+          { timeout: 8000 }
+        );
 
         const text = response.content.map((block) => (block.type === 'text' ? block.text : '')).join('');
 

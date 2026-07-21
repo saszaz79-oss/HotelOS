@@ -43,7 +43,8 @@ function getClient(url: string, serviceRoleKey: string): SupabaseClient {
  * function instance (Vercel serverless reuses instances across requests;
  * a fresh cold start re-verifies, which is correct and cheap). Idempotent:
  * a "bucket already exists" response from a racing concurrent request is
- * treated as success, not an error.
+ * treated as success, not an error. Called from put()/delete() only — the
+ * read paths (get/getSignedUrl) skip it, see comment at get() below.
  */
 async function ensureBucket(supabase: SupabaseClient): Promise<void> {
   if (bucketVerifiedForClient === supabase) return;
@@ -85,8 +86,12 @@ export function createSupabaseStorageAdapter(url: string, serviceRoleKey: string
       }, `storage.put(${key})`);
     },
 
+    // No ensureBucket() on the read paths below (get/getSignedUrl) — a
+    // readable object can only exist if the bucket was already created by a
+    // prior put(), so verifying bucket existence before every read was a
+    // wasted Supabase Storage round trip on every report-detail page load
+    // (Perf sprint round 2). Only put() still provisions the bucket.
     async get(key) {
-      await ensureBucket(supabase);
       return withRetry(async () => {
         const { data, error } = await supabase.storage.from(BUCKET_NAME).download(key);
         if (error || !data) {
@@ -107,7 +112,6 @@ export function createSupabaseStorageAdapter(url: string, serviceRoleKey: string
     },
 
     async getSignedUrl(key, expiresInSeconds = 3600) {
-      await ensureBucket(supabase);
       return withRetry(async () => {
         const { data, error } = await supabase.storage.from(BUCKET_NAME).createSignedUrl(key, expiresInSeconds);
         if (error || !data) {

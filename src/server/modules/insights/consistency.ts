@@ -33,9 +33,7 @@ function isConsistent(actual: number, expected: number): boolean {
 export function checkMetricConsistency(points: MetricPoint[]): RuleAlert[] {
   const alerts: RuleAlert[] = [];
 
-  const occupancy = metric(points, 'occupancy_pct');
   const adr = metric(points, 'adr');
-  const revpar = metric(points, 'revpar');
   const roomRevenue = metric(points, 'room_revenue');
   const roomsSold = metric(points, 'rooms_sold');
   const cash = metric(points, 'cash');
@@ -46,19 +44,18 @@ export function checkMetricConsistency(points: MetricPoint[]): RuleAlert[] {
   const children = metric(points, 'children');
   const totalGuests = metric(points, 'total_guests');
 
-  // RevPAR = ADR x Occupancy%
-  if (revpar !== null && adr !== null && occupancy !== null) {
-    const expected = adr * (occupancy / 100);
-    if (!isConsistent(revpar, expected)) {
-      alerts.push({
-        severity: 'warning',
-        category: 'consistency',
-        messageEn: `RevPAR (${round(revpar, 2)}) doesn't match ADR x Occupancy (${round(expected, 2)}) — verify extracted values.`,
-        messageAr: `الإيراد لكل غرفة متاحة (${round(revpar, 2)}) لا يطابق متوسط سعر الغرفة × نسبة الإشغال (${round(expected, 2)}) — تحقق من القيم المستخرجة.`,
-        relatedMetricKey: 'revpar',
-      });
-    }
-  }
+  // RevPAR = ADR x Occupancy% was considered and deliberately dropped —
+  // verified against real production data during this phase's rollout:
+  // occupancy_pct here is computed against an *adjusted* available-room
+  // count (91.2% actual vs 82.5% from raw rooms_sold/rooms_available),
+  // consistent with standard PMS practice of excluding out-of-order/
+  // out-of-inventory rooms from the occupancy denominator while RevPAR
+  // still divides by the raw available count. The two metrics use
+  // different denominators by design, so `ADR x Occupancy%` doesn't equal
+  // RevPAR even when every number is completely correct — this check
+  // would have false-positived on every real report. Same class of
+  // PMS-denominator ambiguity as the deliberately-deferred rooms_sold vs
+  // arrivals+stayovers check; not resurrected without a verified formula.
 
   // ADR = Room Revenue / Rooms Sold — defense-in-depth only. Normalization
   // (metrics/commands.ts) already recomputes ADR from these same components

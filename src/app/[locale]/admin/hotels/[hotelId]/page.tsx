@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { hotelStatusTone } from '@/lib/status-tone';
 
 const inputClass =
-  'w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm backdrop-blur-xl transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
+  'w-full rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

@@ -6,7 +6,7 @@ export function TableShell({ className, ...props }: HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        'overflow-x-auto rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] backdrop-blur-xl',
+        'overflow-x-auto rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))]',
         'shadow-[0_1px_2px_hsl(var(--shadow-color)/0.06),0_12px_32px_-16px_hsl(var(--shadow-color)/0.35)]',
         className
       )}

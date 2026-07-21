@@ -92,7 +92,7 @@ export function AppShell({
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside
         className={cn(
-          'print-hide flex shrink-0 flex-col justify-between border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] p-4 backdrop-blur-xl transition-[width] duration-300 ease-out md:border-e',
+          'print-hide flex shrink-0 flex-col justify-between border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] p-4 transition-[width] duration-300 ease-out md:border-e',
           collapsed ? 'md:w-[68px]' : 'md:w-64'
         )}
       >

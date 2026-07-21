@@ -10,7 +10,7 @@ import { userStatusTone } from '@/lib/status-tone';
 const ROLES = ['HOTEL_ADMIN', 'GENERAL_MANAGER', 'FRONT_OFFICE_MANAGER', 'REVENUE_MANAGER', 'ANALYST', 'READ_ONLY'];
 
 const selectClass =
-  'rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-1.5 text-xs backdrop-blur-xl transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
+  'rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-1.5 text-xs transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 export default async function AdminUserDetailPage(
   props: {

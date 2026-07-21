@@ -8,7 +8,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
       className={cn(
         'rounded-xl border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] p-5',
         'shadow-[0_1px_2px_hsl(var(--shadow-color)/0.06),0_12px_32px_-16px_hsl(var(--shadow-color)/0.35)]',
-        'backdrop-blur-xl transition-shadow duration-300',
+        'transition-shadow duration-300',
         'hover:shadow-[0_1px_2px_hsl(var(--shadow-color)/0.08),0_18px_44px_-16px_hsl(var(--shadow-color)/0.45)]',
         className
       )}

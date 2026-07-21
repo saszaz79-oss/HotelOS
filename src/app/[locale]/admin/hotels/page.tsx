@@ -10,7 +10,7 @@ import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, table
 import { hotelStatusTone } from '@/lib/status-tone';
 
 const filterFieldClass =
-  'rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm backdrop-blur-xl transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
+  'rounded-lg border border-[hsl(var(--glass-border))] bg-[hsl(var(--glass-bg))] px-3 py-2 text-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30';
 
 const STATUS_VALUES: HotelStatus[] = ['active', 'suspended', 'archived'];
 

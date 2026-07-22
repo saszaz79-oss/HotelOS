@@ -24,6 +24,8 @@ export interface ExtractedField {
   sourcePage?: number | null;
   /** The raw text line/snippet the value was extracted from — an approximation of "section," since this adapter has no true document-structure detection (see Parser Documentation). */
   sourceSnippet?: string | null;
+  /** The exact label text matched in the source document (EDI Phase 2.5 modular adapters) — distinct from `labelEn`, which is the stable programmatic display label; this is real evidence of what was actually read, e.g. "% Rooms Occupied" vs. the key's own "Occupancy %". */
+  sourceLabel?: string | null;
   /** True when more than one label pattern matched with a different value — the field is genuinely ambiguous, not just low-confidence. */
   ambiguous?: boolean;
   status: FieldValidationStatus;

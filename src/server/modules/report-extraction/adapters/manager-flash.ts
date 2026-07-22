@@ -1,180 +1,169 @@
 import type { ExtractedField, ExtractionAdapter, PdfPage, RawExtractionResult } from '../types';
+import { splitLines, splitLabelValueBlock, zipLabelsToValues, type ZippedValue } from './shared/block-parser';
+import { buildMatchedField, buildMissingField, parseLooseDate } from './shared/field-builder';
 
 /**
- * Manager Flash adapter (Architecture §7, Roadmap M3).
+ * Manager Flash adapter (EDI Phase 2.5 rewrite).
  *
- * IMPORTANT — honesty note (Constitution §1 truth test, §2 rule #1): this
- * adapter was built without a real sample Manager Flash PDF to calibrate
- * against (none was available in this environment). It implements
- * deterministic label→value pattern matching against label wording commonly
- * used in Opera Manager Flash exports, but its real-world accuracy is
- * UNVALIDATED. Every field it produces carries a confidence score, every
- * report it processes is routed to mandatory manual review (PRD §4), and
- * nothing it extracts is ever written to HotelMetric without user
- * confirmation (that write doesn't even exist yet — it's Roadmap M4). Do not
- * present this adapter as validated until it has been run against real
- * exports during the pilot (see Roadmap "Validation plan for v0.1").
+ * IMPORTANT — this replaces a proximity-regex implementation ("label
+ * immediately followed by its number") that was built without a real
+ * sample and, once a real Manager Flash export was finally available to
+ * test against, turned out not to match the actual layout AT ALL: Opera
+ * emits every label as its own line in one contiguous block, then every
+ * value as a separate line in a second contiguous block further down the
+ * page — the two are never adjacent in the extracted text. A regex
+ * expecting "label ... number" right next to each other would fail to
+ * match almost every field against a real export. This was found and
+ * fixed during this phase, not shipped and left broken.
  *
- * Field labels searched are intentionally permissive (multiple wording
- * variants per metric) precisely because layout is unvalidated — a stricter
- * pattern would silently extract nothing rather than surface a low-confidence
- * candidate for a human to check.
+ * Real layout (verified against a real sample, both pages):
+ *   <label line 1>
+ *   <label line 2>
+ *   ...
+ *   2026 2026 2026        <- repeated-year header line
+ *   DAY MONTH YEAR        <- column-header line
+ *   <value line 1>         (1-3 numbers: label 1's Day[/Month/Year])
+ *   <value line 2>
+ *   ...
+ * `label[i]` and `value-line[i]` correspond by position — see
+ * shared/block-parser.ts for the general parser this and every other
+ * adapter in this phase is built on.
+ *
+ * Every extracted value still lands as `needs_review`, never `verified`
+ * (Constitution "Never Hide Uncertainty") — this rewrite is a real-layout
+ * fix, not a claim of higher trust.
  */
 
-interface FieldSpec {
+interface CanonicalField {
   metricKey: string;
   labelEn: string;
-  labels: RegExp[];
-  /** Sanity range used to lower confidence (not reject) an implausible parse. */
+  /** Exact label text as it appears in the real document (case-insensitive match) — NOT a substring/fuzzy pattern, since e.g. "ADR" and "ADR minus Comp" are separate, adjacent labels that must not collide. */
+  sourceLabel: string;
+  /** Which value in the Day/Month/Year (or Day-only) triple to use — this system's HotelMetric model is per-day, so the Day column (index 0) is the canonical value for every field; Month/Year columns are real evidence (kept in sourceSnippet) but not written as separate metrics in this pass. */
+  valueIndex: number;
   plausibleRange?: [number, number];
 }
 
-const NUMBER = String.raw`([\d,]+(?:\.\d+)?)\s*%?`;
-
-function labelPattern(...variants: string[]): RegExp[] {
-  return variants.map((v) => new RegExp(`${v}\\s*[:\\-]?\\s*${NUMBER}`, 'i'));
-}
-
-const FIELD_SPECS: FieldSpec[] = [
-  { metricKey: 'occupancy_pct', labelEn: 'Occupancy %', labels: labelPattern('occ(?:upancy)?\\s*%?'), plausibleRange: [0, 100] },
-  { metricKey: 'rooms_available', labelEn: 'Rooms Available', labels: labelPattern('rooms?\\s*avail(?:able)?') },
-  { metricKey: 'rooms_sold', labelEn: 'Rooms Sold', labels: labelPattern('rooms?\\s*sold') },
-  { metricKey: 'out_of_order_rooms', labelEn: 'Out of Order Rooms', labels: labelPattern('out\\s*of\\s*order', 'ooo') },
-  { metricKey: 'arrivals', labelEn: 'Arrivals', labels: labelPattern('arrivals?') },
-  { metricKey: 'departures', labelEn: 'Departures', labels: labelPattern('departures?') },
-  { metricKey: 'stayovers', labelEn: 'Stayovers', labels: labelPattern('stay\\s*overs?', 'stayovers?') },
-  { metricKey: 'no_shows', labelEn: 'No-Shows', labels: labelPattern('no[\\s-]*shows?') },
-  { metricKey: 'cancellations', labelEn: 'Cancellations', labels: labelPattern('cancell?ations?') },
-  { metricKey: 'room_revenue', labelEn: 'Room Revenue', labels: labelPattern('room\\s*revenue') },
-  { metricKey: 'total_revenue', labelEn: 'Total Revenue', labels: labelPattern('total\\s*revenue') },
-  { metricKey: 'adr', labelEn: 'ADR', labels: labelPattern('adr', 'average\\s*(?:daily\\s*)?rate') },
-  { metricKey: 'revpar', labelEn: 'RevPAR', labels: labelPattern('rev\\s*par') },
-  { metricKey: 'complimentary_rooms', labelEn: 'Complimentary Rooms', labels: labelPattern('comp(?:limentary)?\\s*rooms?') },
-  { metricKey: 'house_use_rooms', labelEn: 'House Use Rooms', labels: labelPattern('house\\s*use') },
-  { metricKey: 'adults', labelEn: 'Adults', labels: labelPattern('adults?') },
-  { metricKey: 'children', labelEn: 'Children', labels: labelPattern('child(?:ren)?') },
-  { metricKey: 'total_guests', labelEn: 'Total Guests', labels: labelPattern('total\\s*guests?', 'guest\\s*count') },
+// Mapped against the real sample's exact label text (both pages) — two
+// corrections from the pre-rewrite guessed mapping, found only by having
+// real data: `rooms_available` maps to "Total Rooms in Hotel" (44), not
+// Opera's own "Available Rooms" field (4, which is *remaining unsold*
+// capacity, not total inventory) — confirmed by cross-checking
+// 40/44 = 90.9% against the report's own printed "% Rooms Occupied" (90.91%).
+const CANONICAL_FIELDS: CanonicalField[] = [
+  { metricKey: 'occupancy_pct', labelEn: 'Occupancy %', sourceLabel: '% Rooms Occupied', valueIndex: 0, plausibleRange: [0, 100] },
+  { metricKey: 'rooms_available', labelEn: 'Rooms Available', sourceLabel: 'Total Rooms in Hotel', valueIndex: 0 },
+  { metricKey: 'rooms_sold', labelEn: 'Rooms Sold', sourceLabel: 'Rooms Occupied', valueIndex: 0 },
+  { metricKey: 'out_of_order_rooms', labelEn: 'Out of Order Rooms', sourceLabel: 'Out of Order Rooms', valueIndex: 0 },
+  { metricKey: 'out_of_inventory_rooms', labelEn: 'Out of Inventory Rooms', sourceLabel: 'Out of Service Rooms', valueIndex: 0 },
+  { metricKey: 'arrivals', labelEn: 'Arrivals', sourceLabel: 'Arrival Rooms', valueIndex: 0 },
+  { metricKey: 'departures', labelEn: 'Departures', sourceLabel: 'Departure Rooms', valueIndex: 0 },
+  { metricKey: 'no_shows', labelEn: 'No-Shows', sourceLabel: 'No Show Rooms', valueIndex: 0 },
+  { metricKey: 'cancellations', labelEn: 'Cancellations', sourceLabel: 'Cancelled Reservations for Today', valueIndex: 0 },
+  { metricKey: 'room_revenue', labelEn: 'Room Revenue', sourceLabel: 'Room Revenue', valueIndex: 0 },
+  { metricKey: 'total_revenue', labelEn: 'Total Revenue', sourceLabel: 'Total Revenue', valueIndex: 0 },
+  { metricKey: 'adr', labelEn: 'ADR', sourceLabel: 'ADR', valueIndex: 0 },
+  { metricKey: 'complimentary_rooms', labelEn: 'Complimentary Rooms', sourceLabel: 'Complimentary Rooms', valueIndex: 0 },
+  { metricKey: 'house_use_rooms', labelEn: 'House Use Rooms', sourceLabel: 'House Use Rooms', valueIndex: 0 },
+  { metricKey: 'adults', labelEn: 'Adults', sourceLabel: 'In-House Adults', valueIndex: 0 },
+  { metricKey: 'children', labelEn: 'Children', sourceLabel: 'In-House Children', valueIndex: 0 },
+  { metricKey: 'total_guests', labelEn: 'Total Guests', sourceLabel: 'Total In-House Persons', valueIndex: 0 },
+  // Not present in Manager Flash at all — confirmed absent from the real
+  // sample, not guessed. `revpar` is computed downstream from room_revenue
+  // + rooms_sold/available (metrics/commands.ts) once those are present, so
+  // it doesn't need direct extraction. `stayovers`/`open_balance`/`cash`/
+  // `card`/`city_ledger` come from other report types (Open Balance,
+  // future channel/payment breakdowns) — honestly `missing` here, not
+  // silently substituted with 0 or a guess.
+  { metricKey: 'revpar', labelEn: 'RevPAR', sourceLabel: '__not_in_manager_flash__', valueIndex: 0 },
+  { metricKey: 'stayovers', labelEn: 'Stayovers', sourceLabel: '__not_in_manager_flash__', valueIndex: 0 },
+  { metricKey: 'open_balance', labelEn: 'Open Balance', sourceLabel: '__not_in_manager_flash__', valueIndex: 0 },
+  { metricKey: 'cash', labelEn: 'Cash', sourceLabel: '__not_in_manager_flash__', valueIndex: 0 },
+  { metricKey: 'card', labelEn: 'Card', sourceLabel: '__not_in_manager_flash__', valueIndex: 0 },
+  { metricKey: 'city_ledger', labelEn: 'City Ledger', sourceLabel: '__not_in_manager_flash__', valueIndex: 0 },
 ];
 
-function parseNumber(raw: string): number {
-  return Number(raw.replace(/,/g, ''));
+const TITLE_MARKERS = /manager'?s?\s*-?\s*flash/i;
+
+function isColumnHeaderLine(line: string): boolean {
+  if (/^\d{4}(\s+\d{4})*$/.test(line)) return true;
+  const words = line.split(/\s+/);
+  return words.length > 0 && words.every((w) => /^(DAY|MONTH|YEAR|MTD|YTD|WTD)$/i.test(w));
 }
 
-function findPage(pages: PdfPage[], snippet: string): number | null {
-  const page = pages.find((p) => p.text.includes(snippet));
-  return page?.num ?? null;
-}
-
-function lineContaining(fullText: string, snippet: string): string | null {
-  const line = fullText.split('\n').find((l) => l.includes(snippet));
-  return line?.trim() ?? null;
-}
-
-/**
- * Searches ALL label variants (not just the first match) so genuine
- * ambiguity — two different label phrasings matching two different values —
- * is surfaced rather than silently resolved by pattern order (Validation
- * Phase §2: an "ambiguous" status must reflect real ambiguity in the source
- * text, not an artifact of which regex happened to run first).
- */
-function extractField(fullText: string, pages: PdfPage[], spec: FieldSpec): ExtractedField {
-  const matches = spec.labels
-    .map((pattern) => fullText.match(pattern))
-    .filter((m): m is RegExpMatchArray => m !== null && m[1] !== undefined);
-
-  if (matches.length === 0) {
-    return { metricKey: spec.metricKey, labelEn: spec.labelEn, rawText: null, value: null, confidence: 0, status: 'missing' };
+/** Parses every label/value block on every page, returns a case-insensitive lookup keyed by exact label text. */
+function parseAllBlocks(pages: PdfPage[]): Map<string, { entry: ZippedValue; page: number }> {
+  const byLabel = new Map<string, { entry: ZippedValue; page: number }>();
+  for (const page of pages) {
+    const lines = splitLines(page.text);
+    const block = splitLabelValueBlock(lines, isColumnHeaderLine);
+    if (!block) continue;
+    for (const entry of zipLabelsToValues(block)) {
+      byLabel.set(entry.label.toLowerCase(), { entry, page: page.num });
+    }
   }
-
-  const distinctValues = Array.from(new Set(matches.map((m) => parseNumber(m[1]!))));
-  const ambiguous = distinctValues.length > 1;
-  const match = matches[0]!;
-  const value = parseNumber(match[1]!);
-
-  let confidence = 0.6; // deterministic label match, but layout unvalidated (see module doc comment)
-  if (spec.plausibleRange) {
-    const [min, max] = spec.plausibleRange;
-    confidence = value >= min && value <= max ? 0.6 : 0.25;
-  }
-
-  return {
-    metricKey: spec.metricKey,
-    labelEn: spec.labelEn,
-    rawText: match[0],
-    value,
-    confidence,
-    sourcePage: findPage(pages, match[0]),
-    sourceSnippet: lineContaining(fullText, match[0]),
-    ambiguous,
-    // Nothing is "verified" from automatic extraction alone (Constitution
-    // "Never Hide Uncertainty") — everything found lands as needs_review
-    // until a human confirms it, except genuinely ambiguous matches which
-    // get their own status so a reviewer knows to look harder.
-    status: ambiguous ? 'ambiguous' : 'needs_review',
-  };
+  return byLabel;
 }
-
-const TITLE_MARKERS = /manager'?s?\s*flash/i;
 
 export const managerFlashAdapter: ExtractionAdapter = {
   reportType: 'MANAGER_FLASH',
 
   detect(fullText) {
     if (TITLE_MARKERS.test(fullText)) return 0.9;
-    const hits = FIELD_SPECS.filter((spec) => spec.labels.some((p) => p.test(fullText))).length;
-    return Math.min(0.7, hits / FIELD_SPECS.length);
+    return 0;
   },
 
   extract(fullText, pages): RawExtractionResult {
-    const fields = FIELD_SPECS.map((spec) => extractField(fullText, pages, spec));
+    const byLabel = parseAllBlocks(pages);
 
-    const dateMatch = fullText.match(/\b(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})\b/);
+    const fields: ExtractedField[] = CANONICAL_FIELDS.map((spec) => {
+      const found = byLabel.get(spec.sourceLabel.toLowerCase());
+      if (!found || found.entry.values[spec.valueIndex] === undefined) {
+        return buildMissingField(spec.metricKey, spec.labelEn);
+      }
+      const value = found.entry.values[spec.valueIndex]!;
+      return buildMatchedField({
+        metricKey: spec.metricKey,
+        labelEn: spec.labelEn,
+        sourceLabel: found.entry.label,
+        rawText: found.entry.rawLine,
+        value,
+        sourcePage: found.page,
+        sourceSnippet: `${found.entry.label}: ${found.entry.rawLine}`,
+        plausibleRange: spec.plausibleRange,
+      });
+    });
+
+    // BUG FOUND DURING EDI PHASE 2.5 REAL-SAMPLE VERIFICATION: the naive
+    // "first date-shaped substring anywhere in the text" match picks up the
+    // report's print/run timestamp (always the very first line on the page,
+    // e.g. "22/07/26" printed the morning after close), not the actual
+    // business date the report covers (e.g. "Filter Calendar/Month to Date
+    // 21/07/26" — one day earlier, since a flash report is normally run the
+    // next morning for the prior day's close). Every other adapter in this
+    // phase anchors to a labeled filter-criteria date for exactly this
+    // reason; this one didn't, and real data caught it. Anchored to the
+    // "to Date" filter-criteria label instead of the bare first date.
+    const dateMatch = fullText.match(/to\s+Date\s+(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})/i);
     const detectedReportDate = dateMatch?.[1] ? parseLooseDate(dateMatch[1]) : null;
 
-    const foundCount = fields.filter((f) => f.value !== null).length;
-    const typeConfidence = TITLE_MARKERS.test(fullText) ? 0.9 : Math.min(0.7, foundCount / fields.length);
+    const typeConfidence = TITLE_MARKERS.test(fullText) ? 0.9 : 0;
 
     const parserWarnings: string[] = [];
     if (!TITLE_MARKERS.test(fullText)) {
-      parserWarnings.push('Report title marker "Manager\'s Flash" not found — type match is based on field-label heuristics only.');
+      parserWarnings.push('Report title marker "Manager - flash" not found — type match confidence is 0.');
     }
     if (!dateMatch) {
       parserWarnings.push('No date pattern found in report text — report date must be entered manually.');
     }
-    const ambiguousFields = fields.filter((f) => f.ambiguous);
-    if (ambiguousFields.length > 0) {
-      parserWarnings.push(`${ambiguousFields.length} field(s) matched multiple conflicting values: ${ambiguousFields.map((f) => f.labelEn).join(', ')}.`);
+    if (byLabel.size === 0) {
+      parserWarnings.push('No label/value block detected on any page — this report may not match the expected Manager Flash layout.');
+    }
+    const missingCanonical = CANONICAL_FIELDS.filter((s) => s.sourceLabel !== '__not_in_manager_flash__' && !byLabel.has(s.sourceLabel.toLowerCase()));
+    if (missingCanonical.length > 0) {
+      parserWarnings.push(`${missingCanonical.length} expected field(s) not found in this report: ${missingCanonical.map((s) => s.labelEn).join(', ')}.`);
     }
 
     return { fields, detectedReportDate, typeConfidence, parserWarnings };
   },
 };
-
-function parseLooseDate(raw: string): Date | null {
-  const parts = raw.split(/[\/\-.]/).map(Number);
-  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
-  const [a, b, year4] = parts;
-  if (a === undefined || b === undefined || year4 === undefined) return null;
-  const year = year4 < 100 ? 2000 + year4 : year4;
-
-  // Day/month order (DD/MM vs MM/DD) is ambiguous from the text alone.
-  // Never guess when both values could be either (Constitution: never invent
-  // — an auto-picked wrong date would silently corrupt the HotelMetric date
-  // key later). Only resolve when exactly one value is >12 and therefore
-  // unambiguously the day.
-  let day: number;
-  let month: number;
-  if (a > 12 && b <= 12) {
-    day = a;
-    month = b;
-  } else if (b > 12 && a <= 12) {
-    day = b;
-    month = a;
-  } else {
-    return null; // ambiguous or both invalid — caller must confirm manually (PRD §4)
-  }
-  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return Number.isNaN(date.getTime()) ? null : date;
-}

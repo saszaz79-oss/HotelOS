@@ -6,15 +6,16 @@ import { historyForecastAdapter } from './history-forecast';
 import { dayMtdYtdStatisticsAdapter } from './day-mtd-ytd-statistics';
 
 /**
- * v0.1 scope (Roadmap M3, DECISIONS.md D22): only Manager Flash has a
- * field-level extraction adapter. Reservation Statistics, History &
- * Forecast, and Day MTD YTD Statistics (EDI Phase 1 — the Analysis
- * Session's other 3 required report slots) only get type-detection-only
- * adapters (title-marker match, zero structured fields) so
- * `ReportDocument.reportType` records the correct type instead of falling
- * through to `GENERIC` — the UI distinguishes "uploaded, type recognized"
- * from "structurally validated" using this. Open Balance / Reservation
- * Statistics 1 still fall through to the generic fallback entirely.
+ * EDI Phase 2.5: all 4 required Analysis Session report types now have
+ * real field-level extraction adapters, built and verified against real
+ * samples of each — see docs/REPORT_ADAPTERS.md for what "real" means per
+ * adapter (some, like History & Forecast and Day/MTD/YTD Statistics,
+ * intentionally extract a smaller, honestly-scoped field set than Manager
+ * Flash/Reservation Statistics because their real layouts are genuinely
+ * harder to anchor reliably — see each adapter's own doc comment). Open
+ * Balance / Reservation Statistics 1 still fall through to the generic
+ * fallback — no adapter built for them yet (not required Analysis Session
+ * slots).
  */
 const ADAPTERS: ExtractionAdapter[] = [
   managerFlashAdapter,

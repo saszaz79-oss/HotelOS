@@ -64,6 +64,25 @@ const METRIC_DEFINITIONS = [
   { key: 'adults', labelEn: 'Adults', labelAr: 'البالغون', unit: 'count', isComputed: false },
   { key: 'children', labelEn: 'Children', labelAr: 'الأطفال', unit: 'count', isComputed: false },
   { key: 'total_guests', labelEn: 'Total Guests', labelAr: 'إجمالي النزلاء', unit: 'count', isComputed: false },
+  // Added EDI Phase 2.5 — genuinely new time-grains the 3 newly-real
+  // adapters provide (Reservation Statistics = month-to-date, History &
+  // Forecast = forward-looking period, Day/MTD/YTD Statistics's Year
+  // column = year-to-date). Deliberately separate keys from the
+  // day-actual ones above — writing a period aggregate into the same key
+  // as a single day's actual would silently corrupt whichever value wrote
+  // second (see reservation-statistics.ts's doc comment).
+  { key: 'mtd_rooms_sold', labelEn: 'MTD Rooms Sold', labelAr: 'الغرف المباعة منذ بداية الشهر', unit: 'count', isComputed: false },
+  { key: 'mtd_room_revenue', labelEn: 'MTD Room Revenue', labelAr: 'إيرادات الغرف منذ بداية الشهر', unit: 'currency', isComputed: false },
+  { key: 'mtd_adr', labelEn: 'MTD ADR', labelAr: 'متوسط سعر الغرفة منذ بداية الشهر', unit: 'currency', isComputed: false },
+  { key: 'mtd_occupancy_pct', labelEn: 'MTD Occupancy %', labelAr: 'نسبة الإشغال منذ بداية الشهر', unit: 'percentage', isComputed: false },
+  { key: 'mtd_total_guests', labelEn: 'MTD Total Guests', labelAr: 'إجمالي النزلاء منذ بداية الشهر', unit: 'count', isComputed: false },
+  { key: 'forecast_rooms_occupied', labelEn: 'Forecast Rooms Occupied', labelAr: 'الغرف المتوقع إشغالها', unit: 'count', isComputed: false },
+  { key: 'forecast_room_revenue', labelEn: 'Forecast Room Revenue', labelAr: 'إيرادات الغرف المتوقعة', unit: 'currency', isComputed: false },
+  { key: 'forecast_adr', labelEn: 'Forecast ADR', labelAr: 'متوسط سعر الغرفة المتوقع', unit: 'currency', isComputed: false },
+  { key: 'forecast_occupancy_pct', labelEn: 'Forecast Occupancy %', labelAr: 'نسبة الإشغال المتوقعة', unit: 'percentage', isComputed: false },
+  { key: 'ytd_rooms_sold', labelEn: 'YTD Rooms Sold', labelAr: 'الغرف المباعة منذ بداية السنة', unit: 'count', isComputed: false },
+  { key: 'ytd_adr', labelEn: 'YTD ADR', labelAr: 'متوسط سعر الغرفة منذ بداية السنة', unit: 'currency', isComputed: false },
+  { key: 'ytd_total_guests', labelEn: 'YTD Total Guests', labelAr: 'إجمالي النزلاء منذ بداية السنة', unit: 'count', isComputed: false },
 ];
 
 async function seedMetricDefinitions() {

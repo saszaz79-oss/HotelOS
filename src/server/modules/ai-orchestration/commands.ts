@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { publishTimelineEvent } from '@/server/modules/timeline';
-import { getLatestMetricDate, getMetricsForDate } from '@/server/modules/metrics/queries';
+import { getLatestMetricDate, getMetricsForDate, getPreviousMetricDate } from '@/server/modules/metrics/queries';
 import { EXECUTIVE_SUMMARY_SYSTEM_PROMPT, EXECUTIVE_SUMMARY_PROMPT_VERSION, buildExecutiveSummaryPrompt } from './prompts/executive-summary';
 import { ProviderUnavailableError } from './provider';
 import { getCachedExecutiveSummary } from './queries';
@@ -10,7 +10,9 @@ import { getCachedExecutiveSummary } from './queries';
 // file, independent of the prompt text's own version (Perf fix, Phase 1B).
 // Bump whenever this function's retrieval/validation behavior changes in a
 // way that should invalidate previously-cached summaries.
-export const EXECUTIVE_SUMMARY_ANALYSIS_VERSION = 1;
+// v2 (EDI Phase 3): retrieval now also fetches/derives real previous-period
+// values per metric, feeding the causal-chain prompt rewrite below.
+export const EXECUTIVE_SUMMARY_ANALYSIS_VERSION = 2;
 
 const CORE_METRIC_KEYS = [
   'occupancy_pct',
@@ -61,7 +63,18 @@ export async function generateExecutiveSummary(
   // was meant to remove. Passing the already-resolved values in sidesteps
   // that entirely rather than depending on cache() dedup staying aligned
   // with every caller's fetch strategy.
-  known?: { latestDate: Date; metrics: Awaited<ReturnType<typeof getMetricsForDate>> }
+  known?: {
+    latestDate: Date;
+    metrics: Awaited<ReturnType<typeof getMetricsForDate>>;
+    // Real prior-period values (EDI Phase 3) — both existing callers
+    // (Mission Control, Executive Export) already fetch this for their own
+    // "vs previous" KPI display, so passing it through avoids a second
+    // round trip for the same data (same Perf-sprint pattern as `metrics`
+    // above). Optional: a caller with no previous-period concept (or one
+    // not yet updated) simply gets no trend data in the prompt, never a
+    // fabricated one.
+    previousMetrics?: Awaited<ReturnType<typeof getMetricsForDate>>;
+  }
 ): Promise<ExecutiveSummaryResult> {
   // Retrieval — verified metrics only, nothing inferred. getLatestMetricDate
   // and getMetricsForDate are both React cache()-wrapped, so when the
@@ -78,6 +91,13 @@ export async function generateExecutiveSummary(
   const metrics = known?.metrics ?? (await getMetricsForDate(hotelId, latestDate));
   const availableKeys = new Set(metrics.map((m) => m.metricKey));
 
+  let previousMetrics = known?.previousMetrics;
+  if (previousMetrics === undefined) {
+    const previousDate = await getPreviousMetricDate(hotelId, latestDate);
+    previousMetrics = previousDate ? await getMetricsForDate(hotelId, previousDate) : [];
+  }
+  const previousByKey = new Map(previousMetrics.filter((m) => m.value !== null).map((m) => [m.metricKey, m.value as number]));
+
   const citedMetrics: CitedMetric[] = metrics
     .filter((m) => m.value !== null)
     .map((m) => ({
@@ -88,7 +108,18 @@ export async function generateExecutiveSummary(
       sourceReportDocumentId: m.sourceReportDocumentId,
     }));
 
-  const metricsBlock = citedMetrics.map((m) => `- ${m.labelEn}: ${m.value}`).join('\n');
+  // Every delta here is computed by this codebase from two real stored
+  // values, never by the model — the prompt is instructed to only describe
+  // a trend using a delta actually printed on that metric's own line.
+  const metricsBlock = citedMetrics
+    .map((m) => {
+      const previous = previousByKey.get(m.metricKey);
+      if (previous === undefined) return `- ${m.labelEn}: ${m.value}`;
+      const delta = m.value - previous;
+      const sign = delta >= 0 ? '+' : '';
+      return `- ${m.labelEn}: ${m.value} (previous: ${previous}, change: ${sign}${Math.round(delta * 100) / 100})`;
+    })
+    .join('\n');
   const unavailableKeys = CORE_METRIC_KEYS.filter((k) => !availableKeys.has(k));
   const unavailableBlock = unavailableKeys.join(', ');
 
@@ -178,7 +209,11 @@ export async function getOrRefreshExecutiveSummary(
   hotelId: string,
   language: 'ar' | 'en',
   knownHotelName?: string,
-  known?: { latestDate: Date; metrics: Awaited<ReturnType<typeof getMetricsForDate>> },
+  known?: {
+    latestDate: Date;
+    metrics: Awaited<ReturnType<typeof getMetricsForDate>>;
+    previousMetrics?: Awaited<ReturnType<typeof getMetricsForDate>>;
+  },
   options?: { forceRegenerate?: boolean; regeneratedByUserId?: string }
 ): Promise<ExecutiveSummaryResult> {
   const latestDate = known?.latestDate ?? (await getLatestMetricDate(hotelId));

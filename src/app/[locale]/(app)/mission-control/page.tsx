@@ -119,7 +119,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
   const allMetrics = await getMetricsForDates(hotelId, recentDates);
   const metrics = allMetrics.filter((m) => m.metricDate.getTime() === latestDate.getTime());
   const previousMetrics = previousDate ? allMetrics.filter((m) => m.metricDate.getTime() === previousDate.getTime()) : [];
-  const aiSummary = await getOrRefreshExecutiveSummary(hotelId, locale, membership.hotel.name, { latestDate, metrics });
+  const aiSummary = await getOrRefreshExecutiveSummary(hotelId, locale, membership.hotel.name, { latestDate, metrics, previousMetrics });
 
   const metricByKey = new Map(metrics.map((m) => [m.metricKey, m]));
   const previousByKey = new Map(previousMetrics.map((m) => [m.metricKey, m.value]));

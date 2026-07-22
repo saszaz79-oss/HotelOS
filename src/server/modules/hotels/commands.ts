@@ -111,6 +111,19 @@ export interface UpdateHotelInput {
   pmsType?: string | null;
   licenseStartDate?: Date | null;
   licenseExpiryDate?: Date | null;
+  // Executive Intelligence Report cover-page branding (EDI Phase 1 schema,
+  // EDI Phase 3 UI) — all optional/nullable, same as above; an unset field
+  // shows an honest "not configured" placeholder on the report, never a
+  // fabricated one.
+  officialNameAr?: string | null;
+  officialNameEn?: string | null;
+  propertyCode?: string | null;
+  generalManagerName?: string | null;
+  generalManagerTitle?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
+  address?: string | null;
+  reportFooterText?: string | null;
 }
 
 export async function updateHotel(actingUser: User, hotelId: string, input: UpdateHotelInput): Promise<void> {

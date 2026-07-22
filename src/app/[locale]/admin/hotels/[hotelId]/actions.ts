@@ -36,6 +36,15 @@ export async function updateHotelAction(locale: Locale, hotelId: string, formDat
     pmsType: String(formData.get('pmsType') ?? '') || null,
     licenseStartDate: licenseStart ? new Date(licenseStart) : null,
     licenseExpiryDate: licenseExpiry ? new Date(licenseExpiry) : null,
+    officialNameAr: String(formData.get('officialNameAr') ?? '') || null,
+    officialNameEn: String(formData.get('officialNameEn') ?? '') || null,
+    propertyCode: String(formData.get('propertyCode') ?? '') || null,
+    generalManagerName: String(formData.get('generalManagerName') ?? '') || null,
+    generalManagerTitle: String(formData.get('generalManagerTitle') ?? '') || null,
+    contactPhone: String(formData.get('contactPhone') ?? '') || null,
+    contactEmail: String(formData.get('contactEmail') ?? '') || null,
+    address: String(formData.get('address') ?? '') || null,
+    reportFooterText: String(formData.get('reportFooterText') ?? '') || null,
   });
 
   const plan = String(formData.get('subscriptionPlan') ?? '');

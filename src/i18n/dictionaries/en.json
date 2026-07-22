@@ -123,7 +123,18 @@
       "filterArchived": "Archived",
       "noResults": "No hotels match your search.",
       "createdSuccess": "Hotel created. Share these credentials with the Hotel Admin securely — this password is shown only once:",
-      "usernameTaken": "That username is already taken."
+      "usernameTaken": "That username is already taken.",
+      "brandingTitle": "Executive Report Branding",
+      "brandingHint": "Shown on the Executive Intelligence Report's cover page. Leave a field blank to show it as \"not configured\" on the report rather than guessing a value.",
+      "officialNameAr": "Official Name (Arabic)",
+      "officialNameEn": "Official Name (English)",
+      "propertyCode": "Property Code",
+      "generalManagerName": "General Manager Name",
+      "generalManagerTitle": "General Manager Title",
+      "contactPhone": "Contact Phone",
+      "contactEmail": "Contact Email",
+      "address": "Address",
+      "reportFooterText": "Report Footer Text"
     },
     "users": {
       "title": "Users",

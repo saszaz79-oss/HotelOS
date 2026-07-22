@@ -112,6 +112,41 @@ export default async function AdminHotelDetailPage(
               <option value="enterprise">Enterprise</option>
             </select>
           </Field>
+
+          <div className="col-span-2 mt-2 border-t border-ink/10 pt-4">
+            <h3 className="text-sm font-medium text-ink">{dict.admin.hotels.brandingTitle}</h3>
+            <p className="mt-1 text-xs text-ink-muted">{dict.admin.hotels.brandingHint}</p>
+          </div>
+          <Field label={dict.admin.hotels.officialNameAr}>
+            <input name="officialNameAr" dir="rtl" defaultValue={hotel.officialNameAr ?? ''} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.officialNameEn}>
+            <input name="officialNameEn" defaultValue={hotel.officialNameEn ?? ''} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.propertyCode}>
+            <input name="propertyCode" defaultValue={hotel.propertyCode ?? ''} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.generalManagerName}>
+            <input name="generalManagerName" defaultValue={hotel.generalManagerName ?? ''} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.generalManagerTitle}>
+            <input name="generalManagerTitle" defaultValue={hotel.generalManagerTitle ?? ''} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.contactPhone}>
+            <input name="contactPhone" type="tel" defaultValue={hotel.contactPhone ?? ''} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.contactEmail}>
+            <input name="contactEmail" type="email" defaultValue={hotel.contactEmail ?? ''} className={inputClass} />
+          </Field>
+          <Field label={dict.admin.hotels.address}>
+            <input name="address" defaultValue={hotel.address ?? ''} className={inputClass} />
+          </Field>
+          <div className="col-span-2">
+            <Field label={dict.admin.hotels.reportFooterText}>
+              <input name="reportFooterText" defaultValue={hotel.reportFooterText ?? ''} className={inputClass} />
+            </Field>
+          </div>
+
           <div className="col-span-2">
             <Button type="submit">{dict.admin.hotels.saveEdit}</Button>
           </div>

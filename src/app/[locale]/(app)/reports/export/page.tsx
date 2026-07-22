@@ -46,6 +46,27 @@ const KEY_METRIC_KEYS = [
 
 const TREND_DAYS = 14;
 
+// Period-aggregate metrics from EDI Phase 2.5's Reservation Statistics /
+// History & Forecast / Day-MTD-YTD Statistics adapters — genuinely new
+// information beyond Manager Flash's single-day KPIs above, so shown in
+// their own sections rather than folded into the day-over-day KEY_METRIC_KEYS
+// table (a different reporting period isn't a comparable "previous value").
+const MTD_METRIC_KEYS = ['mtd_rooms_sold', 'mtd_room_revenue', 'mtd_adr', 'mtd_occupancy_pct', 'mtd_total_guests'];
+const FORECAST_METRIC_KEYS = ['forecast_rooms_occupied', 'forecast_room_revenue', 'forecast_adr', 'forecast_occupancy_pct'];
+const YTD_METRIC_KEYS = ['ytd_rooms_sold', 'ytd_adr', 'ytd_total_guests'];
+
+/**
+ * Deterministic, reproducible reference — not a stored incrementing
+ * sequence (none exists), built entirely from real, already-known data
+ * (property code or a hotel-id fallback, plus the business date) so it's
+ * never a fabricated number standing in for a real document ID.
+ */
+function buildReportReference(propertyCode: string | null, hotelId: string, date: Date): string {
+  const code = propertyCode?.trim() || hotelId.slice(0, 6).toUpperCase();
+  const datePart = date.toISOString().slice(0, 10).replace(/-/g, '');
+  return `EIR-${code}-${datePart}`;
+}
+
 export default async function ExecutiveExportPage(props: { params: Promise<{ locale: string }> }) {
   const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
@@ -167,10 +188,36 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
             // eslint-disable-next-line @next/next/no-img-element
             <img src={membership.hotel.logoUrl} alt="" className="mb-2 h-10 w-auto object-contain" />
           ) : null}
-          <h1 className="text-xl font-semibold">{membership.hotel.name}</h1>
+          <h1 className="text-xl font-semibold">
+            {(locale === 'ar' ? membership.hotel.officialNameAr : membership.hotel.officialNameEn) || membership.hotel.name}
+          </h1>
           <p className="text-sm text-ink-muted">{dict.executiveExport.title}</p>
+          {membership.hotel.address ? <p className="mt-1 text-xs text-ink-muted">{membership.hotel.address}</p> : null}
+          {membership.hotel.contactPhone || membership.hotel.contactEmail ? (
+            <p className="text-xs text-ink-muted">
+              {[membership.hotel.contactPhone, membership.hotel.contactEmail].filter(Boolean).join(' · ')}
+            </p>
+          ) : null}
         </div>
         <div className="text-end text-sm text-ink-muted">
+          <p>
+            {dict.executiveExport.propertyCode}:{' '}
+            {membership.hotel.propertyCode || <span className="italic">{dict.executiveExport.notConfigured}</span>}
+          </p>
+          <p>
+            {dict.executiveExport.generalManager}:{' '}
+            {membership.hotel.generalManagerName ? (
+              <>
+                {membership.hotel.generalManagerName}
+                {membership.hotel.generalManagerTitle ? `, ${membership.hotel.generalManagerTitle}` : ''}
+              </>
+            ) : (
+              <span className="italic">{dict.executiveExport.notConfigured}</span>
+            )}
+          </p>
+          <p>
+            {dict.executiveExport.reportReference}: {buildReportReference(membership.hotel.propertyCode, hotelId, latestDate)}
+          </p>
           <p>
             {dict.executiveExport.businessDate}: {latestDate.toLocaleDateString(locale)}
           </p>
@@ -227,6 +274,31 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
           })}
         </div>
       </section>
+
+      {[
+        { titleKey: 'monthToDate' as const, keys: MTD_METRIC_KEYS, note: null },
+        { titleKey: 'forecast' as const, keys: FORECAST_METRIC_KEYS, note: dict.executiveExport.forecastNote },
+        { titleKey: 'yearToDate' as const, keys: YTD_METRIC_KEYS, note: null },
+      ].map(({ titleKey, keys, note }) => {
+        const available = keys.filter((k) => {
+          const m = metricByKey.get(k);
+          return m && m.value !== null;
+        });
+        if (available.length === 0) return null;
+        return (
+          <section key={titleKey}>
+            <h2 className="mb-1 text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport[titleKey]}</h2>
+            <p className="mb-2 text-xs text-ink-muted">{note ?? dict.executiveExport.periodMetricsNote}</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 print:grid-cols-3">
+              {available.map((key) => {
+                const m = metricByKey.get(key)!;
+                const label = locale === 'ar' ? m.metricDefinition.labelAr : m.metricDefinition.labelEn;
+                return <KpiCard key={key} label={label} value={formatMetricValue(m.value as number, m.metricDefinition.unit)} tone="neutral" />;
+              })}
+            </div>
+          </section>
+        );
+      })}
 
       {trendPoints.length > 1 ? (
         <Card className="print-hide">

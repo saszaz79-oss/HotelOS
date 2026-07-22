@@ -440,7 +440,16 @@
     "dataQualityPanel": "Data Quality",
     "consistencyChecks": "Consistency checks",
     "noConsistencyIssues": "No consistency issues detected.",
-    "correctionsNote": "Corrections can be made from Mission Control."
+    "correctionsNote": "Corrections can be made from Mission Control.",
+    "propertyCode": "Property code",
+    "generalManager": "General Manager",
+    "reportReference": "Report reference",
+    "notConfigured": "Not configured",
+    "monthToDate": "Month-to-Date",
+    "yearToDate": "Year-to-Date",
+    "forecast": "Forecast (upcoming period)",
+    "forecastNote": "Covers the currently queried forward-looking window, not a single business date.",
+    "periodMetricsNote": "These figures cover a different period than the day's KPIs above — shown separately rather than compared day-over-day, since the two aren't the same measurement."
   },
   "timeline": {
     "title": "Mission Timeline",

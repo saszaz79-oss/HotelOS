@@ -1,6 +1,6 @@
 import { env } from '@/lib/env';
 import { createAnthropicProvider } from './providers/anthropic';
-import { ProviderUnavailableError, type AIMessage, type AICompletionResult, type AIProvider } from './provider';
+import { ProviderUnavailableError, type AIMessage, type AICompletionOptions, type AICompletionResult, type AIProvider } from './provider';
 
 /**
  * A provider that always reports itself unavailable rather than crashing —
@@ -42,8 +42,8 @@ export const aiProvider: AIProvider = {
   get name() {
     return (cached ??= buildProvider()).name;
   },
-  complete(messages: AIMessage[]) {
-    return (cached ??= buildProvider()).complete(messages);
+  complete(messages: AIMessage[], options?: AICompletionOptions) {
+    return (cached ??= buildProvider()).complete(messages, options);
   },
 };
 

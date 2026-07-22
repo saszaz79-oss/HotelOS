@@ -2,9 +2,16 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { publishTimelineEvent } from '@/server/modules/timeline';
 import { getLatestMetricDate, getMetricsForDate, getPreviousMetricDate } from '@/server/modules/metrics/queries';
+import { getInsightForDate } from '@/server/modules/insights/queries';
 import { EXECUTIVE_SUMMARY_SYSTEM_PROMPT, EXECUTIVE_SUMMARY_PROMPT_VERSION, buildExecutiveSummaryPrompt } from './prompts/executive-summary';
+import {
+  EXECUTIVE_INTELLIGENCE_SYSTEM_PROMPT,
+  EXECUTIVE_INTELLIGENCE_PROMPT_VERSION,
+  buildExecutiveIntelligencePrompt,
+} from './prompts/executive-intelligence';
 import { ProviderUnavailableError } from './provider';
-import { getCachedExecutiveSummary } from './queries';
+import { getCachedExecutiveSummary, getCachedExecutiveIntelligence } from './queries';
+import { parseIntelligenceResponse, type ExecutiveIntelligenceContent } from './parse-intelligence-response';
 
 // Real, checkable version for the generation/validation *logic* in this
 // file, independent of the prompt text's own version (Perf fix, Phase 1B).
@@ -245,6 +252,206 @@ export async function getOrRefreshExecutiveSummary(
       generatedByUserId: options?.regeneratedByUserId ?? null,
     };
     await prisma.aiExecutiveSummary.upsert({
+      where: { hotelId_metricDate_language: { hotelId, metricDate: latestDate, language } },
+      update: data,
+      create: { hotelId, metricDate: latestDate, language, ...data },
+    });
+  }
+  return fresh;
+}
+
+// ---------- Executive Intelligence narrative (Executive Decision Intelligence redesign) ----------
+
+// Independent of EXECUTIVE_SUMMARY_ANALYSIS_VERSION above — this call's own
+// retrieval/validation logic (fetches classified recommendations, parses
+// structured JSON) is genuinely separate from the summary call's, so it
+// gets its own version to bump without touching the already-working
+// summary's cache.
+export const EXECUTIVE_INTELLIGENCE_ANALYSIS_VERSION = 1;
+
+const FORECAST_METRIC_KEYS = ['forecast_rooms_occupied', 'forecast_room_revenue', 'forecast_adr', 'forecast_occupancy_pct'];
+
+export type ExecutiveIntelligenceResult =
+  | ({ ok: true; model: string; sourceReportDocumentId: string | null } & ExecutiveIntelligenceContent)
+  | { ok: false; reason: 'NO_DATA' | 'NOT_CONFIGURED' | 'PROVIDER_ERROR'; message: string };
+
+/**
+ * Retrieval → prompt → reasoning → structured-validation, mirroring
+ * generateExecutiveSummary's pipeline exactly. The one real difference:
+ * this reads the already-classified Recommendation rows (department,
+ * severity, opportunityValue, decisionWindow — EDI Phase 1) rather than
+ * raw metrics, and asks the model to interpret those already-decided
+ * classifications in prose, never to invent its own.
+ */
+export async function generateExecutiveIntelligence(
+  hotelId: string,
+  language: 'ar' | 'en',
+  knownHotelName?: string,
+  known?: {
+    latestDate: Date;
+    metrics: Awaited<ReturnType<typeof getMetricsForDate>>;
+    previousMetrics?: Awaited<ReturnType<typeof getMetricsForDate>>;
+  }
+): Promise<ExecutiveIntelligenceResult> {
+  const latestDate = known?.latestDate ?? (await getLatestMetricDate(hotelId));
+  if (!latestDate) {
+    return { ok: false, reason: 'NO_DATA', message: 'No finalized metrics available yet for this hotel.' };
+  }
+
+  const hotelName =
+    knownHotelName ?? (await prisma.hotel.findUniqueOrThrow({ where: { id: hotelId }, select: { name: true } })).name;
+  const metrics = known?.metrics ?? (await getMetricsForDate(hotelId, latestDate));
+
+  let previousMetrics = known?.previousMetrics;
+  if (previousMetrics === undefined) {
+    const previousDate = await getPreviousMetricDate(hotelId, latestDate);
+    previousMetrics = previousDate ? await getMetricsForDate(hotelId, previousDate) : [];
+  }
+  const previousByKey = new Map(previousMetrics.filter((m) => m.value !== null).map((m) => [m.metricKey, m.value as number]));
+
+  const citedMetrics = metrics.filter((m) => m.value !== null);
+  const metricsBlock = citedMetrics
+    .map((m) => {
+      const previous = previousByKey.get(m.metricKey);
+      if (previous === undefined) return `- ${m.metricDefinition.labelEn}: ${m.value}`;
+      const delta = (m.value as number) - previous;
+      const sign = delta >= 0 ? '+' : '';
+      return `- ${m.metricDefinition.labelEn}: ${m.value} (previous: ${previous}, change: ${sign}${Math.round(delta * 100) / 100})`;
+    })
+    .join('\n');
+  const unavailableBlock = CORE_METRIC_KEYS.filter((k) => !metrics.some((m) => m.metricKey === k)).join(', ');
+
+  const forecastMetrics = citedMetrics.filter((m) => FORECAST_METRIC_KEYS.includes(m.metricKey));
+  const forecastBlock = forecastMetrics.map((m) => `- ${m.metricDefinition.labelEn}: ${m.value}`).join('\n');
+
+  const insight = await getInsightForDate(hotelId, latestDate);
+  const recommendations = insight?.recommendations ?? [];
+  const validRecommendationIds = new Set(recommendations.map((r) => r.id));
+  const recommendationsBlock = recommendations
+    .map(
+      (r) =>
+        `[id: ${r.id}] category=${r.category} priority=${r.priority} department=${r.department ?? 'none'} severity=${r.severity ?? 'none'} opportunityValue=${r.opportunityValue ?? 'none'} decisionWindow=${r.decisionWindow ?? 'none'}\n  ${r.textEn}\n  Suggested action: ${r.suggestedActionEn}`
+    )
+    .join('\n\n');
+
+  const userPrompt = buildExecutiveIntelligencePrompt({
+    hotelName,
+    reportDate: latestDate.toISOString().slice(0, 10),
+    language,
+    metricsBlock,
+    unavailableBlock,
+    recommendationsBlock,
+    forecastBlock,
+  });
+
+  const { aiProvider } = await import('./index');
+  let completion;
+  try {
+    // Longer budget than the summary call — this response is a structured
+    // multi-section document, not a 3-5 sentence blob, and runs inside the
+    // upload pipeline's after() background callback (see
+    // reports/upload/actions.ts), not a live page-render path, so the
+    // summary call's tight 8s/1024-token ceiling doesn't apply here.
+    completion = await aiProvider.complete(
+      [
+        { role: 'system', content: EXECUTIVE_INTELLIGENCE_SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+      { maxTokens: 4096, timeoutMs: 20000 }
+    );
+  } catch (err) {
+    if (err instanceof ProviderUnavailableError) {
+      return { ok: false, reason: err.reason, message: err.message };
+    }
+    return { ok: false, reason: 'PROVIDER_ERROR', message: err instanceof Error ? err.message : String(err) };
+  }
+
+  const parsed = parseIntelligenceResponse(completion.text, validRecommendationIds);
+  if (!parsed) {
+    return { ok: false, reason: 'PROVIDER_ERROR', message: 'Generated response was not valid structured content — discarded rather than shown.' };
+  }
+
+  await publishTimelineEvent({
+    hotelId,
+    eventType: 'ai_summary_generated',
+    payload: { metricDate: latestDate.toISOString(), model: completion.model, kind: 'executive_intelligence' },
+    sourceRef: citedMetrics[0]?.sourceReportDocumentId ?? null,
+  });
+
+  return { ok: true, ...parsed, model: completion.model, sourceReportDocumentId: citedMetrics[0]?.sourceReportDocumentId ?? null };
+}
+
+type CachedIntelligence = NonNullable<Awaited<ReturnType<typeof getCachedExecutiveIntelligence>>>;
+
+/** Mirrors isStale() above exactly, for the Executive Intelligence cache. */
+async function isStaleIntelligence(hotelId: string, metricDate: Date, cached: CachedIntelligence | null): Promise<boolean> {
+  if (!cached) return true;
+  if (cached.promptVersion !== EXECUTIVE_INTELLIGENCE_PROMPT_VERSION) return true;
+  if (cached.analysisVersion !== EXECUTIVE_INTELLIGENCE_ANALYSIS_VERSION) return true;
+
+  const latest = await prisma.hotelMetric.aggregate({
+    where: { hotelId, metricDate },
+    _max: { updatedAt: true },
+  });
+  return !!latest._max.updatedAt && latest._max.updatedAt > cached.generatedAt;
+}
+
+/**
+ * Read-through cache in front of generateExecutiveIntelligence, mirroring
+ * getOrRefreshExecutiveSummary exactly. A generation failure is never
+ * cached — a transient provider error must not mask a later successful
+ * generation for the rest of the day.
+ */
+export async function getOrRefreshExecutiveIntelligence(
+  hotelId: string,
+  language: 'ar' | 'en',
+  knownHotelName?: string,
+  known?: {
+    latestDate: Date;
+    metrics: Awaited<ReturnType<typeof getMetricsForDate>>;
+    previousMetrics?: Awaited<ReturnType<typeof getMetricsForDate>>;
+  },
+  options?: { forceRegenerate?: boolean; regeneratedByUserId?: string }
+): Promise<ExecutiveIntelligenceResult> {
+  const latestDate = known?.latestDate ?? (await getLatestMetricDate(hotelId));
+  if (!latestDate) {
+    return { ok: false, reason: 'NO_DATA', message: 'No finalized metrics available yet for this hotel.' };
+  }
+
+  const cached = options?.forceRegenerate ? null : await getCachedExecutiveIntelligence(hotelId, latestDate, language);
+  if (cached && !(await isStaleIntelligence(hotelId, latestDate, cached))) {
+    return {
+      ok: true,
+      executiveMessage: cached.executiveMessage,
+      crossKpiNarrative: cached.crossKpiNarrative,
+      decisionSummaryText: cached.decisionSummaryText,
+      forecastNarrative: cached.forecastNarrative,
+      riskElaboration: cached.riskElaboration as unknown as Record<string, string>,
+      opportunityElaboration: cached.opportunityElaboration as unknown as Record<string, string>,
+      businessImpactEstimates: cached.businessImpactEstimates as unknown as Record<string, string>,
+      model: cached.model,
+      sourceReportDocumentId: cached.sourceReportDocumentId,
+    };
+  }
+
+  const fresh = await generateExecutiveIntelligence(hotelId, language, knownHotelName, known);
+  if (fresh.ok) {
+    const data = {
+      executiveMessage: fresh.executiveMessage,
+      crossKpiNarrative: fresh.crossKpiNarrative,
+      decisionSummaryText: fresh.decisionSummaryText,
+      forecastNarrative: fresh.forecastNarrative,
+      riskElaboration: fresh.riskElaboration as unknown as Prisma.InputJsonValue,
+      opportunityElaboration: fresh.opportunityElaboration as unknown as Prisma.InputJsonValue,
+      businessImpactEstimates: fresh.businessImpactEstimates as unknown as Prisma.InputJsonValue,
+      model: fresh.model,
+      promptVersion: EXECUTIVE_INTELLIGENCE_PROMPT_VERSION,
+      analysisVersion: EXECUTIVE_INTELLIGENCE_ANALYSIS_VERSION,
+      sourceReportDocumentId: fresh.sourceReportDocumentId,
+      generatedAt: new Date(),
+      generatedByUserId: options?.regeneratedByUserId ?? null,
+    };
+    await prisma.aiExecutiveIntelligence.upsert({
       where: { hotelId_metricDate_language: { hotelId, metricDate: latestDate, language } },
       update: data,
       create: { hotelId, metricDate: latestDate, language, ...data },

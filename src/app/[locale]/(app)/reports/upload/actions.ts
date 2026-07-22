@@ -7,7 +7,7 @@ import { getCurrentUser } from '@/server/modules/auth/session';
 import { resolveHotelScope, getActiveMembership } from '@/server/modules/hotels/access';
 import { uploadReport, type UploadReportResult } from '@/server/modules/reports/commands';
 import { normalizeReportDocument } from '@/server/modules/metrics/commands';
-import { getOrRefreshExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
+import { getOrRefreshExecutiveSummary, getOrRefreshExecutiveIntelligence } from '@/server/modules/ai-orchestration/commands';
 import { getAnalysisSessionStatus, getSessionSlots, type SessionSlot } from '@/server/modules/analysis-sessions/queries';
 import {
   markAnalysisSessionAnalyzing,
@@ -159,6 +159,13 @@ export async function startExecutiveAnalysisAction(locale: Locale, hotelId: stri
 
       await updateAnalysisSessionStage(sessionId, 'executive_intelligence');
       await getOrRefreshExecutiveSummary(hotelId, locale, hotelName, undefined);
+      // Executive Decision Intelligence redesign — a second, distinct AI
+      // call, deliberately not awaited-and-checked for failure the same as
+      // the summary above: an unavailable/failed provider degrades the
+      // report to its real deterministic content (department/severity/
+      // decisionWindow are never AI-dependent — see EDI Phase 1), it never
+      // blocks the pipeline from reaching 'ready'.
+      await getOrRefreshExecutiveIntelligence(hotelId, locale, hotelName, undefined);
 
       await updateAnalysisSessionStage(sessionId, 'report');
       await markAnalysisSessionReady(sessionId);

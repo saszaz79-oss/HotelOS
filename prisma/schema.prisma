@@ -50,14 +50,15 @@ model User {
   sessions                Session[]
   passwordResets          PasswordResetToken[]
   uploads                 ReportUpload[]
-  correctedMetrics        HotelMetric[]           @relation("MetricCorrectedBy")
+  correctedMetrics        HotelMetric[]             @relation("MetricCorrectedBy")
   aiConversations         AIConversation[]
   exportedReports         ExportedReport[]
   auditLogs               AuditLog[]
   timelineEvents          TimelineEvent[]
   groundTruthRecords      ExtractionGroundTruth[]
   notifications           Notification[]
-  generatedAiSummaries    AiExecutiveSummary[]    @relation("AiSummaryGeneratedBy")
+  generatedAiSummaries    AiExecutiveSummary[]      @relation("AiSummaryGeneratedBy")
+  generatedAiIntelligence AiExecutiveIntelligence[] @relation("AiIntelligenceGeneratedBy")
   createdAnalysisSessions AnalysisSession[]
 }
 
@@ -127,21 +128,22 @@ model Hotel {
   address             String?
   reportFooterText    String?
 
-  memberships          HotelMembership[]
-  reportUploads        ReportUpload[]
-  metrics              HotelMetric[]
-  insights             Insight[]
-  alerts               Alert[]
-  recommendations      Recommendation[]
-  aiConversations      AIConversation[]
-  exportedReports      ExportedReport[]
-  auditLogs            AuditLog[]
-  settings             HotelSetting[]
-  subscription         Subscription?
-  timelineEvents       TimelineEvent[]
-  notifications        Notification[]
-  aiExecutiveSummaries AiExecutiveSummary[]
-  analysisSessions     AnalysisSession[]
+  memberships             HotelMembership[]
+  reportUploads           ReportUpload[]
+  metrics                 HotelMetric[]
+  insights                Insight[]
+  alerts                  Alert[]
+  recommendations         Recommendation[]
+  aiConversations         AIConversation[]
+  exportedReports         ExportedReport[]
+  auditLogs               AuditLog[]
+  settings                HotelSetting[]
+  subscription            Subscription?
+  timelineEvents          TimelineEvent[]
+  notifications           Notification[]
+  aiExecutiveSummaries    AiExecutiveSummary[]
+  aiExecutiveIntelligence AiExecutiveIntelligence[]
+  analysisSessions        AnalysisSession[]
 
   @@index([status])
 }
@@ -418,18 +420,18 @@ enum AlertStatus {
 }
 
 model Alert {
-  id               String        @id @default(cuid())
+  id               String           @id @default(cuid())
   hotelId          String
-  hotel            Hotel         @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotel            Hotel            @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   insightId        String?
-  insight          Insight?      @relation(fields: [insightId], references: [id])
+  insight          Insight?         @relation(fields: [insightId], references: [id])
   severity         AlertSeverity
   category         String
   messageEn        String
   messageAr        String
   relatedMetricKey String?
-  status           AlertStatus   @default(open)
-  createdAt        DateTime      @default(now())
+  status           AlertStatus      @default(open)
+  createdAt        DateTime         @default(now())
   // Added Executive Decision Intelligence redesign — nullable, never
   // backfilled. Null for alerts with no real department owner (e.g. the
   // data_quality category is a data-integrity flag, not a hotel function's
@@ -578,6 +580,57 @@ model AiExecutiveSummary {
   // explicitly clicked Regenerate.
   generatedByUserId      String?
   generatedBy            User?    @relation("AiSummaryGeneratedBy", fields: [generatedByUserId], references: [id])
+
+  @@unique([hotelId, metricDate, language])
+  @@index([hotelId, metricDate])
+}
+
+// Persisted AI Executive Intelligence narrative (Executive Decision
+// Intelligence redesign) — a distinct model from AiExecutiveSummary above,
+// not an extension of it: AiExecutiveSummary is a single 3-5 sentence
+// blob with a unique-per-(hotel,date,language) shape that doesn't fit a
+// multi-section document, so this is additive rather than a schema change
+// to the existing, already-working summary. Same caching contract as
+// AiExecutiveSummary (one row per hotel/date/language, read through
+// getOrRefreshExecutiveIntelligence()'s staleness check, not regenerated
+// on every read) and the same discipline: every text field here is prose
+// *interpreting* real, already-persisted, already-classified data (see
+// Recommendation.department/severity/opportunityValue/decisionWindow,
+// EDI Phase 1) — nothing numeric is decided by the model itself.
+model AiExecutiveIntelligence {
+  id                      String   @id @default(cuid())
+  hotelId                 String
+  hotel                   Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  metricDate              DateTime
+  language                Language
+  // 5-8 paragraph Executive Morning Brief narrative, in the voice of an
+  // experienced GM — the report's opening "read this first" content.
+  executiveMessage        String
+  // Explains real relationships between independently-stored metric
+  // deltas (e.g. occupancy up, ADR down, revenue flat → discount-driven
+  // growth) — never a resurrected RevPAR=ADR×Occupancy% identity (see
+  // insights/consistency.ts's doc comment on why that was abandoned).
+  crossKpiNarrative       String
+  // Both Json, keyed by the real Recommendation.id each elaboration/
+  // estimate is about — those rows are already persisted (recomputeInsight
+  // runs earlier in the same pipeline) before this generation call fires,
+  // so every key here is real and checkable, never invented.
+  riskElaboration         Json     @default("{}")
+  opportunityElaboration  Json     @default("{}")
+  businessImpactEstimates Json     @default("{}")
+  // Final-page "Executive Decision Summary" prose.
+  decisionSummaryText     String
+  // Qualified commentary on the real forecast_* metrics — null when there
+  // isn't enough forecast data to say anything beyond the raw numbers
+  // already shown elsewhere on the report.
+  forecastNarrative       String?
+  model                   String
+  promptVersion           Int
+  analysisVersion         Int
+  sourceReportDocumentId  String?
+  generatedAt             DateTime @default(now())
+  generatedByUserId       String?
+  generatedBy             User?    @relation("AiIntelligenceGeneratedBy", fields: [generatedByUserId], references: [id])
 
   @@unique([hotelId, metricDate, language])
   @@index([hotelId, metricDate])

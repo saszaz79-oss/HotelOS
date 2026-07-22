@@ -14,3 +14,12 @@ export const getCachedExecutiveSummary = cache(
     });
   }
 );
+
+/** Same pattern as getCachedExecutiveSummary above, for the Executive Decision Intelligence narrative (EDI redesign) — a plain read, staleness/regeneration decided by getOrRefreshExecutiveIntelligence in commands.ts. */
+export const getCachedExecutiveIntelligence = cache(
+  async (hotelId: string, metricDate: Date, language: 'ar' | 'en') => {
+    return prisma.aiExecutiveIntelligence.findUnique({
+      where: { hotelId_metricDate_language: { hotelId, metricDate, language } },
+    });
+  }
+);

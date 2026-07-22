@@ -12,3 +12,21 @@ export const getLatestInsight = cache(async (hotelId: string) => {
     },
   });
 });
+
+/**
+ * Exact-date lookup (Executive Decision Intelligence redesign) — distinct
+ * from getLatestInsight above: that finds whichever Insight row is most
+ * recent, which usually but not necessarily matches a caller's own
+ * `latestDate` (from metrics/queries.ts's getLatestMetricDate). The AI
+ * intelligence narrative call needs the Insight for the *exact* metric
+ * date it's generating for, never an approximation.
+ */
+export const getInsightForDate = cache(async (hotelId: string, insightDate: Date) => {
+  return prisma.insight.findUnique({
+    where: { hotelId_insightDate: { hotelId, insightDate } },
+    include: {
+      alerts: { where: { status: 'open' }, orderBy: { severity: 'asc' } },
+      recommendations: { where: { status: 'open' }, orderBy: { priority: 'asc' } },
+    },
+  });
+});

@@ -466,5 +466,32 @@
     "REVENUE_MANAGER": "مدير الإيرادات",
     "ANALYST": "محلل",
     "READ_ONLY": "مستخدم بصلاحية عرض فقط"
+  },
+  "executiveAnalysis": {
+    "requiredReports": "التقارير المطلوبة",
+    "slotEmpty": "لم يتم الرفع بعد",
+    "slotUploaded": "تم الرفع — جارٍ تحديد النوع…",
+    "slotProcessing": "قيد المعالجة…",
+    "slotValidated": "تم الرفع والتحقق",
+    "slotTypeRecognized": "تم التعرف على النوع — الاستخراج البنيوي قيد الإعداد",
+    "slotUnrecognized": "تم الرفع — الملف لا يطابق نوع هذا التقرير",
+    "startAnalysis": "🧠 بدء التحليل التنفيذي",
+    "viewReport": "📑 عرض تقرير الذكاء التنفيذي",
+    "analyzingTitle": "جارٍ تنفيذ التحليل التنفيذي",
+    "stepReading": "قراءة التقارير",
+    "stepExtracting": "استخراج البيانات البنيوية",
+    "stepNormalizing": "تسوية القيم",
+    "stepConsistency": "التحقق من الاتساق",
+    "stepKpi": "حساب مؤشرات الأداء",
+    "stepScore": "حساب الدرجة التنفيذية",
+    "stepIntelligence": "تشغيل الذكاء التنفيذي",
+    "stepReport": "إنشاء التقرير التنفيذي",
+    "stepFinalizing": "تجهيز التقرير التنفيذي للتصدير",
+    "errorTitle": "فشل التحليل التنفيذي",
+    "retryAnalysis": "إعادة المحاولة",
+    "missingReports": "يرجى رفع جميع التقارير الأربعة المطلوبة قبل بدء التحليل.",
+    "stillProcessing": "لا تزال بعض التقارير قيد المعالجة — يرجى الانتظار لحظة.",
+    "notFound": "تعذر العثور على جلسة التحليل هذه.",
+    "alreadyStarted": "التحليل قيد التشغيل بالفعل أو مكتمل لهذه الجلسة."
   }
 }

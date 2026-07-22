@@ -87,7 +87,20 @@ function UploadIcon() {
   );
 }
 
-export function UploadForm({ locale, hotelId, dict }: { locale: Locale; hotelId: string; dict: Dict }) {
+export function UploadForm({
+  locale,
+  hotelId,
+  sessionId,
+  dict,
+  onUploadSettled,
+}: {
+  locale: Locale;
+  hotelId: string;
+  sessionId: string;
+  dict: Dict;
+  /** Called after each upload settles (success or error) — lets the parent Analysis Session panel refresh its slot cards without waiting for its next poll tick. */
+  onUploadSettled?: () => void;
+}) {
   const [queue, setQueue] = useState<QueuedFile[]>([]);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -115,6 +128,10 @@ export function UploadForm({ locale, hotelId, dict }: { locale: Locale; hotelId:
       if (status && !TERMINAL_STATUSES.has(status)) {
         pollStatus(itemId, reportUploadId, attempt + 1);
       } else {
+        // Terminal status reached — this is when the document's detected
+        // report type actually becomes known, so the parent's slot cards
+        // need a refresh now, not just at upload time.
+        onUploadSettled?.();
         pollTimers.current.delete(itemId);
       }
     }, POLL_INTERVAL_MS);
@@ -154,7 +171,7 @@ export function UploadForm({ locale, hotelId, dict }: { locale: Locale; hotelId:
     setQueue((prev) => prev.map((f) => (f.id === item.id ? { ...f, status: 'uploading', error: undefined } : f)));
     const formData = new FormData();
     formData.set('file', item.file);
-    const result = await uploadSingleReportAction(locale, hotelId, formData);
+    const result = await uploadSingleReportAction(locale, hotelId, sessionId, formData);
     setQueue((prev) =>
       prev.map((f) =>
         f.id === item.id
@@ -164,6 +181,7 @@ export function UploadForm({ locale, hotelId, dict }: { locale: Locale; hotelId:
           : f
       )
     );
+    onUploadSettled?.();
     if (result.ok) {
       pollStatus(item.id, result.reportUploadId, 1);
     }

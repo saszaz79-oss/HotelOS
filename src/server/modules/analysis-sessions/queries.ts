@@ -1,7 +1,16 @@
 import { cache } from 'react';
+import type { ReportType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { REQUIRED_SESSION_REPORT_TYPES } from './types';
 
 const OPEN_STATUSES = ['collecting', 'analyzing'] as const;
+
+export interface SessionSlot {
+  reportType: ReportType;
+  filled: boolean;
+  filename: string | null;
+  uploadStatus: string | null;
+}
 
 /**
  * The hotel's current in-progress Analysis Session, if any (EDI Phase 1) —
@@ -36,3 +45,36 @@ export const getAnalysisSessionStatus = cache(async (hotelId: string, sessionId:
     select: { id: true, status: true, currentStage: true, errorMessage: true, completedAt: true },
   });
 });
+
+/**
+ * The 4 required-report slot states for the Upload page's cards (EDI Phase
+ * 2) — deliberately NOT `cache()`-wrapped: the client polls this
+ * repeatedly across separate requests while uploads are still processing,
+ * so a request-scoped memo would just return stale data on every poll.
+ */
+export async function getSessionSlots(hotelId: string, sessionId: string): Promise<SessionSlot[]> {
+  const session = await prisma.analysisSession.findFirst({
+    where: { id: sessionId, hotelId },
+    include: {
+      uploads: {
+        select: {
+          originalFilename: true,
+          status: true,
+          createdAt: true,
+          documents: { select: { reportType: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+  });
+
+  return REQUIRED_SESSION_REPORT_TYPES.map((reportType) => {
+    const match = session?.uploads.find((u) => u.documents.some((d) => d.reportType === reportType));
+    return {
+      reportType,
+      filled: !!match,
+      filename: match?.originalFilename ?? null,
+      uploadStatus: match?.status ?? null,
+    };
+  });
+}

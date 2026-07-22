@@ -1,14 +1,16 @@
-import Link from 'next/link';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { getActiveMembership } from '@/server/modules/hotels/access';
-import { listReportUploads } from '@/server/modules/reports/queries';
-import { UploadForm } from './UploadForm';
-import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { reportStatusTone } from '@/lib/status-tone';
+import { createOrGetOpenAnalysisSession } from '@/server/modules/analysis-sessions/commands';
+import { getSessionSlots } from '@/server/modules/analysis-sessions/queries';
+import { AnalysisSessionPanel } from './AnalysisSessionPanel';
 
+/**
+ * Rebuilt around the Analysis Session (EDI Phase 2) — this page represents
+ * ONE in-progress analysis, not a history browser. Historical uploads live
+ * exclusively in /reports/archive now; the "recent uploads" list that used
+ * to sit here (mixing today's work with old reports) is gone.
+ */
 export default async function ReportsUploadPage(props: { params: Promise<{ locale: string }> }) {
   const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
@@ -17,7 +19,7 @@ export default async function ReportsUploadPage(props: { params: Promise<{ local
 
   const membership = user && !user.isSuperAdmin ? await getActiveMembership(user.id) : null;
 
-  if (!membership) {
+  if (!user || !membership) {
     return (
       <div className="max-w-lg">
         <p className="text-ink-muted">{dict.missionControl.noHotels}</p>
@@ -25,7 +27,8 @@ export default async function ReportsUploadPage(props: { params: Promise<{ local
     );
   }
 
-  const uploads = await listReportUploads(membership.hotelId, 20);
+  const session = await createOrGetOpenAnalysisSession(membership.hotelId, user.id);
+  const slots = await getSessionSlots(membership.hotelId, session.id);
 
   return (
     <div className="max-w-2xl space-y-8">
@@ -34,30 +37,17 @@ export default async function ReportsUploadPage(props: { params: Promise<{ local
         <p className="mt-1 text-sm text-ink-muted">{dict.reportsUpload.description}</p>
       </div>
 
-      <UploadForm locale={locale} hotelId={membership.hotelId} dict={dict.reportsUpload} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{dict.reportsUpload.recentUploads}</CardTitle>
-        </CardHeader>
-        {uploads.length === 0 ? (
-          <EmptyState title={dict.reportsUpload.noUploads} />
-        ) : (
-          <ul className="divide-y divide-ink/5 text-sm">
-            {uploads.map((u) => (
-              <li key={u.id} className="flex items-center justify-between gap-3 py-2.5">
-                <Link href={`/${locale}/reports/${u.id}`} className="truncate text-ink hover:underline">
-                  {u.originalFilename}
-                </Link>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-xs text-ink-muted">{new Date(u.createdAt).toLocaleString(locale)}</span>
-                  <StatusBadge tone={reportStatusTone(u.status)}>{u.status}</StatusBadge>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <AnalysisSessionPanel
+        locale={locale}
+        hotelId={membership.hotelId}
+        sessionId={session.id}
+        initialStatus={session.status}
+        initialStage={session.currentStage}
+        initialSlots={slots}
+        dict={dict.reportsUpload}
+        analysisDict={dict.executiveAnalysis}
+        reportTypesDict={dict.reportsCommon.reportTypes}
+      />
     </div>
   );
 }

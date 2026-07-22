@@ -466,5 +466,32 @@
     "REVENUE_MANAGER": "Revenue Manager",
     "ANALYST": "Analyst",
     "READ_ONLY": "Read Only"
+  },
+  "executiveAnalysis": {
+    "requiredReports": "Required Reports",
+    "slotEmpty": "Not yet uploaded",
+    "slotUploaded": "Uploaded — detecting type…",
+    "slotProcessing": "Processing…",
+    "slotValidated": "Uploaded and validated",
+    "slotTypeRecognized": "Type recognized — structured extraction pending",
+    "slotUnrecognized": "Uploaded — file doesn't match this report type",
+    "startAnalysis": "🧠 Start Executive Analysis",
+    "viewReport": "📑 View Executive Intelligence Report",
+    "analyzingTitle": "Running Executive Analysis",
+    "stepReading": "Reading reports",
+    "stepExtracting": "Extracting structured data",
+    "stepNormalizing": "Normalizing values",
+    "stepConsistency": "Checking consistency",
+    "stepKpi": "Calculating KPIs",
+    "stepScore": "Calculating Executive Score",
+    "stepIntelligence": "Running Executive Intelligence",
+    "stepReport": "Generating Executive Report",
+    "stepFinalizing": "Preparing Executive Report for export",
+    "errorTitle": "Executive Analysis failed",
+    "retryAnalysis": "Try Again",
+    "missingReports": "Upload all 4 required reports before starting analysis.",
+    "stillProcessing": "One or more reports are still processing — please wait a moment.",
+    "notFound": "This analysis session could not be found.",
+    "alreadyStarted": "Analysis is already running or complete for this session."
   }
 }

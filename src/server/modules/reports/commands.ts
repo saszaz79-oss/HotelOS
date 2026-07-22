@@ -32,6 +32,11 @@ interface UploadReportInput {
   originalFilename: string;
   mimeType: string;
   data: Buffer;
+  // Tags this upload to the hotel's current Analysis Session (EDI Phase 2) —
+  // optional so this function stays usable for any future non-session
+  // upload path too; nullable on ReportUpload itself, so omitting it is a
+  // valid, meaningful state, not an error.
+  analysisSessionId?: string;
 }
 
 /**
@@ -102,6 +107,7 @@ export async function uploadReport(input: UploadReportInput): Promise<UploadRepo
         checksumSha256,
         mimeType: input.mimeType,
         status: 'uploaded',
+        analysisSessionId: input.analysisSessionId ?? null,
       },
     });
   } catch (err) {

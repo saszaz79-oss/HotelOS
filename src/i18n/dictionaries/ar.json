@@ -391,6 +391,8 @@
       "RESERVATION_STATISTICS": "إحصائيات الحجوزات",
       "RESERVATION_STATISTICS_1": "إحصائيات الحجوزات (بديل)",
       "OPEN_BALANCE": "الرصيد المفتوح",
+      "HISTORY_FORECAST": "السجل والتوقعات",
+      "DAY_MTD_YTD_STATISTICS": "إحصائيات اليوم / الشهر حتى تاريخه / السنة حتى تاريخه",
       "GENERIC": "تقرير"
     }
   },

@@ -46,18 +46,19 @@ model User {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  memberships          HotelMembership[]
-  sessions             Session[]
-  passwordResets       PasswordResetToken[]
-  uploads              ReportUpload[]
-  correctedMetrics     HotelMetric[]           @relation("MetricCorrectedBy")
-  aiConversations      AIConversation[]
-  exportedReports      ExportedReport[]
-  auditLogs            AuditLog[]
-  timelineEvents       TimelineEvent[]
-  groundTruthRecords   ExtractionGroundTruth[]
-  notifications        Notification[]
-  generatedAiSummaries AiExecutiveSummary[]    @relation("AiSummaryGeneratedBy")
+  memberships             HotelMembership[]
+  sessions                Session[]
+  passwordResets          PasswordResetToken[]
+  uploads                 ReportUpload[]
+  correctedMetrics        HotelMetric[]           @relation("MetricCorrectedBy")
+  aiConversations         AIConversation[]
+  exportedReports         ExportedReport[]
+  auditLogs               AuditLog[]
+  timelineEvents          TimelineEvent[]
+  groundTruthRecords      ExtractionGroundTruth[]
+  notifications           Notification[]
+  generatedAiSummaries    AiExecutiveSummary[]    @relation("AiSummaryGeneratedBy")
+  createdAnalysisSessions AnalysisSession[]
 }
 
 model Session {
@@ -109,6 +110,23 @@ model Hotel {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
+  // Executive Intelligence Report branding (EDI Phase 1) — all nullable,
+  // never backfilled. A report with a missing field shows an honest
+  // configurable placeholder (Constitution truth test), never a fabricated
+  // name/title. `name` above stays the operational/display name used
+  // everywhere else in the app; these are specifically the cover-page
+  // identity fields, distinct because a hotel's official bilingual legal
+  // name can differ from what's shown in nav/lists.
+  officialNameAr      String?
+  officialNameEn      String?
+  propertyCode        String?
+  generalManagerName  String?
+  generalManagerTitle String?
+  contactPhone        String?
+  contactEmail        String?
+  address             String?
+  reportFooterText    String?
+
   memberships          HotelMembership[]
   reportUploads        ReportUpload[]
   metrics              HotelMetric[]
@@ -123,6 +141,7 @@ model Hotel {
   timelineEvents       TimelineEvent[]
   notifications        Notification[]
   aiExecutiveSummaries AiExecutiveSummary[]
+  analysisSessions     AnalysisSession[]
 
   @@index([status])
 }
@@ -181,11 +200,19 @@ model ReportUpload {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
+  // Nullable (EDI Phase 1) — every upload that predates the Analysis
+  // Session model simply has this unset, a valid permanent state, not an
+  // error. Historical uploads keep showing in Archive exactly as before;
+  // only session-tagged uploads show on the Upload page's session cards.
+  analysisSessionId String?
+  analysisSession   AnalysisSession? @relation(fields: [analysisSessionId], references: [id], onDelete: SetNull)
+
   documents ReportDocument[]
 
   @@index([hotelId, createdAt])
   @@index([hotelId, status])
   @@index([hotelId, uploadedByUserId])
+  @@index([analysisSessionId])
 }
 
 enum ReportType {
@@ -193,7 +220,59 @@ enum ReportType {
   RESERVATION_STATISTICS
   OPEN_BALANCE
   RESERVATION_STATISTICS_1
+  // Added EDI Phase 1 — required Analysis Session slots with no extraction
+  // adapter yet (no known field layout to build against). Upload/type-match
+  // only for now; see report-extraction/adapters/ for the honest "not yet
+  // structurally validated" distinction from MANAGER_FLASH.
+  HISTORY_FORECAST
+  DAY_MTD_YTD_STATISTICS
   GENERIC
+}
+
+// One open Analysis Session per hotel at a time (EDI Phase 1) — the
+// coordinating unit for "today's work": which uploads belong together, what
+// pipeline stage the background Executive Analysis job is at, and a stable
+// id to poll/navigate around. Deliberately thin — HotelMetric/Insight
+// already converge naturally per (hotelId, metricDate), so this model does
+// not duplicate metric storage, only workflow/progress state.
+enum AnalysisSessionStatus {
+  collecting
+  analyzing
+  ready
+  error
+}
+
+enum AnalysisSessionStage {
+  reading
+  extracting
+  normalizing
+  consistency
+  kpi
+  score
+  executive_intelligence
+  report
+  pdf
+  complete
+  error
+}
+
+model AnalysisSession {
+  id              String                @id @default(cuid())
+  hotelId         String
+  hotel           Hotel                 @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  businessDate    DateTime
+  status          AnalysisSessionStatus @default(collecting)
+  currentStage    AnalysisSessionStage?
+  createdByUserId String
+  createdBy       User                  @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime              @default(now())
+  completedAt     DateTime?
+  errorMessage    String?
+
+  uploads ReportUpload[]
+
+  @@index([hotelId, status])
+  @@index([hotelId, businessDate])
 }
 
 enum DataQualityValidationStatus {

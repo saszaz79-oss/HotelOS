@@ -391,6 +391,8 @@
       "RESERVATION_STATISTICS": "Reservation Statistics",
       "RESERVATION_STATISTICS_1": "Reservation Statistics (Alt.)",
       "OPEN_BALANCE": "Open Balance",
+      "HISTORY_FORECAST": "History & Forecast",
+      "DAY_MTD_YTD_STATISTICS": "Day / MTD / YTD Statistics",
       "GENERIC": "Report"
     }
   },

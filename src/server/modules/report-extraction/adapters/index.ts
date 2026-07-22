@@ -1,14 +1,27 @@
 import type { ExtractionAdapter } from '../types';
 import { managerFlashAdapter } from './manager-flash';
 import { genericFallbackAdapter } from './generic-fallback';
+import { reservationStatisticsAdapter } from './reservation-statistics';
+import { historyForecastAdapter } from './history-forecast';
+import { dayMtdYtdStatisticsAdapter } from './day-mtd-ytd-statistics';
 
 /**
  * v0.1 scope (Roadmap M3, DECISIONS.md D22): only Manager Flash has a
- * type-specific adapter. Reservation Statistics / Open Balance / Reservation
- * Statistics 1 fall through to the generic fallback until their adapters
- * ship in v0.2 — this is a deliberate scope narrowing, not an oversight.
+ * field-level extraction adapter. Reservation Statistics, History &
+ * Forecast, and Day MTD YTD Statistics (EDI Phase 1 — the Analysis
+ * Session's other 3 required report slots) only get type-detection-only
+ * adapters (title-marker match, zero structured fields) so
+ * `ReportDocument.reportType` records the correct type instead of falling
+ * through to `GENERIC` — the UI distinguishes "uploaded, type recognized"
+ * from "structurally validated" using this. Open Balance / Reservation
+ * Statistics 1 still fall through to the generic fallback entirely.
  */
-const ADAPTERS: ExtractionAdapter[] = [managerFlashAdapter];
+const ADAPTERS: ExtractionAdapter[] = [
+  managerFlashAdapter,
+  reservationStatisticsAdapter,
+  historyForecastAdapter,
+  dayMtdYtdStatisticsAdapter,
+];
 
 export function selectAdapter(text: string): ExtractionAdapter {
   let best = genericFallbackAdapter;
@@ -25,4 +38,4 @@ export function selectAdapter(text: string): ExtractionAdapter {
   return best;
 }
 
-export { managerFlashAdapter, genericFallbackAdapter };
+export { managerFlashAdapter, genericFallbackAdapter, reservationStatisticsAdapter, historyForecastAdapter, dayMtdYtdStatisticsAdapter };

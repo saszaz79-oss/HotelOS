@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 
 const SETTING_KEY = 'enabled_modules';
@@ -21,9 +22,11 @@ const DEFAULT_ENABLED: Record<string, boolean> = {
 /**
  * Checked from the same enforcement points as hotel-scoping and role
  * permission (§4, §13) — a disabled module is unavailable the same way an
- * out-of-scope hotel is, not a UI-only hide.
+ * out-of-scope hotel is, not a UI-only hide. `cache()`-wrapped (Perf fix,
+ * Phase 1C) — this was the one real request-scoped caching gap found: every
+ * other lookup in this app already dedupes per-request, this one didn't.
  */
-export async function isModuleEnabled(hotelId: string, moduleKey: string): Promise<boolean> {
+export const isModuleEnabled = cache(async (hotelId: string, moduleKey: string): Promise<boolean> => {
   const setting = await prisma.hotelSetting.findUnique({
     where: { hotelId_key: { hotelId, key: SETTING_KEY } },
   });
@@ -34,7 +37,7 @@ export async function isModuleEnabled(hotelId: string, moduleKey: string): Promi
 
   const overrides = setting.value as Record<string, boolean>;
   return overrides[moduleKey] ?? DEFAULT_ENABLED[moduleKey] ?? false;
-}
+});
 
 export async function setModuleEnabled(hotelId: string, moduleKey: string, enabled: boolean): Promise<void> {
   const existing = await prisma.hotelSetting.findUnique({
@@ -53,8 +56,8 @@ export async function setModuleEnabled(hotelId: string, moduleKey: string, enabl
 export const MODULE_KEYS = Object.keys(DEFAULT_ENABLED);
 
 /** Super Admin Console Feature Flags view — current effective state for every known module key. */
-export async function getAllModuleStates(hotelId: string): Promise<{ key: string; enabled: boolean }[]> {
+export const getAllModuleStates = cache(async (hotelId: string): Promise<{ key: string; enabled: boolean }[]> => {
   const setting = await prisma.hotelSetting.findUnique({ where: { hotelId_key: { hotelId, key: SETTING_KEY } } });
   const overrides = (setting?.value as Record<string, boolean>) ?? {};
   return MODULE_KEYS.map((key) => ({ key, enabled: overrides[key] ?? DEFAULT_ENABLED[key] ?? false }));
-}
+});

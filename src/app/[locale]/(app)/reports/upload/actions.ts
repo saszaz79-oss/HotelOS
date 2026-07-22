@@ -56,20 +56,33 @@ export async function uploadSingleReportAction(locale: Locale, hotelId: string, 
   return result;
 }
 
+export interface UploadStatusResult {
+  status: ReportUploadStatus | null;
+  errorMessage: string | null;
+}
+
 /**
  * Read-only status poll for the upload queue UI — lets the client reflect
  * the async extraction pipeline's real progress (uploaded -> processing ->
- * needs_review/complete/error, run by the ReportUploaded event subscriber
- * in report-extraction/index.ts) instead of freezing at "uploaded" the
- * moment the request returns. No new business logic: same tenant-scoped
- * lookup pattern as every other query in this module.
+ * needs_review/complete/error, now genuinely run in the background via
+ * `after()` — see report-extraction/index.ts) instead of freezing at
+ * "uploaded" the moment the request returns. Also surfaces the real
+ * `ExtractionJob.errorMessage` on failure (Perf fix, Phase 1A) instead of
+ * just a generic "processing failed" label, so a user deciding whether to
+ * retry has something to go on.
  */
-export async function getUploadStatusAction(hotelId: string, reportUploadId: string): Promise<ReportUploadStatus | null> {
+export async function getUploadStatusAction(hotelId: string, reportUploadId: string): Promise<UploadStatusResult> {
   const user = await getCurrentUser();
-  if (!user) return null;
+  if (!user) return { status: null, errorMessage: null };
   const scope = await resolveHotelScope(user);
-  if (scope.kind !== 'super_admin' && !scope.hotelIds.includes(hotelId)) return null;
+  if (scope.kind !== 'super_admin' && !scope.hotelIds.includes(hotelId)) return { status: null, errorMessage: null };
 
-  const upload = await prisma.reportUpload.findFirst({ where: { id: reportUploadId, hotelId }, select: { status: true } });
-  return upload?.status ?? null;
+  const upload = await prisma.reportUpload.findFirst({
+    where: { id: reportUploadId, hotelId },
+    select: {
+      status: true,
+      documents: { take: 1, select: { extractionJobs: { orderBy: { startedAt: 'desc' }, take: 1, select: { errorMessage: true } } } },
+    },
+  });
+  return { status: upload?.status ?? null, errorMessage: upload?.documents[0]?.extractionJobs[0]?.errorMessage ?? null };
 }

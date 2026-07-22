@@ -1,11 +1,13 @@
 'use server';
 
+import { after } from 'next/server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { resolveHotelScope, type HotelScope } from '@/server/modules/hotels/access';
 import { getReportUpload } from '@/server/modules/reports/queries';
 import { updateExtractedField } from '@/server/modules/report-extraction/review-commands';
+import { processReportUpload } from '@/server/modules/report-extraction/commands';
 import { normalizeReportDocument } from '@/server/modules/metrics/commands';
 import { deleteReportUpload, type DeleteReportResult } from '@/server/modules/reports/commands';
 import { audit } from '@/server/modules/audit';
@@ -97,6 +99,30 @@ export async function finalizeReportAction(
 
   revalidatePath(`/${locale}/reports/${reportUploadId}`);
   revalidatePath(`/${locale}/mission-control`);
+}
+
+/**
+ * Manual recovery path for a job left stuck in `error` (Perf fix, Phase 1A) —
+ * `after()`-deferred extraction has no supervisor that retries on its own if
+ * the underlying compute is killed mid-work, so a human-triggered retry is
+ * the actual failure-recovery mechanism, not a queue's automatic redelivery.
+ */
+export async function retryExtractionAction(locale: Locale, hotelId: string, reportUploadId: string): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect(`/${locale}/login`);
+
+  const scope = await resolveHotelScope(user);
+  if (!hasHotelAccess(scope, hotelId)) {
+    redirect(`/${locale}/mission-control`);
+  }
+
+  const upload = await getReportUpload(hotelId, reportUploadId);
+  if (!upload || upload.status !== 'error') {
+    redirect(`/${locale}/reports/${reportUploadId}`);
+  }
+
+  after(() => processReportUpload(hotelId, reportUploadId));
+  revalidatePath(`/${locale}/reports/${reportUploadId}`);
 }
 
 export async function deleteReportFromDetailAction(

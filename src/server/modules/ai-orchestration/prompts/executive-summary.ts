@@ -15,6 +15,12 @@
  * changeHistory: see git log for this file
  */
 
+// Real, checkable version (was only a docblock comment above) — compared
+// against AiExecutiveSummary.promptVersion to decide whether a cached
+// summary is stale (Perf fix, Phase 1B). Bump whenever the prompt text
+// changes in a way that should invalidate previously-cached summaries.
+export const EXECUTIVE_SUMMARY_PROMPT_VERSION = 1;
+
 interface ExecutiveSummaryPromptInput {
   hotelName: string;
   reportDate: string;

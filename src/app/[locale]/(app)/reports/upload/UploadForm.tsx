@@ -27,6 +27,7 @@ interface Dict {
   processingNeedsReview: string;
   processingComplete: string;
   processingFailed: string;
+  processingStillWorking: string;
   viewReport: string;
 }
 
@@ -42,6 +43,8 @@ interface QueuedFile {
   error?: string;
   reportUploadId?: string;
   processingStatus: ProcessingStatus;
+  processingError?: string | null;
+  pollExhausted?: boolean;
 }
 
 function validateFile(file: File): string | null {
@@ -98,10 +101,17 @@ export function UploadForm({ locale, hotelId, dict }: { locale: Locale; hotelId:
   }, []);
 
   function pollStatus(itemId: string, reportUploadId: string, attempt: number) {
-    if (attempt > MAX_POLL_ATTEMPTS) return;
+    if (attempt > MAX_POLL_ATTEMPTS) {
+      // Background processing (Perf fix, Phase 1A) has no supervisor that
+      // guarantees a terminal status within any fixed window — say so
+      // explicitly rather than silently going quiet, which used to read as
+      // a frozen UI once this ceiling was actually reachable.
+      setQueue((prev) => prev.map((f) => (f.id === itemId ? { ...f, pollExhausted: true } : f)));
+      return;
+    }
     const timer = setTimeout(async () => {
-      const status = await getUploadStatusAction(hotelId, reportUploadId);
-      setQueue((prev) => prev.map((f) => (f.id === itemId ? { ...f, processingStatus: status } : f)));
+      const { status, errorMessage } = await getUploadStatusAction(hotelId, reportUploadId);
+      setQueue((prev) => prev.map((f) => (f.id === itemId ? { ...f, processingStatus: status, processingError: errorMessage } : f)));
       if (status && !TERMINAL_STATUSES.has(status)) {
         pollStatus(itemId, reportUploadId, attempt + 1);
       } else {
@@ -223,6 +233,14 @@ export function UploadForm({ locale, hotelId, dict }: { locale: Locale; hotelId:
                       <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-ink/5">
                         <div className="h-full w-2/3 animate-pulse rounded-full bg-accent" />
                       </div>
+                    ) : null}
+                    {item.status === 'success' && item.processingStatus === 'error' && item.processingError ? (
+                      <p className="mt-1 truncate text-xs text-status-critical" title={item.processingError}>
+                        {item.processingError}
+                      </p>
+                    ) : null}
+                    {item.status === 'success' && item.pollExhausted && item.processingStatus !== 'error' && !TERMINAL_STATUSES.has(item.processingStatus ?? '') ? (
+                      <p className="mt-1 text-xs text-ink-muted">{dict.processingStillWorking}</p>
                     ) : null}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">

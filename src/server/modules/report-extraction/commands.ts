@@ -14,41 +14,58 @@ import type { ExtractedField, PdfPage } from './types';
  * for (Architecture §17).
  *
  * Stages: extract → validate (upload already happened in `reports`;
- * normalize/analyze are Roadmap M4+, not run here). Runs synchronously
- * in-process for v0.1 (Architecture §16: "described as the v0.1 target...
- * even if v0.1 runs it in-process" — the real job queue is a v0.1+ upgrade
- * that doesn't change this function's external shape).
+ * normalize/analyze are Roadmap M4+, not run here). Runs in the background
+ * via `after()` (Perf fix, Phase 1A) — triggered by the `ReportUploaded`
+ * subscriber in index.ts, not awaited by the upload Server Action.
  */
 export async function processReportUpload(hotelId: string, reportUploadId: string): Promise<void> {
   const upload = await prisma.reportUpload.findFirst({ where: { id: reportUploadId, hotelId } });
   if (!upload) return;
 
-  await prisma.reportUpload.update({ where: { id: upload.id }, data: { status: 'processing' } });
+  // Atomic claim, not an unconditional update: `after()` introduces a real
+  // race window a synchronous call never had — a retry (see retryExtractionAction)
+  // could fire while an earlier background run for the same upload is still
+  // in flight. Only the run that actually flips the status to 'processing'
+  // proceeds; a second concurrent attempt sees 0 rows affected and backs off.
+  const claimed = await prisma.reportUpload.updateMany({
+    where: { id: upload.id, status: { in: ['uploaded', 'error'] } },
+    data: { status: 'processing' },
+  });
+  if (claimed.count === 0) return;
 
-  const reportDocumentId = crypto.randomUUID();
+  // Reuse an existing ReportDocument on retry instead of creating a
+  // duplicate — a prior failed attempt already left one behind.
+  const existingDoc = await prisma.reportDocument.findFirst({ where: { reportUploadId: upload.id } });
+  const reportDocumentId = existingDoc?.id ?? crypto.randomUUID();
   let job: { id: string } | undefined;
 
   try {
-    // ExtractionJob.reportDocumentId is a required FK to ReportDocument, so
-    // the document row must exist before any ExtractionJob can reference it
-    // — a placeholder (reportType is unknown until extraction runs) is
-    // created first and updated in place once the real type is known, rather
-    // than created fresh at the end. Confirmed in production: every prior
-    // report upload left ExtractionJob.create failing with a foreign-key
-    // violation here, silently swallowed by the event bus, so status never
-    // advanced past "processing".
-    await prisma.reportDocument.create({
-      data: {
-        id: reportDocumentId,
-        reportUploadId: upload.id,
-        hotelId,
-        reportType: 'GENERIC',
-        checksumSha256: upload.checksumSha256,
-      },
-    });
+    if (!existingDoc) {
+      // ExtractionJob.reportDocumentId is a required FK to ReportDocument, so
+      // the document row must exist before any ExtractionJob can reference it
+      // — a placeholder (reportType is unknown until extraction runs) is
+      // created first and updated in place once the real type is known, rather
+      // than created fresh at the end. Confirmed in production: every prior
+      // report upload left ExtractionJob.create failing with a foreign-key
+      // violation here, silently swallowed by the event bus, so status never
+      // advanced past "processing".
+      await prisma.reportDocument.create({
+        data: {
+          id: reportDocumentId,
+          reportUploadId: upload.id,
+          hotelId,
+          reportType: 'GENERIC',
+          checksumSha256: upload.checksumSha256,
+        },
+      });
+    }
 
+    // Preserve prior failed attempts as job history (attempt increments)
+    // rather than overwriting — a retry is a new ExtractionJob row, not a
+    // mutation of the failed one.
+    const attemptNumber = (await prisma.extractionJob.count({ where: { reportDocumentId } })) + 1;
     job = await prisma.extractionJob.create({
-      data: { reportDocumentId, stage: 'extract' },
+      data: { reportDocumentId, stage: 'extract', attempt: attemptNumber },
     });
 
     const fileBuffer = await storage.get(upload.storageKey);

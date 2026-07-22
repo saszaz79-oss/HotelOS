@@ -46,17 +46,18 @@ model User {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  memberships        HotelMembership[]
-  sessions           Session[]
-  passwordResets     PasswordResetToken[]
-  uploads            ReportUpload[]
-  correctedMetrics   HotelMetric[]           @relation("MetricCorrectedBy")
-  aiConversations    AIConversation[]
-  exportedReports    ExportedReport[]
-  auditLogs          AuditLog[]
-  timelineEvents     TimelineEvent[]
-  groundTruthRecords ExtractionGroundTruth[]
-  notifications      Notification[]
+  memberships          HotelMembership[]
+  sessions             Session[]
+  passwordResets       PasswordResetToken[]
+  uploads              ReportUpload[]
+  correctedMetrics     HotelMetric[]           @relation("MetricCorrectedBy")
+  aiConversations      AIConversation[]
+  exportedReports      ExportedReport[]
+  auditLogs            AuditLog[]
+  timelineEvents       TimelineEvent[]
+  groundTruthRecords   ExtractionGroundTruth[]
+  notifications        Notification[]
+  generatedAiSummaries AiExecutiveSummary[]    @relation("AiSummaryGeneratedBy")
 }
 
 model Session {
@@ -108,19 +109,20 @@ model Hotel {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
-  memberships     HotelMembership[]
-  reportUploads   ReportUpload[]
-  metrics         HotelMetric[]
-  insights        Insight[]
-  alerts          Alert[]
-  recommendations Recommendation[]
-  aiConversations AIConversation[]
-  exportedReports ExportedReport[]
-  auditLogs       AuditLog[]
-  settings        HotelSetting[]
-  subscription    Subscription?
-  timelineEvents  TimelineEvent[]
-  notifications   Notification[]
+  memberships          HotelMembership[]
+  reportUploads        ReportUpload[]
+  metrics              HotelMetric[]
+  insights             Insight[]
+  alerts               Alert[]
+  recommendations      Recommendation[]
+  aiConversations      AIConversation[]
+  exportedReports      ExportedReport[]
+  auditLogs            AuditLog[]
+  settings             HotelSetting[]
+  subscription         Subscription?
+  timelineEvents       TimelineEvent[]
+  notifications        Notification[]
+  aiExecutiveSummaries AiExecutiveSummary[]
 
   @@index([status])
 }
@@ -399,6 +401,37 @@ model Recommendation {
 
   @@index([hotelId, createdAt])
   @@index([insightId])
+}
+
+// Persisted AI Executive Summary (Perf fix, Phase 1B) — before this model,
+// generateExecutiveSummary() ran on every single page render of Mission
+// Control and Executive Export with no caching, meaning every page view
+// made a live AI API call. One row per (hotel, date, language); read
+// through getOrRefreshExecutiveSummary() in ai-orchestration/commands.ts,
+// which regenerates only on staleness (see isStale()), not on every read.
+model AiExecutiveSummary {
+  id                     String   @id @default(cuid())
+  hotelId                String
+  hotel                  Hotel    @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  metricDate             DateTime
+  language               Language
+  summaryText            String
+  // Snapshot of CitedMetric[] at generation time — avoids recomputing
+  // citations on every read; the underlying HotelMetric rows remain the
+  // real source of truth (Constitution truth test), this is a display cache.
+  citedMetrics           Json     @default("[]")
+  model                  String
+  promptVersion          Int
+  analysisVersion        Int
+  sourceReportDocumentId String?
+  generatedAt            DateTime @default(now())
+  // Null for a system-generated (cache-miss) summary; set only when a user
+  // explicitly clicked Regenerate.
+  generatedByUserId      String?
+  generatedBy            User?    @relation("AiSummaryGeneratedBy", fields: [generatedByUserId], references: [id])
+
+  @@unique([hotelId, metricDate, language])
+  @@index([hotelId, metricDate])
 }
 
 // ---------- Agents & AI ----------

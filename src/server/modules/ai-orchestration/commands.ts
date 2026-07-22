@@ -1,8 +1,16 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { publishTimelineEvent } from '@/server/modules/timeline';
 import { getLatestMetricDate, getMetricsForDate } from '@/server/modules/metrics/queries';
-import { EXECUTIVE_SUMMARY_SYSTEM_PROMPT, buildExecutiveSummaryPrompt } from './prompts/executive-summary';
+import { EXECUTIVE_SUMMARY_SYSTEM_PROMPT, EXECUTIVE_SUMMARY_PROMPT_VERSION, buildExecutiveSummaryPrompt } from './prompts/executive-summary';
 import { ProviderUnavailableError } from './provider';
+import { getCachedExecutiveSummary } from './queries';
+
+// Real, checkable version for the generation/validation *logic* in this
+// file, independent of the prompt text's own version (Perf fix, Phase 1B).
+// Bump whenever this function's retrieval/validation behavior changes in a
+// way that should invalidate previously-cached summaries.
+export const EXECUTIVE_SUMMARY_ANALYSIS_VERSION = 1;
 
 const CORE_METRIC_KEYS = [
   'occupancy_pct',
@@ -133,4 +141,79 @@ export async function generateExecutiveSummary(
   });
 
   return { ok: true, summary: completion.text, citedMetrics, model: completion.model, language };
+}
+
+type CachedSummary = NonNullable<Awaited<ReturnType<typeof getCachedExecutiveSummary>>>;
+
+/**
+ * Perf fix, Phase 1B: whether a cached AiExecutiveSummary row is safe to
+ * serve as-is. Catches three distinct cases — no cached row at all; the
+ * prompt/analysis/model versions have moved on since it was generated; or
+ * the underlying HotelMetric data for this exact date has been touched
+ * since (a manual correction via correctHotelMetric bumps `updatedAt` for
+ * the same metricDate, which must invalidate the summary grounded in the
+ * old value).
+ */
+async function isStale(hotelId: string, metricDate: Date, cached: CachedSummary | null): Promise<boolean> {
+  if (!cached) return true;
+  if (cached.promptVersion !== EXECUTIVE_SUMMARY_PROMPT_VERSION) return true;
+  if (cached.analysisVersion !== EXECUTIVE_SUMMARY_ANALYSIS_VERSION) return true;
+
+  const latest = await prisma.hotelMetric.aggregate({
+    where: { hotelId, metricDate },
+    _max: { updatedAt: true },
+  });
+  return !!latest._max.updatedAt && latest._max.updatedAt > cached.generatedAt;
+}
+
+/**
+ * Read-through cache in front of generateExecutiveSummary (Perf fix, Phase
+ * 1B) — this is what Mission Control and Executive Export now call instead
+ * of generateExecutiveSummary directly, so a page render only ever makes a
+ * live AI call on a genuine cache miss/staleness, not on every visit.
+ * A generation failure is never cached (a transient provider error must not
+ * mask a later successful generation for the rest of the day).
+ */
+export async function getOrRefreshExecutiveSummary(
+  hotelId: string,
+  language: 'ar' | 'en',
+  knownHotelName?: string,
+  known?: { latestDate: Date; metrics: Awaited<ReturnType<typeof getMetricsForDate>> },
+  options?: { forceRegenerate?: boolean; regeneratedByUserId?: string }
+): Promise<ExecutiveSummaryResult> {
+  const latestDate = known?.latestDate ?? (await getLatestMetricDate(hotelId));
+  if (!latestDate) {
+    return { ok: false, reason: 'NO_DATA', message: 'No finalized metrics available yet for this hotel.' };
+  }
+
+  const cached = options?.forceRegenerate ? null : await getCachedExecutiveSummary(hotelId, latestDate, language);
+  if (cached && !(await isStale(hotelId, latestDate, cached))) {
+    return {
+      ok: true,
+      summary: cached.summaryText,
+      citedMetrics: cached.citedMetrics as unknown as CitedMetric[],
+      model: cached.model,
+      language,
+    };
+  }
+
+  const fresh = await generateExecutiveSummary(hotelId, language, knownHotelName, known);
+  if (fresh.ok) {
+    const data = {
+      summaryText: fresh.summary,
+      citedMetrics: fresh.citedMetrics as unknown as Prisma.InputJsonValue,
+      model: fresh.model,
+      promptVersion: EXECUTIVE_SUMMARY_PROMPT_VERSION,
+      analysisVersion: EXECUTIVE_SUMMARY_ANALYSIS_VERSION,
+      sourceReportDocumentId: fresh.citedMetrics[0]?.sourceReportDocumentId ?? null,
+      generatedAt: new Date(),
+      generatedByUserId: options?.regeneratedByUserId ?? null,
+    };
+    await prisma.aiExecutiveSummary.upsert({
+      where: { hotelId_metricDate_language: { hotelId, metricDate: latestDate, language } },
+      update: data,
+      create: { hotelId, metricDate: latestDate, language, ...data },
+    });
+  }
+  return fresh;
 }

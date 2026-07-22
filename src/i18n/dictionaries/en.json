@@ -240,6 +240,7 @@
     "processingNeedsReview": "Needs review",
     "processingComplete": "Complete",
     "processingFailed": "Failed",
+    "processingStillWorking": "Still processing — refresh to check the latest status.",
     "viewReport": "View report"
   },
   "reportsArchive": {
@@ -292,6 +293,7 @@
     "genericNotice": "This report type does not have a dedicated extraction adapter yet — no structured fields were extracted. Raw text is stored for reference. Manual entry only (see README).",
     "processing": "Still processing — refresh in a moment.",
     "errorState": "Extraction failed for this report. See the error below, or re-upload.",
+    "retry": "Retry processing",
     "unvalidatedNotice": "Manager Flash extraction has not yet been validated against real Opera exports. Verify every value against the source PDF before relying on it.",
     "confirmDate": "Confirm report date",
     "finalize": "Finalize and save to metrics",
@@ -346,6 +348,7 @@
     "priority": "Priority",
     "suggestedAction": "Suggested action",
     "aiSummary": "Executive AI Summary",
+    "regenerateSummary": "Regenerate",
     "aiSummaryUnavailable": {
       "NO_DATA": "No finalized metrics yet — upload and finalize a report to generate a summary.",
       "NOT_CONFIGURED": "AI summary is not available — no AI provider is configured for this deployment.",

@@ -12,17 +12,19 @@ import {
 import { getLatestInsight } from '@/server/modules/insights/queries';
 import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
 import { resolveSupportingMetrics } from '@/server/modules/insights/evidence';
-import { generateExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
+import { getOrRefreshExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
 import { recordExport } from '@/server/modules/exports/commands';
 import { formatMetricValue } from '@/lib/format-metric';
 import { reportTypeLabel } from '@/lib/report-type-label';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
 import { TrendChart } from '@/components/ui/TrendChart';
 import { EvidenceDrawer } from '@/components/ui/EvidenceDrawer';
 import { PrintButton } from './PrintButton';
+import { regenerateExecutiveSummaryAction } from './actions';
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
@@ -84,7 +86,7 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
   const allMetrics = await getMetricsForDates(hotelId, recentDates);
   const metrics = allMetrics.filter((m) => m.metricDate.getTime() === latestDate.getTime());
   const previousMetrics = previousDate ? allMetrics.filter((m) => m.metricDate.getTime() === previousDate.getTime()) : [];
-  const aiSummary = await generateExecutiveSummary(hotelId, locale, membership.hotel.name, { latestDate, metrics });
+  const aiSummary = await getOrRefreshExecutiveSummary(hotelId, locale, membership.hotel.name, { latestDate, metrics });
   const metricByKey = new Map(metrics.map((m) => [m.metricKey, m]));
   const previousByKey = new Map(previousMetrics.map((m) => [m.metricKey, m.value]));
 
@@ -181,6 +183,13 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
       <Card className="print:border-0 print:p-0 print:shadow-none">
         <CardHeader>
           <CardTitle>{dict.executiveExport.executiveSummary}</CardTitle>
+          {membership.role === 'HOTEL_ADMIN' || membership.role === 'GENERAL_MANAGER' ? (
+            <form action={regenerateExecutiveSummaryAction.bind(null, locale, hotelId)} className="print-hide">
+              <Button type="submit" size="sm" variant="ghost">
+                {dict.missionControl.regenerateSummary}
+              </Button>
+            </form>
+          ) : null}
         </CardHeader>
         <p className="text-sm">{morningBrief.todaySummary}</p>
         {aiSummary.ok ? (

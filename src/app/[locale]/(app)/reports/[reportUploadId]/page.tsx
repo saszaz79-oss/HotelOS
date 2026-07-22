@@ -3,7 +3,7 @@ import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/confi
 import { getCurrentUser } from '@/server/modules/auth/session';
 import { getActiveMembership } from '@/server/modules/hotels/access';
 import { getReportUpload, getReportUploadSignedUrl } from '@/server/modules/reports/queries';
-import { updateFieldAction, finalizeReportAction, deleteReportFromDetailAction } from './actions';
+import { updateFieldAction, finalizeReportAction, deleteReportFromDetailAction, retryExtractionAction } from './actions';
 import { reportTypeLabel } from '@/lib/report-type-label';
 import type { ExtractedField } from '@/server/modules/report-extraction/types';
 import type { QualityNote } from '@/server/modules/report-extraction/data-quality';
@@ -84,8 +84,15 @@ export default async function ReportReviewPage(
       {upload.status === 'processing' || upload.status === 'uploaded' ? (
         <Card className="text-sm text-ink-muted">{dict.reportsReview.processing}</Card>
       ) : upload.status === 'error' || !document ? (
-        <Card className="border-status-critical/30 bg-status-critical/[0.06] text-sm text-status-critical">
-          {dict.reportsReview.errorState}
+        <Card className="space-y-3 border-status-critical/30 bg-status-critical/[0.06] text-sm text-status-critical">
+          <p>{dict.reportsReview.errorState}</p>
+          {upload.status === 'error' ? (
+            <form action={retryExtractionAction.bind(null, locale, membership.hotelId, upload.id)}>
+              <Button type="submit" size="sm" variant="secondary">
+                {dict.reportsReview.retry}
+              </Button>
+            </form>
+          ) : null}
         </Card>
       ) : (
         <>

@@ -15,9 +15,9 @@ import {
 import { getLatestInsight } from '@/server/modules/insights/queries';
 import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
 import { resolveSupportingMetrics } from '@/server/modules/insights/evidence';
-import { generateExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
+import { getOrRefreshExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
 import { listReportUploads } from '@/server/modules/reports/queries';
-import { correctMetricAction } from './actions';
+import { correctMetricAction, regenerateExecutiveSummaryAction } from './actions';
 import { MetricCorrectionControl } from './MetricCorrectionControl';
 import { formatMetricValue } from '@/lib/format-metric';
 import { reportTypeLabel } from '@/lib/report-type-label';
@@ -119,7 +119,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
   const allMetrics = await getMetricsForDates(hotelId, recentDates);
   const metrics = allMetrics.filter((m) => m.metricDate.getTime() === latestDate.getTime());
   const previousMetrics = previousDate ? allMetrics.filter((m) => m.metricDate.getTime() === previousDate.getTime()) : [];
-  const aiSummary = await generateExecutiveSummary(hotelId, locale, membership.hotel.name, { latestDate, metrics });
+  const aiSummary = await getOrRefreshExecutiveSummary(hotelId, locale, membership.hotel.name, { latestDate, metrics });
 
   const metricByKey = new Map(metrics.map((m) => [m.metricKey, m]));
   const previousByKey = new Map(previousMetrics.map((m) => [m.metricKey, m.value]));
@@ -441,7 +441,16 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
       </section>
 
       <section>
-        <h2 className="text-sm font-medium text-ink-muted">{dict.missionControl.aiSummary}</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-medium text-ink-muted">{dict.missionControl.aiSummary}</h2>
+          {canCorrectMetrics ? (
+            <form action={regenerateExecutiveSummaryAction.bind(null, locale, hotelId)}>
+              <Button type="submit" size="sm" variant="ghost">
+                {dict.missionControl.regenerateSummary}
+              </Button>
+            </form>
+          ) : null}
+        </div>
         {aiSummary.ok ? (
           <Card className="mt-2 text-sm">
             <p>{aiSummary.summary}</p>

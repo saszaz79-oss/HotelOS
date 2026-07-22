@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
-import { listHotels } from '@/server/modules/hotels/queries';
+import { listHotelOptions } from '@/server/modules/hotels/queries';
 import { Card } from '@/components/ui/Card';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { hotelStatusTone } from '@/lib/status-tone';
@@ -9,7 +9,7 @@ export default async function AdminFeatureFlagsPage(props: { params: Promise<{ l
   const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
-  const hotels = await listHotels();
+  const hotels = await listHotelOptions();
 
   return (
     <div className="max-w-md space-y-4">

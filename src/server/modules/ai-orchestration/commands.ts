@@ -294,6 +294,7 @@ export async function generateExecutiveIntelligence(
     latestDate: Date;
     metrics: Awaited<ReturnType<typeof getMetricsForDate>>;
     previousMetrics?: Awaited<ReturnType<typeof getMetricsForDate>>;
+    insight?: Awaited<ReturnType<typeof getInsightForDate>>;
   }
 ): Promise<ExecutiveIntelligenceResult> {
   const latestDate = known?.latestDate ?? (await getLatestMetricDate(hotelId));
@@ -327,7 +328,18 @@ export async function generateExecutiveIntelligence(
   const forecastMetrics = citedMetrics.filter((m) => FORECAST_METRIC_KEYS.includes(m.metricKey));
   const forecastBlock = forecastMetrics.map((m) => `- ${m.metricDefinition.labelEn}: ${m.value}`).join('\n');
 
-  const insight = await getInsightForDate(hotelId, latestDate);
+  // Reuse the caller's already-fetched Insight when it's genuinely for this
+  // exact date (Zero-Lag Sprint) — both reports/export/page.tsx and
+  // mission-control/page.tsx already fetch an Insight earlier in the same
+  // request via getLatestInsight, a *different* cache()-keyed function than
+  // getInsightForDate, so React's request cache does not dedupe them on its
+  // own; re-fetching unconditionally cost a full extra round trip on every
+  // AI-regenerate call. Falls back to a real fetch whenever the known
+  // insight doesn't match (e.g. it's an older date, or wasn't provided).
+  const insight =
+    known?.insight && known.insight.insightDate.getTime() === latestDate.getTime()
+      ? known.insight
+      : await getInsightForDate(hotelId, latestDate);
   const recommendations = insight?.recommendations ?? [];
   const validRecommendationIds = new Set(recommendations.map((r) => r.id));
   const recommendationsBlock = recommendations
@@ -416,6 +428,7 @@ export async function getOrRefreshExecutiveIntelligence(
     latestDate: Date;
     metrics: Awaited<ReturnType<typeof getMetricsForDate>>;
     previousMetrics?: Awaited<ReturnType<typeof getMetricsForDate>>;
+    insight?: Awaited<ReturnType<typeof getInsightForDate>>;
   },
   options?: { forceRegenerate?: boolean; regeneratedByUserId?: string }
 ): Promise<ExecutiveIntelligenceResult> {

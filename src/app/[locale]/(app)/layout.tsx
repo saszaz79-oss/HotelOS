@@ -32,10 +32,15 @@ export default async function AppLayout(
 
   // v0.1 M1: first active membership stands in for a full hotel switcher,
   // which is planned but not yet built (UX_SYSTEM.md §1 hotel switcher).
-  const membership = user.isSuperAdmin ? null : await getActiveMembership(user.id);
+  // Independent of the notification count, so run both together rather than
+  // sequentially (Zero-Lag Sprint, Incident #2) — every navigation into the
+  // app shell was paying for two round trips back-to-back for no reason.
+  const [membership, initialUnreadCount] = await Promise.all([
+    user.isSuperAdmin ? Promise.resolve(null) : getActiveMembership(user.id),
+    countUnreadNotifications(user.id),
+  ]);
 
   const agents = membership ? listAgentsForRole(membership.role) : [];
-  const initialUnreadCount = await countUnreadNotifications(user.id);
 
   return (
     <AppShell

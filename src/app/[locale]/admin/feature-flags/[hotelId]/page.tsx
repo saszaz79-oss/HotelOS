@@ -14,8 +14,12 @@ export default async function AdminHotelFeatureFlagsPage(
   const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
-  const hotel = await prisma.hotel.findUnique({ where: { id: params.hotelId }, select: { name: true } });
-  const states = await getAllModuleStates(params.hotelId);
+  // Independent lookups (different tables, no shared dependency) — batched
+  // rather than sequential (Zero-Lag Sprint).
+  const [hotel, states] = await Promise.all([
+    prisma.hotel.findUnique({ where: { id: params.hotelId }, select: { name: true } }),
+    getAllModuleStates(params.hotelId),
+  ]);
 
   return (
     <div className="max-w-md space-y-4">

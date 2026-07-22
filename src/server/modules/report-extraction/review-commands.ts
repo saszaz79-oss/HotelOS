@@ -19,7 +19,10 @@ export async function updateExtractedField(
   value: number | null,
   userId: string
 ): Promise<void> {
-  const doc = await prisma.reportDocument.findUniqueOrThrow({ where: { id: reportDocumentId } });
+  // Only extractedFields is read below — trimmed to avoid pulling
+  // rawExtractedText/qualityNotes/parserWarnings on every single field
+  // correction in the review UI (Zero-Lag Sprint).
+  const doc = await prisma.reportDocument.findUniqueOrThrow({ where: { id: reportDocumentId }, select: { extractedFields: true } });
   const fields = (doc.extractedFields as unknown as ExtractedField[]).map((f) =>
     f.metricKey === metricKey
       ? { ...f, value, confidence: 1, corrected: true, ambiguous: false, status: value === null ? 'missing' : ('verified' as const) }

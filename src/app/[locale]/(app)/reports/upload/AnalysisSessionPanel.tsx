@@ -45,17 +45,18 @@ interface AnalysisDict {
   startAnalysis: string;
   viewReport: string;
   analyzingTitle: string;
-  stepReading: string;
+  stepQueued: string;
   stepExtracting: string;
   stepNormalizing: string;
-  stepConsistency: string;
-  stepKpi: string;
-  stepScore: string;
+  stepValidating: string;
+  stepCalculatingMetrics: string;
+  stepBuildingScore: string;
   stepIntelligence: string;
-  stepReport: string;
-  stepFinalizing: string;
+  stepPreparingReport: string;
   errorTitle: string;
   retryAnalysis: string;
+  stalledTitle: string;
+  resumeAnalysis: string;
   missingReports: string;
   stillProcessing: string;
   notFound: string;
@@ -67,9 +68,18 @@ const SESSION_POLL_MS = 2000;
 
 // Ordered so a row's index can be compared against the current backend
 // stage's index to decide done/in-progress/pending — multiple checklist
-// rows can share one real backend stage (see startExecutiveAnalysisAction),
-// never a fabricated per-row delay.
-const STAGE_ORDER: AnalysisSessionStage[] = ['reading', 'normalizing', 'consistency', 'executive_intelligence', 'report', 'complete'];
+// rows can share one real backend stage (see startExecutiveAnalysisAction's
+// single 'validating' transition covering Validating/Calculating
+// Metrics/Building Executive Score), never a fabricated per-row delay.
+const STAGE_ORDER: AnalysisSessionStage[] = [
+  'queued',
+  'extracting',
+  'normalizing',
+  'validating',
+  'generating_executive_intelligence',
+  'preparing_executive_report',
+  'completed',
+];
 
 function stageIndex(stage: AnalysisSessionStage | null): number {
   if (!stage) return -1;
@@ -83,6 +93,7 @@ export function AnalysisSessionPanel({
   sessionId,
   initialStatus,
   initialStage,
+  initialErrorMessage,
   initialSlots,
   dict,
   analysisDict,
@@ -93,6 +104,7 @@ export function AnalysisSessionPanel({
   sessionId: string;
   initialStatus: AnalysisSessionStatus;
   initialStage: AnalysisSessionStage | null;
+  initialErrorMessage: string | null;
   initialSlots: SessionSlot[];
   dict: UploadDict;
   analysisDict: AnalysisDict;
@@ -101,7 +113,7 @@ export function AnalysisSessionPanel({
   const [slots, setSlots] = useState(initialSlots);
   const [status, setStatus] = useState(initialStatus);
   const [stage, setStage] = useState(initialStage);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(initialErrorMessage);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const slotPollTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -146,7 +158,8 @@ export function AnalysisSessionPanel({
       return;
     }
     setStatus('analyzing');
-    setStage('reading');
+    setStage('queued');
+    setErrorMessage(null);
   }
 
   if (status === 'ready') {
@@ -160,18 +173,30 @@ export function AnalysisSessionPanel({
     );
   }
 
+  if (status === 'stalled') {
+    return (
+      <Card className="flex flex-col items-center gap-4 border-status-warning/30 bg-status-warning/[0.06] py-10 text-center">
+        <p className="text-sm font-medium text-ink">{analysisDict.stalledTitle}</p>
+        {errorMessage ? <p className="max-w-sm text-sm text-ink-muted">{errorMessage}</p> : null}
+        <Button size="lg" onClick={handleStart} loading={starting} disabled={starting}>
+          {analysisDict.resumeAnalysis}
+        </Button>
+        {startError ? <p className="text-sm text-status-critical">{startError}</p> : null}
+      </Card>
+    );
+  }
+
   if (status === 'analyzing') {
     const idx = stageIndex(stage);
     const rows: { label: string; stage: AnalysisSessionStage }[] = [
-      { label: analysisDict.stepReading, stage: 'reading' },
-      { label: analysisDict.stepExtracting, stage: 'reading' },
+      { label: analysisDict.stepQueued, stage: 'queued' },
+      { label: analysisDict.stepExtracting, stage: 'extracting' },
       { label: analysisDict.stepNormalizing, stage: 'normalizing' },
-      { label: analysisDict.stepConsistency, stage: 'consistency' },
-      { label: analysisDict.stepKpi, stage: 'consistency' },
-      { label: analysisDict.stepScore, stage: 'consistency' },
-      { label: analysisDict.stepIntelligence, stage: 'executive_intelligence' },
-      { label: analysisDict.stepReport, stage: 'report' },
-      { label: analysisDict.stepFinalizing, stage: 'report' },
+      { label: analysisDict.stepValidating, stage: 'validating' },
+      { label: analysisDict.stepCalculatingMetrics, stage: 'validating' },
+      { label: analysisDict.stepBuildingScore, stage: 'validating' },
+      { label: analysisDict.stepIntelligence, stage: 'generating_executive_intelligence' },
+      { label: analysisDict.stepPreparingReport, stage: 'preparing_executive_report' },
     ];
     return (
       <Card className="space-y-4 py-8">

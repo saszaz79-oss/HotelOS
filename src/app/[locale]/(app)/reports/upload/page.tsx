@@ -43,6 +43,7 @@ export default async function ReportsUploadPage(props: { params: Promise<{ local
         sessionId={session.id}
         initialStatus={session.status}
         initialStage={session.currentStage}
+        initialErrorMessage={session.errorMessage}
         initialSlots={slots}
         dict={dict.reportsUpload}
         analysisDict={dict.executiveAnalysis}

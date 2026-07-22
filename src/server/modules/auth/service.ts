@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, verifyPassword } from './password';
 import { createSession, destroySession } from './session';
@@ -36,8 +37,17 @@ export async function login(input: z.infer<typeof loginSchema>): Promise<LoginRe
   }
 
   await createSession(user.id);
-  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-  await audit({ hotelId: null, userId: user.id, action: 'auth.login', metadata: {} });
+
+  // `lastLoginAt` and the audit row are pure bookkeeping — nothing on the
+  // post-login redirect path reads either, so they don't need to be on the
+  // critical path (Zero-Lag Sprint, Incident #2). Deferring them with
+  // after() removes 2 of what was 4 fully sequential DB round trips from
+  // the user-facing login latency, same pattern as the upload pipeline's
+  // background work in reports/upload/actions.ts.
+  after(async () => {
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    await audit({ hotelId: null, userId: user.id, action: 'auth.login', metadata: {} });
+  });
 
   return { ok: true };
 }

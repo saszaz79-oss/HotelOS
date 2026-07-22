@@ -237,25 +237,40 @@ enum ReportType {
 // id to poll/navigate around. Deliberately thin — HotelMetric/Insight
 // already converge naturally per (hotelId, metricDate), so this model does
 // not duplicate metric storage, only workflow/progress state.
+// `stalled` (Zero-Lag Sprint, Incident #1) — reachable only by the poll-time
+// staleness check in analysis-sessions/queries.ts, never set directly by the
+// pipeline itself: if the background job dies (Vercel function killed,
+// unhandled crash outside the pipeline's own try/catch) with no chance to
+// call markAnalysisSessionError, the row would otherwise sit in `analyzing`
+// forever with no way to distinguish "still working" from "silently dead" —
+// the exact bug this sprint's Incident #1 was opened to fix.
 enum AnalysisSessionStatus {
   collecting
   analyzing
   ready
   error
+  stalled
 }
 
+// Renamed to name the real work at each step precisely (Zero-Lag Sprint) —
+// `queued` is new (the instant between "Start Executive Analysis" being
+// clicked and the background job's first heartbeat); `stalled` is new (see
+// AnalysisSessionStatus.stalled above). Confirmed zero production rows used
+// the old intermediate stage names before this rename (only `complete` and
+// null existed), so this is a same-day, zero-data-risk rename, not a
+// backward-compat concern.
 enum AnalysisSessionStage {
-  reading
+  queued
   extracting
   normalizing
-  consistency
-  kpi
-  score
-  executive_intelligence
-  report
-  pdf
-  complete
-  error
+  validating
+  calculating_metrics
+  building_executive_score
+  generating_executive_intelligence
+  preparing_executive_report
+  completed
+  failed
+  stalled
 }
 
 model AnalysisSession {
@@ -268,6 +283,21 @@ model AnalysisSession {
   createdByUserId String
   createdBy       User                  @relation(fields: [createdByUserId], references: [id])
   createdAt       DateTime              @default(now())
+  // Zero-Lag Sprint, Incident #1 — the durable processing state machine.
+  // `startedAt` is set once, when "Start Executive Analysis" is clicked
+  // (distinct from `createdAt`, which is when the session was opened for
+  // uploads, often much earlier). `heartbeatAt` is written by the background
+  // pipeline before/after every real stage transition; if it stops advancing
+  // for more than 60s while status is still `analyzing`, the next poll marks
+  // the session `stalled` (see queries.ts's checkAndMarkStalled). `attemptCount`
+  // increments on every Start/Resume/Retry click, so a session's real retry
+  // history is visible, not just its current state. `errorCode` is a short,
+  // stable machine-readable reason (distinct from `errorMessage`'s
+  // human-readable text) for future automated handling/alerting.
+  startedAt       DateTime?
+  heartbeatAt     DateTime?
+  attemptCount    Int                   @default(0)
+  errorCode       String?
   completedAt     DateTime?
   errorMessage    String?
 
@@ -800,6 +830,14 @@ model AuditLog {
 
   @@index([hotelId, createdAt])
   @@index([userId, createdAt])
+  // Global admin/audit console + platform KPI queries order by createdAt
+  // across the whole table with no hotelId/userId filter at all — neither
+  // existing index covers that (Zero-Lag Sprint).
+  @@index([createdAt])
+  // Narrows to one hotel's rows for one action before the per-row JSON-path
+  // filter on `metadata` runs (getMetricCorrectionHistoryForKeys) — neither
+  // existing index covers `action` (Zero-Lag Sprint).
+  @@index([hotelId, action, createdAt])
 }
 
 // ---------- Settings & Subscriptions ----------

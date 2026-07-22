@@ -25,6 +25,19 @@ export async function listHotels(filter: ListHotelsFilter = {}) {
   });
 }
 
+/**
+ * Lightweight id/name(/status) list for simple pickers (new-user hotel
+ * dropdown, feature-flags hotel list) — these never need `listHotels`'s
+ * subscription join or the two `_count` aggregates it computes for the
+ * admin hotels table, so they shouldn't pay for them (Zero-Lag Sprint).
+ */
+export async function listHotelOptions() {
+  return prisma.hotel.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, name: true, status: true },
+  });
+}
+
 export async function getHotelWithDetails(hotelId: string) {
   return prisma.hotel.findUnique({
     where: { id: hotelId },

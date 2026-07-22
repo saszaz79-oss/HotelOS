@@ -4,14 +4,13 @@ import { after } from 'next/server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/server/modules/auth/session';
-import { resolveHotelScope, type HotelScope } from '@/server/modules/hotels/access';
+import { resolveHotelScope, getActiveMembership, type HotelScope } from '@/server/modules/hotels/access';
 import { getReportUpload } from '@/server/modules/reports/queries';
 import { updateExtractedField } from '@/server/modules/report-extraction/review-commands';
 import { processReportUpload } from '@/server/modules/report-extraction/commands';
 import { normalizeReportDocument } from '@/server/modules/metrics/commands';
 import { deleteReportUpload, type DeleteReportResult } from '@/server/modules/reports/commands';
 import { audit } from '@/server/modules/audit';
-import { getActiveMembership } from '@/server/modules/hotels/access';
 import type { Locale } from '@/i18n/config';
 // Side-effect import: registers the insights recomputation subscriber on
 // `MetricsExtracted` (Architecture §17) — see insights/index.ts.
@@ -134,7 +133,11 @@ export async function deleteReportFromDetailAction(
   const user = await getCurrentUser();
   if (!user) redirect(`/${locale}/login`);
 
-  const [scope, membership] = await Promise.all([resolveHotelScope(user), getActiveMembership(user.id)]);
+  // Derived from the single active membership rather than a separate
+  // resolveHotelScope() call (Zero-Lag Sprint) — see archive/actions.ts's
+  // deleteReportAction for the same fix and its reasoning.
+  const membership = await getActiveMembership(user.id);
+  const scope: HotelScope = user.isSuperAdmin ? { kind: 'super_admin' } : { kind: 'scoped', hotelIds: membership ? [membership.hotelId] : [] };
   const role = user.isSuperAdmin ? 'SUPER_ADMIN' : membership?.role ?? '';
 
   const result = await deleteReportUpload(user, scope, hotelId, reportUploadId, role);

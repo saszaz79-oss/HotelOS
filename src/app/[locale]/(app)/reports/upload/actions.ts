@@ -84,15 +84,26 @@ export type StartAnalysisResult =
   | { ok: false; reason: 'NOT_FOUND' | 'ALREADY_STARTED' | 'MISSING_REQUIRED_REPORTS' | 'REPORTS_STILL_PROCESSING' };
 
 /**
- * The "🧠 Start Executive Analysis" action (EDI Phase 2) — validates all 4
- * required report types are present and fully extracted, then runs the
- * rest of the pipeline (auto-finalize → consistency/KPI/score, both driven
- * by the existing MetricsExtracted event chain — see
- * metrics/commands.ts's normalizeReportDocument → insights/index.ts's
- * subscriber → recomputeInsight — → cached Executive Summary) inside
- * `after()`, reusing the Perf Phase 1 background-execution pattern. Every
- * `AnalysisSessionStage` transition below corresponds to a real completed
- * step, not a timer.
+ * The "🧠 Start Executive Analysis" action (EDI Phase 2; durable state
+ * machine added Zero-Lag Sprint, Incident #1) — validates all 4 required
+ * report types are present and fully extracted, then runs the rest of the
+ * pipeline (auto-finalize → validation/KPI/score, all driven by the
+ * existing MetricsExtracted event chain — see metrics/commands.ts's
+ * normalizeReportDocument → insights/index.ts's subscriber →
+ * recomputeInsight — → cached Executive Summary) inside `after()`, reusing
+ * the Perf Phase 1 background-execution pattern. Every `AnalysisSessionStage`
+ * transition below corresponds to a real completed step (and refreshes the
+ * heartbeat queries.ts's stall detector watches), not a timer.
+ *
+ * Also the Resume/Retry entry point: same code path handles a fresh start
+ * (`collecting`), a retry after a real pipeline error (`error`), and a
+ * resume after the poll-time stall detector caught a dead background job
+ * (`stalled`) — every step inside `after()` is already safe to re-run
+ * (normalizeReportDocument is idempotent; both AI calls are read-through
+ * caches that only regenerate when actually stale), so simply re-invoking
+ * the same pipeline from the top is a correct "resume," not a naive restart:
+ * already-completed work is re-verified as already-done in milliseconds,
+ * not redone.
  */
 export async function startExecutiveAnalysisAction(locale: Locale, hotelId: string, sessionId: string): Promise<StartAnalysisResult> {
   const user = await getCurrentUser();
@@ -108,10 +119,10 @@ export async function startExecutiveAnalysisAction(locale: Locale, hotelId: stri
     include: { uploads: { include: { documents: true } } },
   });
   if (!session) return { ok: false, reason: 'NOT_FOUND' };
-  // 'error' is retry-friendly — a failed run can be re-attempted directly
-  // rather than forcing a whole new session; 'analyzing'/'ready' cannot
-  // (already running or already done).
-  if (session.status !== 'collecting' && session.status !== 'error') {
+  // 'error' and 'stalled' are both retry-friendly — a failed or stuck run
+  // can be re-attempted directly rather than forcing a whole new session;
+  // 'analyzing'/'ready' cannot (already running or already done).
+  if (session.status !== 'collecting' && session.status !== 'error' && session.status !== 'stalled') {
     return { ok: false, reason: 'ALREADY_STARTED' };
   }
 
@@ -142,22 +153,34 @@ export async function startExecutiveAnalysisAction(locale: Locale, hotelId: stri
 
   after(async () => {
     try {
+      // First real heartbeat from inside the background job itself — closes
+      // the gap between markAnalysisSessionAnalyzing's synchronous stamp
+      // (written before after() even starts) and the first per-document
+      // work below, so a crash in that gap still has a fresh reference time.
+      await updateAnalysisSessionStage(sessionId, 'extracting');
+
       await updateAnalysisSessionStage(sessionId, 'normalizing');
       for (const documentId of documentIds) {
         // Safe to call even for a zero-field (type-detection-only) document
         // — normalizeReportDocument writes zero HotelMetric rows and still
         // marks it confirmed/complete, honestly reflecting no structured
-        // data was available (see metrics/commands.ts).
+        // data was available (see metrics/commands.ts). Also safe to re-call
+        // on Resume/Retry — idempotent per document.
         await normalizeReportDocument(hotelId, documentId, session.businessDate, user.id);
       }
 
-      // Consistency/KPI/health-score all happen as a side effect of each
-      // normalizeReportDocument() call above (MetricsExtracted -> the
-      // insights subscriber's recomputeInsight, already covers all three) —
-      // this stage marks that work as confirmed complete, not separate work.
-      await updateAnalysisSessionStage(sessionId, 'consistency');
+      // Validation/KPI-calculation/health-score all happen as a side effect
+      // of each normalizeReportDocument() call above (MetricsExtracted ->
+      // the insights subscriber's recomputeInsight, already covers all
+      // three) — this one stage transition marks that work as confirmed
+      // complete. The Upload page's UI shows Validating/Calculating
+      // Metrics/Building Executive Score as three separate checklist rows
+      // that all resolve against this single real backend stage (same
+      // established convention as the existing multi-row-per-stage mapping
+      // — see AnalysisSessionPanel.tsx's STAGE_ORDER comment).
+      await updateAnalysisSessionStage(sessionId, 'validating');
 
-      await updateAnalysisSessionStage(sessionId, 'executive_intelligence');
+      await updateAnalysisSessionStage(sessionId, 'generating_executive_intelligence');
       await getOrRefreshExecutiveSummary(hotelId, locale, hotelName, undefined);
       // Executive Decision Intelligence redesign — a second, distinct AI
       // call, deliberately not awaited-and-checked for failure the same as
@@ -167,7 +190,7 @@ export async function startExecutiveAnalysisAction(locale: Locale, hotelId: stri
       // blocks the pipeline from reaching 'ready'.
       await getOrRefreshExecutiveIntelligence(hotelId, locale, hotelName, undefined);
 
-      await updateAnalysisSessionStage(sessionId, 'report');
+      await updateAnalysisSessionStage(sessionId, 'preparing_executive_report');
       await markAnalysisSessionReady(sessionId);
     } catch (err) {
       console.error('[reports.upload.startExecutiveAnalysisAction] pipeline failed', { hotelId, sessionId, error: err });

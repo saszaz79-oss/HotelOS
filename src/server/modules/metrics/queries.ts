@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 
 /**
@@ -127,27 +128,58 @@ export const getAllMetricDefinitions = cache(async () => {
 });
 
 /**
- * Post-finalize correction history for one metric (Analytics fix, Phase 4)
- * — read from the existing AuditLog table (action: 'metric.manual_correction'),
- * not a dedicated table, matching the "reuse existing infrastructure, no
- * schema change" approach for this feature. Filtered via Postgres JSON-path
+ * Post-finalize correction history (Analytics fix, Phase 4) — read from the
+ * existing AuditLog table (action: 'metric.manual_correction'), not a
+ * dedicated table, matching the "reuse existing infrastructure, no schema
+ * change" approach for this feature. Filtered via Postgres JSON-path
  * conditions on AuditLog.metadata; only ever called for the small number of
  * metrics a consistency check actually flagged, never for every KPI on the
  * page.
  */
-export const getMetricCorrectionHistory = cache(async (hotelId: string, metricDate: Date, metricKey: string) => {
-  return prisma.auditLog.findMany({
+const CORRECTION_HISTORY_SELECT = {
+  id: true,
+  createdAt: true,
+  metadata: true,
+  user: { select: { displayName: true } },
+} satisfies Prisma.AuditLogSelect;
+
+type MetricCorrectionRow = Prisma.AuditLogGetPayload<{ select: typeof CORRECTION_HISTORY_SELECT }>;
+
+/**
+ * Every flagged metric key's correction history for one date, in a single
+ * round trip (Zero-Lag Sprint) — Mission Control previously ran one AuditLog
+ * query per flagged key via `Promise.all`; N sequential round trips is a
+ * real cost regardless of connection-pool concurrency, unlike a Promise.all
+ * reorder alone. A single `metadata.metricKey IN (...)`-style OR clause
+ * replaces all of them.
+ */
+export const getMetricCorrectionHistoryForKeys = cache(async (hotelId: string, metricDate: Date, metricKeys: string[]) => {
+  if (metricKeys.length === 0) return new Map<string, MetricCorrectionRow[]>();
+
+  const rows = await prisma.auditLog.findMany({
     where: {
       hotelId,
       action: 'metric.manual_correction',
-      AND: [
-        { metadata: { path: ['metricDate'], equals: metricDate.toISOString() } },
-        { metadata: { path: ['metricKey'], equals: metricKey } },
-      ],
+      metadata: { path: ['metricDate'], equals: metricDate.toISOString() },
+      OR: metricKeys.map((key) => ({ metadata: { path: ['metricKey'], equals: key } })),
     },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, createdAt: true, metadata: true, user: { select: { displayName: true } } },
+    select: CORRECTION_HISTORY_SELECT,
   });
+
+  const byKey = new Map<string, MetricCorrectionRow[]>();
+  for (const row of rows) {
+    const meta = row.metadata as Record<string, unknown> | null;
+    const key = typeof meta?.metricKey === 'string' ? meta.metricKey : null;
+    if (!key) continue;
+    const bucket = byKey.get(key);
+    if (bucket) {
+      bucket.push(row);
+    } else {
+      byKey.set(key, [row]);
+    }
+  }
+  return byKey;
 });
 
 export interface ParsedMetricCorrection {
@@ -160,7 +192,7 @@ export interface ParsedMetricCorrection {
 }
 
 /** Defensive JSON parsing (AuditLog.metadata is an untyped Json column) — never fabricates a value it can't confirm, shows null/omits instead. */
-export function parseMetricCorrectionHistory(rows: Awaited<ReturnType<typeof getMetricCorrectionHistory>>): ParsedMetricCorrection[] {
+export function parseMetricCorrectionHistory(rows: MetricCorrectionRow[]): ParsedMetricCorrection[] {
   return rows.map((r) => {
     const meta = r.metadata as Record<string, unknown> | null;
     return {

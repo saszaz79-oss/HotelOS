@@ -3,7 +3,14 @@ import type { ReportType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { REQUIRED_SESSION_REPORT_TYPES } from './types';
 
-const OPEN_STATUSES = ['collecting', 'analyzing'] as const;
+// `stalled` counts as "open" (Zero-Lag Sprint) — a session stuck waiting for
+// the user to Resume/Retry is still the hotel's one in-progress session, not
+// something a fresh Upload-page load should silently ignore and let a new
+// session get created on top of.
+const OPEN_STATUSES = ['collecting', 'analyzing', 'stalled'] as const;
+
+/** No progress signal for this long while `analyzing` means the background job is presumed dead, not just slow (Zero-Lag Sprint, Incident #1). */
+const STALL_THRESHOLD_MS = 60_000;
 
 export interface SessionSlot {
   reportType: ReportType;
@@ -38,13 +45,55 @@ export const getOpenAnalysisSession = cache(async (hotelId: string) => {
   });
 });
 
-/** Read-only status poll for the Executive Analysis progress UI (Phase 2). */
-export const getAnalysisSessionStatus = cache(async (hotelId: string, sessionId: string) => {
+/**
+ * Read-only status poll for the Executive Analysis progress UI (Phase 2).
+ * Deliberately NOT `cache()`-wrapped (unlike most reads in this file) —
+ * checkAndMarkStalled below needs a real, uncached read-then-conditionally-
+ * write on every single poll, and a request-scoped memo here would let a
+ * stale pre-stall read win a race against the write.
+ */
+export async function getAnalysisSessionStatus(hotelId: string, sessionId: string) {
+  await checkAndMarkStalled(hotelId, sessionId);
   return prisma.analysisSession.findFirst({
     where: { id: sessionId, hotelId },
-    select: { id: true, status: true, currentStage: true, errorMessage: true, completedAt: true },
+    select: { id: true, status: true, currentStage: true, errorMessage: true, errorCode: true, attemptCount: true, completedAt: true },
   });
-});
+}
+
+/**
+ * Durable stall detection (Zero-Lag Sprint, Incident #1) — there is no
+ * background cron/scheduler in this architecture, so staleness can only be
+ * detected lazily, at the moment something actually asks for the session's
+ * status. This runs on every poll (every ~2s while a session is
+ * `analyzing`), so a stall is caught within one poll interval of crossing
+ * the threshold, not after some separate out-of-band job gets around to it.
+ * Falls back to `startedAt` when `heartbeatAt` is still null (or from a
+ * prior attempt) so a crash before the pipeline ever calls
+ * updateAnalysisSessionStage is still caught, not silently ignored.
+ */
+async function checkAndMarkStalled(hotelId: string, sessionId: string): Promise<void> {
+  const session = await prisma.analysisSession.findFirst({
+    where: { id: sessionId, hotelId },
+    select: { status: true, heartbeatAt: true, startedAt: true },
+  });
+  if (!session || session.status !== 'analyzing') return;
+
+  const referenceTime = session.heartbeatAt ?? session.startedAt;
+  if (!referenceTime) return;
+
+  const staleSinceMs = Date.now() - referenceTime.getTime();
+  if (staleSinceMs <= STALL_THRESHOLD_MS) return;
+
+  await prisma.analysisSession.update({
+    where: { id: sessionId },
+    data: {
+      status: 'stalled',
+      currentStage: 'stalled',
+      errorCode: 'HEARTBEAT_TIMEOUT',
+      errorMessage: `No progress reported for over ${Math.round(staleSinceMs / 1000)}s — the background process likely crashed or was stopped by the platform before finishing. You can resume from where it left off.`,
+    },
+  });
+}
 
 /**
  * The 4 required-report slot states for the Upload page's cards (EDI Phase

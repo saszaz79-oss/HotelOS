@@ -1,4 +1,5 @@
 import type { HotelDepartment, RiskSeverity, OpportunityValue, DecisionWindow } from '@prisma/client';
+import { after } from 'next/server';
 import { redirect } from 'next/navigation';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { getCurrentUser } from '@/server/modules/auth/session';
@@ -170,7 +171,7 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
   // other independent Promise.all in this pipeline.
   const [aiSummary, aiIntelligence] = await Promise.all([
     getOrRefreshExecutiveSummary(hotelId, locale, membership.hotel.name, { latestDate, metrics, previousMetrics }),
-    getOrRefreshExecutiveIntelligence(hotelId, locale, membership.hotel.name, { latestDate, metrics, previousMetrics }),
+    getOrRefreshExecutiveIntelligence(hotelId, locale, membership.hotel.name, { latestDate, metrics, previousMetrics, insight }),
   ]);
   const metricByKey = new Map(metrics.map((m) => [m.metricKey, m]));
   const previousByKey = new Map(previousMetrics.map((m) => [m.metricKey, m.value]));
@@ -317,7 +318,10 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
 
   const consistencyAlerts = (insight?.alerts ?? []).filter((a) => a.category === 'consistency');
 
-  await recordExport(hotelId, user.id, locale, latestDate);
+  // Audit-only write, nothing rendered below reads it back — deferred so it
+  // doesn't block the response on what the sprint brief calls "likely the
+  // heaviest data page in the app" (Zero-Lag Sprint).
+  after(() => recordExport(hotelId, user.id, locale, latestDate));
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 bg-surface-raised p-8 text-ink print:max-w-none print:space-y-4 print:bg-white print:p-0">

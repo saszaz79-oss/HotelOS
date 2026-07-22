@@ -9,7 +9,7 @@ import {
   getRecentMetricDates,
   getMetricsForDates,
   getAllMetricDefinitions,
-  getMetricCorrectionHistory,
+  getMetricCorrectionHistoryForKeys,
   parseMetricCorrectionHistory,
 } from '@/server/modules/metrics/queries';
 import { getLatestInsight } from '@/server/modules/insights/queries';
@@ -134,16 +134,17 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
       .filter((a) => a.category === 'consistency' && a.relatedMetricKey)
       .map((a) => [a.relatedMetricKey as string, a])
   );
+  // One query for every flagged key's history instead of one query per key
+  // (Zero-Lag Sprint) — N sequential AuditLog lookups is a genuine N-vs-1
+  // round-trip cost regardless of connection-pool concurrency, unlike a
+  // Promise.all reorder alone.
   const flaggedKeys = Array.from(consistencyAlertsByKey.keys());
+  const rawCorrectionHistoryByKey = await getMetricCorrectionHistoryForKeys(hotelId, latestDate, flaggedKeys);
   const correctionHistoryByKey = new Map(
-    flaggedKeys.length > 0
-      ? await Promise.all(
-          flaggedKeys.map(async (key) => {
-            const rows = parseMetricCorrectionHistory(await getMetricCorrectionHistory(hotelId, latestDate, key));
-            return [key, rows.map((r) => ({ ...r, createdAt: r.createdAt.toLocaleString(locale) }))] as const;
-          })
-        )
-      : []
+    flaggedKeys.map((key) => {
+      const rows = parseMetricCorrectionHistory(rawCorrectionHistoryByKey.get(key) ?? []);
+      return [key, rows.map((r) => ({ ...r, createdAt: r.createdAt.toLocaleString(locale) }))] as const;
+    })
   );
 
   const qualityScores = metrics

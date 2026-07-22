@@ -127,9 +127,9 @@ export default async function ComparisonsPage(
               {rows.map((r) => (
                 <tr key={r.key} className={tableRowClass}>
                   <td className={`${tableCellClass} text-ink`}>{r.label}</td>
-                  <td className={`metric-value ${tableCellClass} text-ink`}>{formatMetricValue(r.current, r.unit)}</td>
+                  <td className={`metric-value ${tableCellClass} text-ink`}>{formatMetricValue(r.current, r.unit, membership.hotel.currency)}</td>
                   <td className={`metric-value ${tableCellClass} text-ink-muted`}>
-                    {r.previous !== null ? formatMetricValue(r.previous, r.unit) : dict.comparisons.notAvailable}
+                    {r.previous !== null ? formatMetricValue(r.previous, r.unit, membership.hotel.currency) : dict.comparisons.notAvailable}
                   </td>
                   <td className={`metric-value ${tableCellClass}`}>
                     {r.delta === null ? (
@@ -137,7 +137,7 @@ export default async function ComparisonsPage(
                     ) : (
                       <span className={r.delta >= 0 ? 'text-status-positive' : 'text-status-critical'}>
                         {r.delta >= 0 ? '+' : ''}
-                        {formatMetricValue(r.delta, r.unit)}
+                        {formatMetricValue(r.delta, r.unit, membership.hotel.currency)}
                         {r.pctChange !== null ? ` (${r.pctChange >= 0 ? '+' : ''}${round1(r.pctChange)}%)` : ''}
                       </span>
                     )}
@@ -175,7 +175,7 @@ export default async function ComparisonsPage(
             </form>
             <TrendChart
               points={trendPoints}
-              formatValue={(v) => formatMetricValue(v, selectedMetricDef?.unit)}
+              formatValue={(v) => formatMetricValue(v, selectedMetricDef?.unit, membership.hotel.currency)}
               formatDate={(iso) => new Date(iso).toLocaleDateString(locale, { month: 'short', day: 'numeric' })}
               emptyLabel={dict.comparisons.notAvailable}
             />

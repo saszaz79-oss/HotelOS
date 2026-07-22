@@ -491,7 +491,49 @@
       },
       "department": "القسم",
       "decisionWindow": "الإطار الزمني للقرار"
+    },
+    "decisionIntelligence": {
+      "crossKpiTitle": "الذكاء التحليلي بين المؤشرات",
+      "riskMatrixTitle": "مصفوفة المخاطر",
+      "opportunityMatrixTitle": "مصفوفة الفرص",
+      "colFinding": "الحالة",
+      "colDepartment": "القسم",
+      "colBusinessImpact": "الأثر التجاري",
+      "colProbability": "الاحتمالية",
+      "colUrgency": "الإلحاح",
+      "colConfidence": "مستوى الثقة",
+      "colFinancialImpact": "الأثر المالي المتوقع",
+      "colOperationalImpact": "الأثر التشغيلي المتوقع",
+      "noRiskItems": "لا توجد مخاطر مصنفة لهذا التاريخ.",
+      "noOpportunityItems": "لا توجد فرص مصنفة لهذا التاريخ.",
+      "decisionBoxesTitle": "القرارات التنفيذية",
+      "decisionBoxesSubtitle": "بطاقة منظمة لكل ملاحظة رئيسية — سبب أهميتها، أثرها التجاري، والإجراء الموصى به.",
+      "noDecisionBoxes": "لا توجد ملاحظات رئيسية لهذا التاريخ.",
+      "kinds": {
+        "immediate_attention": "يتطلب انتباهاً تنفيذياً فورياً",
+        "collection_risk": "مخاطر التحصيل",
+        "pricing_recommendation": "توصية تسعير",
+        "guest_experience_alert": "تنبيه تجربة النزيل",
+        "operational_warning": "تحذير تشغيلي",
+        "revenue_opportunity": "فرصة إيرادات"
+      },
+      "boxWhyItMatters": "لماذا يهم هذا",
+      "boxBusinessImpact": "الأثر التجاري",
+      "boxRecommendedAction": "الإجراء الموصى به",
+      "ruleVerified": "مُتحقق منه آلياً",
+      "estimateNotYetAvailable": "لم يُقدَّر بعد — السرد التنفيذي غير مُعد لهذا النشر.",
+      "decisionTimelineTitle": "الجدول الزمني للقرارات",
+      "decisionTimelineSubtitle": "كل توصية، مصنفة حسب الوقت الذي يجب أن يبدأ فيه العمل.",
+      "priorityHigh": "عالية",
+      "priorityMedium": "متوسطة",
+      "priorityLow": "منخفضة",
+      "noTimelineItems": "لا توجد عناصر في هذا الإطار الزمني."
     }
+  },
+  "likelihoods": {
+    "HIGH": "عالية",
+    "MEDIUM": "متوسطة",
+    "LOW": "منخفضة"
   },
   "hotelDepartments": {
     "FRONT_OFFICE": "المكتب الأمامي",

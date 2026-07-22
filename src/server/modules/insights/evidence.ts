@@ -41,7 +41,8 @@ export function resolveSupportingMetrics(
   supportingMetrics: unknown,
   definitions: MetricDefinitionLookup[],
   locale: Locale,
-  unresolvedLabel: string
+  unresolvedLabel: string,
+  currency?: string
 ): ResolvedEvidenceItem[] {
   if (!Array.isArray(supportingMetrics)) return [];
   const defMap = new Map(definitions.map((d) => [d.key, d]));
@@ -49,7 +50,7 @@ export function resolveSupportingMetrics(
     const def = defMap.get(m.metricKey);
     return {
       label: def ? (locale === 'ar' ? def.labelAr : def.labelEn) : `${unresolvedLabel} (${m.metricKey})`,
-      value: def ? formatMetricValue(m.value, def.unit) : String(m.value),
+      value: def ? formatMetricValue(m.value, def.unit, currency) : String(m.value),
       metricDate: m.metricDate.slice(0, 10),
       sourceReportDocumentId: m.sourceReportDocumentId,
     };

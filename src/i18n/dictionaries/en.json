@@ -491,7 +491,49 @@
       },
       "department": "Department",
       "decisionWindow": "Decision window"
+    },
+    "decisionIntelligence": {
+      "crossKpiTitle": "Cross-KPI Intelligence",
+      "riskMatrixTitle": "Risk Matrix",
+      "opportunityMatrixTitle": "Opportunity Matrix",
+      "colFinding": "Finding",
+      "colDepartment": "Department",
+      "colBusinessImpact": "Business Impact",
+      "colProbability": "Probability",
+      "colUrgency": "Urgency",
+      "colConfidence": "Confidence",
+      "colFinancialImpact": "Expected Financial Impact",
+      "colOperationalImpact": "Expected Operational Impact",
+      "noRiskItems": "No risks currently classified for this date.",
+      "noOpportunityItems": "No opportunities currently classified for this date.",
+      "decisionBoxesTitle": "Executive Decisions",
+      "decisionBoxesSubtitle": "One structured card per major finding — why it matters, its business impact, and the recommended action.",
+      "noDecisionBoxes": "No major findings for this date.",
+      "kinds": {
+        "immediate_attention": "Immediate Executive Attention",
+        "collection_risk": "Collection Risk",
+        "pricing_recommendation": "Pricing Recommendation",
+        "guest_experience_alert": "Guest Experience Alert",
+        "operational_warning": "Operational Warning",
+        "revenue_opportunity": "Revenue Opportunity"
+      },
+      "boxWhyItMatters": "Why this matters",
+      "boxBusinessImpact": "Business impact",
+      "boxRecommendedAction": "Recommended action",
+      "ruleVerified": "Rule-verified",
+      "estimateNotYetAvailable": "Not yet estimated — AI narrative not configured for this deployment.",
+      "decisionTimelineTitle": "Decision Timeline",
+      "decisionTimelineSubtitle": "Every recommendation, grouped by when someone must start acting.",
+      "priorityHigh": "High",
+      "priorityMedium": "Medium",
+      "priorityLow": "Low",
+      "noTimelineItems": "No items in this window."
     }
+  },
+  "likelihoods": {
+    "HIGH": "High",
+    "MEDIUM": "Medium",
+    "LOW": "Low"
   },
   "hotelDepartments": {
     "FRONT_OFFICE": "Front Office",

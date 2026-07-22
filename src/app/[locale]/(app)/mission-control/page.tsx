@@ -159,6 +159,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
     previousMetrics,
     insight,
     avgDataQuality: avgQuality,
+    currency: membership.hotel.currency,
   });
 
   return (
@@ -314,14 +315,14 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
               <KpiCard
                 key={key}
                 label={label}
-                value={formatMetricValue(m.value, m.metricDefinition.unit)}
+                value={formatMetricValue(m.value, m.metricDefinition.unit, membership.hotel.currency)}
                 tone={consistencyAlert ? 'warning' : delta !== null ? (delta >= 0 ? 'positive' : 'critical') : 'neutral'}
                 trend={
                   <>
                     {delta !== null ? (
                       <div className="metric-value text-ink">
                         {delta >= 0 ? '+' : ''}
-                        {formatMetricValue(delta, m.metricDefinition.unit)} {dict.missionControl.vsPrevious}
+                        {formatMetricValue(delta, m.metricDefinition.unit, membership.hotel.currency)} {dict.missionControl.vsPrevious}
                       </div>
                     ) : null}
                     {doc ? (
@@ -412,7 +413,7 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
         ) : (
           <ul className="mt-2 space-y-3">
             {insight.recommendations.map((r) => {
-              const evidence = resolveSupportingMetrics(r.supportingMetrics, metricDefinitions, locale, dict.missionControl.evidence.unresolvedMetric);
+              const evidence = resolveSupportingMetrics(r.supportingMetrics, metricDefinitions, locale, dict.missionControl.evidence.unresolvedMetric, membership.hotel.currency);
               return (
                 <li key={r.id}>
                   <Card className="p-4 text-sm">

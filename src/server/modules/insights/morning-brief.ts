@@ -77,8 +77,9 @@ export function buildMorningBrief(input: {
   previousMetrics: Metrics;
   insight: Insight;
   avgDataQuality: number | null;
+  currency?: string;
 }): MorningBrief {
-  const { hotelName, locale, latestDate, metrics, previousMetrics, insight, avgDataQuality } = input;
+  const { hotelName, locale, latestDate, metrics, previousMetrics, insight, avgDataQuality, currency } = input;
   const byKey = new Map(metrics.map((m) => [m.metricKey, m]));
   const prevByKey = new Map(previousMetrics.map((m) => [m.metricKey, m]));
   const dateStr = latestDate.toLocaleDateString(locale);
@@ -89,7 +90,7 @@ export function buildMorningBrief(input: {
     const m = byKey.get(key);
     if (!m || m.value === null) continue;
     const label = locale === 'ar' ? m.metricDefinition.labelAr : m.metricDefinition.labelEn;
-    const valueStr = formatMetricValue(m.value, m.metricDefinition.unit);
+    const valueStr = formatMetricValue(m.value, m.metricDefinition.unit, currency);
     const prev = prevByKey.get(key);
     const trend = prev && prev.value !== null ? trendPhrase(m.value, prev.value, locale) : null;
     keyNumbers.push({ label, value: valueStr, trend });
@@ -114,7 +115,7 @@ export function buildMorningBrief(input: {
   let todaySummary: string;
   if (occ?.value !== null && occ !== undefined) {
     const occStr = formatMetricValue(occ.value, 'percentage');
-    const adrStr = adr?.value !== null && adr !== undefined ? formatMetricValue(adr.value, 'currency') : null;
+    const adrStr = adr?.value !== null && adr !== undefined ? formatMetricValue(adr.value, 'currency', currency) : null;
     todaySummary =
       locale === 'ar'
         ? `${hotelName} — ${dateStr}: نسبة الإشغال ${occStr}${adrStr ? ` بمتوسط سعر غرفة ${adrStr}` : ''}.`

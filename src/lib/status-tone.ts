@@ -1,4 +1,5 @@
 import type { HotelDepartment, RiskSeverity, OpportunityValue, DecisionWindow } from '@prisma/client';
+import type { DecisionBoxKind } from '@/server/modules/insights/classification';
 import type { StatusTone } from '@/components/ui/StatusBadge';
 
 /** Hotel.status → badge tone, shared across every admin screen that lists hotels. */
@@ -76,4 +77,11 @@ export function decisionWindowTone(window: DecisionWindow): StatusTone {
  */
 export function departmentTone(_department: HotelDepartment): StatusTone {
   return 'neutral';
+}
+
+/** Executive Decision Box kind (classification.ts's decisionBoxKind()) → tone. */
+export function decisionBoxKindTone(kind: DecisionBoxKind): StatusTone {
+  if (kind === 'immediate_attention') return 'critical';
+  if (kind === 'collection_risk' || kind === 'guest_experience_alert' || kind === 'operational_warning') return 'warning';
+  return 'positive'; // pricing_recommendation, revenue_opportunity
 }

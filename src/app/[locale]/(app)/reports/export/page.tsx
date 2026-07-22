@@ -14,16 +14,18 @@ import { getLatestInsight } from '@/server/modules/insights/queries';
 import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
 import { computeExecutiveScoreBreakdown } from '@/server/modules/insights/scoring';
 import { resolveSupportingMetrics } from '@/server/modules/insights/evidence';
+import { ruleLikelihood, matrixRank, decisionBoxKind, type DecisionBoxKind } from '@/server/modules/insights/classification';
 import { getOrRefreshExecutiveSummary, getOrRefreshExecutiveIntelligence } from '@/server/modules/ai-orchestration/commands';
 import { recordExport } from '@/server/modules/exports/commands';
 import { formatMetricValue } from '@/lib/format-metric';
 import { reportTypeLabel } from '@/lib/report-type-label';
-import { healthScoreTone, riskSeverityTone, opportunityValueTone, decisionWindowTone, departmentTone } from '@/lib/status-tone';
+import { healthScoreTone, riskSeverityTone, opportunityValueTone, decisionWindowTone, departmentTone, decisionBoxKindTone } from '@/lib/status-tone';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { DecisionBox } from '@/components/ui/DecisionBox';
 import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
 import { TrendChart } from '@/components/ui/TrendChart';
 import { EvidenceDrawer } from '@/components/ui/EvidenceDrawer';
@@ -69,6 +71,26 @@ function buildReportReference(propertyCode: string | null, hotelId: string, date
   const code = propertyCode?.trim() || hotelId.slice(0, 6).toUpperCase();
   const datePart = date.toISOString().slice(0, 10).replace(/-/g, '');
   return `EIR-${code}-${datePart}`;
+}
+
+/**
+ * Recommendation.confidence is a plain float (always 1.0 today — every
+ * current recommendation is rule-based, so confidence reflects rule
+ * certainty, not a self-reported AI score; see rules.ts's own doc comment).
+ * The "Rule-verified" suffix only appears at exactly 1.0 so a future
+ * AI-derived recommendation with real uncertainty (confidence < 1) reads
+ * as a plain percentage, not falsely labeled rule-verified.
+ */
+function confidenceLabel(confidence: number, dict: ReturnType<typeof getDictionary>): string {
+  const pct = Math.round(confidence * 100);
+  return confidence >= 1 ? `${pct}% · ${dict.executiveExport.decisionIntelligence.ruleVerified}` : `${pct}%`;
+}
+
+/** Recommendation.priority (1-3, ascending = more urgent) → High/Medium/Low label for the Decision Timeline. */
+function priorityLabel(priority: number, dict: ReturnType<typeof getDictionary>): string {
+  if (priority <= 1) return dict.executiveExport.decisionIntelligence.priorityHigh;
+  if (priority === 2) return dict.executiveExport.decisionIntelligence.priorityMedium;
+  return dict.executiveExport.decisionIntelligence.priorityLow;
 }
 
 /**
@@ -184,6 +206,34 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
   const topPriorities = allRecommendations.slice(0, 5);
   const topRisks = allRecommendations.filter((r) => r.category === 'risk').slice(0, 3);
   const topOpportunities = allRecommendations.filter((r) => r.category === 'opportunity').slice(0, 3);
+
+  // Risk Matrix / Opportunity Matrix (Executive Decision Intelligence
+  // redesign, Phase 4) — "sort by priority automatically": a single
+  // explainable composite score (classification.ts's matrixRank), not a
+  // black box. Pure in-memory sort over data already fetched above — no
+  // new query, no new AI call.
+  const riskMatrixItems = allRecommendations
+    .filter((r) => r.category === 'risk')
+    .map((r) => {
+      const likelihood = ruleLikelihood(r.category, r.department, r.priority);
+      return { r, likelihood, rank: matrixRank({ decisionWindow: r.decisionWindow, severity: r.severity, opportunityValue: null, likelihood }) };
+    })
+    .sort((a, b) => b.rank - a.rank);
+  const opportunityMatrixItems = allRecommendations
+    .filter((r) => r.category === 'opportunity')
+    .map((r) => {
+      const likelihood = ruleLikelihood(r.category, r.department, r.priority);
+      return { r, likelihood, rank: matrixRank({ decisionWindow: r.decisionWindow, severity: null, opportunityValue: r.opportunityValue, likelihood }) };
+    })
+    .sort((a, b) => b.rank - a.rank);
+
+  // Decision Timeline — every recommendation grouped by decisionWindow,
+  // which already answers "when must someone start acting" (Phase 1).
+  const DECISION_WINDOWS = ['IMMEDIATE', 'HOURS_72', 'WEEK', 'MONTH'] as const;
+  const timelineBuckets = DECISION_WINDOWS.map((key) => ({
+    key,
+    items: allRecommendations.filter((r) => r.decisionWindow === key),
+  }));
 
   const overallStatusTone = healthScore !== null ? healthScoreTone(healthScore) : null;
   const noteFor = (cat: { noteEn: string; noteAr: string }) => (locale === 'ar' ? cat.noteAr : cat.noteEn);
@@ -460,6 +510,30 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
         )}
       </Card>
 
+      {/* Cross-KPI Intelligence (Executive Decision Intelligence redesign,
+          Phase 4) — relationships between KPIs (e.g. occupancy up while ADR
+          down indicates growth driven by discounting), not a restatement of
+          any single KPI. Reads the same AiExecutiveIntelligence row already
+          fetched above for the Executive Message — no new query, no new AI
+          call. Degrades to an honest unavailable reason, never blank. */}
+      <Card className="print:border-0 print:p-0 print:shadow-none">
+        <CardHeader>
+          <CardTitle>{dict.executiveExport.decisionIntelligence.crossKpiTitle}</CardTitle>
+        </CardHeader>
+        {aiIntelligence.ok ? (
+          <div className="space-y-2 text-sm">
+            {aiIntelligence.crossKpiNarrative
+              .split(/\n{2,}/)
+              .filter((p) => p.trim().length > 0)
+              .map((para, i) => (
+                <p key={i}>{para}</p>
+              ))}
+          </div>
+        ) : (
+          <p className="text-xs text-ink-muted">{dict.executiveExport.morningBrief.executiveMessageUnavailable[aiIntelligence.reason]}</p>
+        )}
+      </Card>
+
       <section>
         <h2 className="mb-2 text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.kpis}</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 print:grid-cols-3">
@@ -473,13 +547,13 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
               <KpiCard
                 key={key}
                 label={label}
-                value={formatMetricValue(m.value, m.metricDefinition.unit)}
+                value={formatMetricValue(m.value, m.metricDefinition.unit, membership.hotel.currency)}
                 tone={delta !== null ? (delta >= 0 ? 'positive' : 'critical') : 'neutral'}
                 trend={
                   delta !== null ? (
                     <span className="metric-value">
                       {delta >= 0 ? '+' : ''}
-                      {formatMetricValue(delta, m.metricDefinition.unit)}
+                      {formatMetricValue(delta, m.metricDefinition.unit, membership.hotel.currency)}
                     </span>
                   ) : null
                 }
@@ -507,7 +581,7 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
               {available.map((key) => {
                 const m = metricByKey.get(key)!;
                 const label = locale === 'ar' ? m.metricDefinition.labelAr : m.metricDefinition.labelEn;
-                return <KpiCard key={key} label={label} value={formatMetricValue(m.value as number, m.metricDefinition.unit)} tone="neutral" />;
+                return <KpiCard key={key} label={label} value={formatMetricValue(m.value as number, m.metricDefinition.unit, membership.hotel.currency)} tone="neutral" />;
               })}
             </div>
           </section>
@@ -543,9 +617,9 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
             {rows.map((r) => (
               <tr key={r.key} className={tableRowClass}>
                 <td className={`${tableCellClass} text-ink`}>{r.label}</td>
-                <td className={`metric-value ${tableCellClass}`}>{formatMetricValue(r.current, r.unit)}</td>
+                <td className={`metric-value ${tableCellClass}`}>{formatMetricValue(r.current, r.unit, membership.hotel.currency)}</td>
                 <td className={`metric-value ${tableCellClass} text-ink-muted`}>
-                  {r.previous !== null ? formatMetricValue(r.previous, r.unit) : dict.comparisons.notAvailable}
+                  {r.previous !== null ? formatMetricValue(r.previous, r.unit, membership.hotel.currency) : dict.comparisons.notAvailable}
                 </td>
                 <td className={`metric-value ${tableCellClass}`}>
                   {r.delta === null ? (
@@ -553,7 +627,7 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
                   ) : (
                     <span className={r.delta >= 0 ? 'text-status-positive' : 'text-status-critical'}>
                       {r.delta >= 0 ? '+' : ''}
-                      {formatMetricValue(r.delta, r.unit)}
+                      {formatMetricValue(r.delta, r.unit, membership.hotel.currency)}
                       {r.pctChange !== null ? ` (${r.pctChange >= 0 ? '+' : ''}${round1(r.pctChange)}%)` : ''}
                     </span>
                   )}
@@ -564,79 +638,198 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
         </table>
       </TableShell>
 
-      <section className="grid gap-4 sm:grid-cols-2">
-        <Card className="print:border-0 print:p-0 print:shadow-none">
-          <CardHeader>
-            <CardTitle>{dict.missionControl.brief.risks}</CardTitle>
-          </CardHeader>
-          <ul className="list-inside list-disc space-y-0.5 text-sm">
-            {morningBrief.risks.map((line, i) => (
-              <li key={i}>{line}</li>
-            ))}
-          </ul>
-        </Card>
-        <Card className="print:border-0 print:p-0 print:shadow-none">
-          <CardHeader>
-            <CardTitle>{dict.missionControl.brief.opportunities}</CardTitle>
-          </CardHeader>
-          <ul className="list-inside list-disc space-y-0.5 text-sm">
-            {morningBrief.opportunities.map((line, i) => (
-              <li key={i}>{line}</li>
-            ))}
-          </ul>
-        </Card>
-      </section>
-
-      {insight && insight.recommendations.length > 0 ? (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.actionPlan}</h2>
+      {/* Risk Matrix / Opportunity Matrix (Executive Decision Intelligence
+          redesign, Phase 4) — every risk/opportunity recommendation ranked
+          by the same composite score (classification.ts's matrixRank),
+          most urgent/impactful first, with the full decision-support field
+          set: department, business impact, probability, urgency,
+          confidence, and financial/operational impact. */}
+      <section>
+        <h2 className="mb-2 text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionIntelligence.riskMatrixTitle}</h2>
+        {riskMatrixItems.length === 0 ? (
+          <p className="text-sm text-ink-muted">{dict.executiveExport.decisionIntelligence.noRiskItems}</p>
+        ) : (
           <TableShell>
             <table className="w-full text-sm">
               <thead>
                 <tr className={tableHeadRowClass}>
-                  <th className={tableHeadCellClass}>{dict.executiveExport.action}</th>
-                  <th className={`${tableHeadCellClass} print-hide`}>{dict.executiveExport.evidence}</th>
-                  <th className={tableHeadCellClass}>{dict.executiveExport.owner}</th>
-                  <th className={tableHeadCellClass}>{dict.executiveExport.timeframe}</th>
-                  <th className={tableHeadCellClass}>{dict.executiveExport.expectedOutcome}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colFinding}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colDepartment}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colBusinessImpact}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colProbability}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colUrgency}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colConfidence}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colFinancialImpact}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colOperationalImpact}</th>
                 </tr>
               </thead>
               <tbody>
-                {insight.recommendations.map((r) => {
-                  const evidence = resolveSupportingMetrics(
-                    r.supportingMetrics,
-                    metricDefinitions,
-                    locale,
-                    dict.missionControl.evidence.unresolvedMetric
-                  );
-                  return (
-                    <tr key={r.id} className={tableRowClass}>
-                      <td className={`${tableCellClass} text-ink`}>{locale === 'ar' ? r.suggestedActionAr : r.suggestedActionEn}</td>
-                      <td className={`${tableCellClass} print-hide`}>
-                        <EvidenceDrawer items={evidence} toggleLabel={dict.missionControl.evidence.toggle} asOfLabel={dict.missionControl.evidence.asOf} />
-                      </td>
-                      {/* Owner/Timeframe/Expected Outcome (Analytics fix, Phase 6):
-                          null on recommendations created before this migration —
-                          shown honestly as unavailable rather than backfilled. */}
-                      <td className={`${tableCellClass} text-ink`}>
-                        {r.owner ? dict.hotelRoles[r.owner] : <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>}
-                      </td>
-                      <td className={`${tableCellClass} text-ink`}>
-                        {r.timeframe ?? <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>}
-                      </td>
-                      <td className={`${tableCellClass} text-ink`}>
-                        {(locale === 'ar' ? r.expectedOutcomeAr : r.expectedOutcomeEn) ?? (
-                          <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {riskMatrixItems.map(({ r, likelihood }) => (
+                  <tr key={r.id} className={tableRowClass}>
+                    <td className={`${tableCellClass} text-ink`}>{locale === 'ar' ? r.textAr : r.textEn}</td>
+                    <td className={tableCellClass}>
+                      {r.department ? <StatusBadge tone={departmentTone(r.department)}>{dict.hotelDepartments[r.department]}</StatusBadge> : <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>}
+                    </td>
+                    <td className={tableCellClass}>
+                      {r.severity ? <StatusBadge tone={riskSeverityTone(r.severity)}>{dict.riskSeverities[r.severity]}</StatusBadge> : <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>}
+                    </td>
+                    <td className={`${tableCellClass} text-ink`}>{dict.likelihoods[likelihood]}</td>
+                    <td className={tableCellClass}>
+                      {r.decisionWindow ? <StatusBadge tone={decisionWindowTone(r.decisionWindow)}>{dict.decisionWindows[r.decisionWindow]}</StatusBadge> : <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>}
+                    </td>
+                    <td className={`metric-value ${tableCellClass} text-ink`}>{confidenceLabel(r.confidence, dict)}</td>
+                    <td className={`${tableCellClass} text-ink`}>
+                      {aiIntelligence.ok ? aiIntelligence.businessImpactEstimates[r.id] ?? dict.executiveExport.decisionIntelligence.estimateNotYetAvailable : dict.executiveExport.decisionIntelligence.estimateNotYetAvailable}
+                    </td>
+                    <td className={`${tableCellClass} text-ink`}>{locale === 'ar' ? r.expectedOutcomeAr : r.expectedOutcomeEn}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </TableShell>
-        </section>
-      ) : null}
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionIntelligence.opportunityMatrixTitle}</h2>
+        {opportunityMatrixItems.length === 0 ? (
+          <p className="text-sm text-ink-muted">{dict.executiveExport.decisionIntelligence.noOpportunityItems}</p>
+        ) : (
+          <TableShell>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className={tableHeadRowClass}>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colFinding}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colDepartment}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colBusinessImpact}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colProbability}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colUrgency}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colConfidence}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colFinancialImpact}</th>
+                  <th className={tableHeadCellClass}>{dict.executiveExport.decisionIntelligence.colOperationalImpact}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {opportunityMatrixItems.map(({ r, likelihood }) => (
+                  <tr key={r.id} className={tableRowClass}>
+                    <td className={`${tableCellClass} text-ink`}>{locale === 'ar' ? r.textAr : r.textEn}</td>
+                    <td className={tableCellClass}>
+                      {r.department ? <StatusBadge tone={departmentTone(r.department)}>{dict.hotelDepartments[r.department]}</StatusBadge> : <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>}
+                    </td>
+                    <td className={tableCellClass}>
+                      {r.opportunityValue ? <StatusBadge tone={opportunityValueTone(r.opportunityValue)}>{dict.opportunityValues[r.opportunityValue]}</StatusBadge> : <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>}
+                    </td>
+                    <td className={`${tableCellClass} text-ink`}>{dict.likelihoods[likelihood]}</td>
+                    <td className={tableCellClass}>
+                      {r.decisionWindow ? <StatusBadge tone={decisionWindowTone(r.decisionWindow)}>{dict.decisionWindows[r.decisionWindow]}</StatusBadge> : <span className="text-ink-muted">{dict.executiveExport.notYetAvailable}</span>}
+                    </td>
+                    <td className={`metric-value ${tableCellClass} text-ink`}>{confidenceLabel(r.confidence, dict)}</td>
+                    <td className={`${tableCellClass} text-ink`}>
+                      {aiIntelligence.ok ? aiIntelligence.businessImpactEstimates[r.id] ?? dict.executiveExport.decisionIntelligence.estimateNotYetAvailable : dict.executiveExport.decisionIntelligence.estimateNotYetAvailable}
+                    </td>
+                    <td className={`${tableCellClass} text-ink`}>{locale === 'ar' ? r.expectedOutcomeAr : r.expectedOutcomeEn}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableShell>
+        )}
+      </section>
+
+      {/* Executive Decisions (Executive Decision Intelligence redesign,
+          Phase 4) — one structured card per finding, kind-mapped
+          deterministically (classification.ts's decisionBoxKind) from
+          fields the rule engine already set. Business impact reads the
+          same AI estimate as the matrices above; "why it matters" prefers
+          the AI's per-recommendation elaboration and falls back to the
+          real deterministic expected-outcome target when AI is
+          unavailable — never blank. */}
+      <section>
+        <h2 className="mb-1 text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionIntelligence.decisionBoxesTitle}</h2>
+        <p className="mb-2 text-xs text-ink-muted print-hide">{dict.executiveExport.decisionIntelligence.decisionBoxesSubtitle}</p>
+        {allRecommendations.length === 0 ? (
+          <p className="text-sm text-ink-muted">{dict.executiveExport.decisionIntelligence.noDecisionBoxes}</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 print:grid-cols-2">
+            {allRecommendations.map((r) => {
+              const kind: DecisionBoxKind = decisionBoxKind(r);
+              const elaboration = aiIntelligence.ok
+                ? r.category === 'risk'
+                  ? aiIntelligence.riskElaboration[r.id]
+                  : r.category === 'opportunity'
+                  ? aiIntelligence.opportunityElaboration[r.id]
+                  : undefined
+                : undefined;
+              const whyItMatters = elaboration ?? (locale === 'ar' ? r.expectedOutcomeAr : r.expectedOutcomeEn) ?? dict.executiveExport.notYetAvailable;
+              const businessImpact = aiIntelligence.ok
+                ? aiIntelligence.businessImpactEstimates[r.id] ?? dict.executiveExport.decisionIntelligence.estimateNotYetAvailable
+                : dict.executiveExport.decisionIntelligence.estimateNotYetAvailable;
+              const evidence = resolveSupportingMetrics(r.supportingMetrics, metricDefinitions, locale, dict.missionControl.evidence.unresolvedMetric, membership.hotel.currency);
+              return (
+                <DecisionBox
+                  key={r.id}
+                  tone={decisionBoxKindTone(kind)}
+                  kindLabel={dict.executiveExport.decisionIntelligence.kinds[kind]}
+                  title={locale === 'ar' ? r.textAr : r.textEn}
+                  whyItMattersLabel={dict.executiveExport.decisionIntelligence.boxWhyItMatters}
+                  whyItMatters={whyItMatters}
+                  businessImpactLabel={dict.executiveExport.decisionIntelligence.boxBusinessImpact}
+                  businessImpact={businessImpact}
+                  recommendedActionLabel={dict.executiveExport.decisionIntelligence.boxRecommendedAction}
+                  recommendedAction={locale === 'ar' ? r.suggestedActionAr : r.suggestedActionEn}
+                  confidenceLabel={dict.executiveExport.decisionIntelligence.colConfidence}
+                  confidenceValue={confidenceLabel(r.confidence, dict)}
+                  badges={<RecommendationBadges r={r} dict={dict} />}
+                  evidence={<EvidenceDrawer items={evidence} toggleLabel={dict.missionControl.evidence.toggle} asOfLabel={dict.missionControl.evidence.asOf} />}
+                />
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Decision Timeline (Executive Decision Intelligence redesign, Phase
+          4) — every recommendation grouped by decisionWindow (Phase 1's
+          real classification of "when must someone start acting"), each
+          with owner/priority/expected outcome/evidence/confidence. */}
+      <section>
+        <h2 className="mb-1 text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionIntelligence.decisionTimelineTitle}</h2>
+        <p className="mb-2 text-xs text-ink-muted print-hide">{dict.executiveExport.decisionIntelligence.decisionTimelineSubtitle}</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {timelineBuckets.map(({ key, items }) => (
+            <div key={key}>
+              <h3 className="mb-2">
+                <StatusBadge tone={decisionWindowTone(key)}>{dict.decisionWindows[key]}</StatusBadge>
+              </h3>
+              {items.length === 0 ? (
+                <p className="text-xs text-ink-muted">{dict.executiveExport.decisionIntelligence.noTimelineItems}</p>
+              ) : (
+                <ul className="space-y-2">
+                  {items.map((r) => {
+                    const evidence = resolveSupportingMetrics(r.supportingMetrics, metricDefinitions, locale, dict.missionControl.evidence.unresolvedMetric, membership.hotel.currency);
+                    return (
+                      <li key={r.id} className="rounded-lg border border-ink/10 p-2.5 text-xs">
+                        <p className="text-sm text-ink">{locale === 'ar' ? r.suggestedActionAr : r.suggestedActionEn}</p>
+                        <p className="mt-1 text-ink-muted">
+                          {dict.executiveExport.owner}: {r.owner ? dict.hotelRoles[r.owner] : dict.executiveExport.notYetAvailable}
+                          {' · '}
+                          {dict.missionControl.brief.priority}: {priorityLabel(r.priority, dict)}
+                          {' · '}
+                          {dict.executiveExport.decisionIntelligence.colConfidence}: {confidenceLabel(r.confidence, dict)}
+                        </p>
+                        <p className="mt-1 text-ink-muted">
+                          {dict.executiveExport.expectedOutcome}: {locale === 'ar' ? r.expectedOutcomeAr : r.expectedOutcomeEn}
+                        </p>
+                        <EvidenceDrawer items={evidence} toggleLabel={dict.missionControl.evidence.toggle} asOfLabel={dict.missionControl.evidence.asOf} />
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       <Card className="print:border-0 print:p-0 print:shadow-none">
         <CardHeader>
@@ -668,17 +861,6 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
           )}
         </div>
       </Card>
-
-      {morningBrief.todayActions.length > 0 ? (
-        <section>
-          <h2 className="text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.recommendedActions}</h2>
-          <ul className="mt-1 list-inside list-disc space-y-0.5 text-sm">
-            {morningBrief.todayActions.map((line, i) => (
-              <li key={i}>{line}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
 
       <section className="border-t border-ink/10 pt-4 text-sm text-ink-muted">
         <p className="mt-1">

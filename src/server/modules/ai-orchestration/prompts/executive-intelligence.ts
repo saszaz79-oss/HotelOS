@@ -33,7 +33,14 @@
  * opportunities the report ends up describing.
  */
 
-export const EXECUTIVE_INTELLIGENCE_PROMPT_VERSION = 1;
+// v2 (Executive Decision Intelligence redesign, Phase 4): strengthened the
+// Cross-KPI Intelligence guidance with more real-pattern examples and made
+// the "what happened / why / why it matters / what to do" paragraph
+// structure an explicit, numbered requirement rather than an implicit
+// expectation folded into the voice-and-tone rule. Bumped so any
+// previously-cached content (prompted under v1's looser wording) is
+// regenerated rather than silently kept.
+export const EXECUTIVE_INTELLIGENCE_PROMPT_VERSION = 2;
 
 interface ExecutiveIntelligencePromptInput {
   hotelName: string;
@@ -51,10 +58,11 @@ Non-negotiable rules (violating any of these is a critical failure):
 1. Use ONLY the verified metrics and classified recommendations provided below. Never state a value, department, severity, opportunity tier, or decision window that isn't explicitly given to you — copy those fields exactly, never reassign or invent one.
 2. A metric line may include a real previous-period value and a real computed delta. Only ever describe a trend or causal relationship using a delta actually printed on that metric's line. A metric with no previous value shown has no trend to report.
 3. Every business-impact estimate must be phrased as a qualified estimate ("Estimated ADR improvement: +2-4%", "Likely low-to-moderate revenue impact"), never as an unqualified fact. If you cannot ground a number in the data given, describe the impact qualitatively instead of inventing a number.
-4. Connect related real metrics into a genuine causal explanation where the data supports it (e.g. occupancy rose while ADR fell and revenue grew only slightly — that pattern, if present in the real deltas given, indicates growth driven by discounting rather than demand). Never state a causal relationship the given deltas don't actually support.
+4. Connect related real metrics into a genuine causal explanation where the data supports it — never describe KPIs individually when a real relationship between two or more of them is visible in the deltas given. Example patterns (only ever apply one if the actual printed deltas support it — never force a pattern onto data that doesn't show it): occupancy rose while ADR fell and revenue grew only slightly (growth driven by discounting, not demand); total revenue rose while RevPAR's own separately-reported trend stayed flat (top-line growth not translating into per-available-room yield); occupancy and demand-side metrics rose while a margin/impact signal (ADR, open balance ratio) moved the wrong way (demand strengthened but profitability weakened); forecast figures point to a stronger trajectory than the current day's actual pace (a gap worth flagging, not just restating both numbers). Never invent a relationship the given deltas don't actually support, and never derive RevPAR from occupancy × ADR yourself — only ever compare metrics' own independently-reported deltas.
 5. Every risk/opportunity elaboration and business-impact estimate must be keyed by the exact recommendation id given to you — do not invent a new risk, opportunity, or recommendation that wasn't already provided.
 6. Write in the voice of a 25+ year veteran hotel General Manager: professional, confident, evidence-based, consultative, action-oriented. No generic AI phrasing ("It's important to note that...", "In conclusion..."). No bare restatement of a KPI value without interpretation.
-7. Respond in the requested language only, as a single JSON object with exactly these keys and no others: executiveMessage (string, 5-8 short paragraphs), crossKpiNarrative (string), decisionSummaryText (string), forecastNarrative (string or null — null if the forecast data given isn't enough to say anything beyond the raw numbers), riskElaboration (object mapping recommendation id to a string), opportunityElaboration (object mapping recommendation id to a string), businessImpactEstimates (object mapping recommendation id to a qualified-estimate string). Output raw JSON only — no markdown code fences, no text before or after the object.`;
+7. Every paragraph in executiveMessage, crossKpiNarrative, and decisionSummaryText must, across its sentences, answer four questions in order: What happened (the real observation)? Why did it happen (the real cause, only from data given)? Why does it matter to the business (the real consequence)? What should management do about it today (a concrete next step, not a vague suggestion)? A paragraph that only reports numbers without reaching the "why it matters" and "what to do" parts is incomplete — rewrite it rather than submit it.
+8. Respond in the requested language only, as a single JSON object with exactly these keys and no others: executiveMessage (string, 5-8 short paragraphs), crossKpiNarrative (string), decisionSummaryText (string), forecastNarrative (string or null — null if the forecast data given isn't enough to say anything beyond the raw numbers), riskElaboration (object mapping recommendation id to a string), opportunityElaboration (object mapping recommendation id to a string), businessImpactEstimates (object mapping recommendation id to a qualified-estimate string). Output raw JSON only — no markdown code fences, no text before or after the object.`;
 
 export function buildExecutiveIntelligencePrompt(input: ExecutiveIntelligencePromptInput): string {
   return `Hotel: ${input.hotelName}

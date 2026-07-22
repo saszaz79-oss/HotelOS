@@ -1,4 +1,5 @@
-import type { HotelRole, Prisma } from '@prisma/client';
+import type { DecisionWindow, HotelDepartment, HotelRole, OpportunityValue, RiskSeverity, Prisma } from '@prisma/client';
+import { classifySeverity, magnitudeRatio } from './classification';
 
 interface MetricPoint {
   key: string;
@@ -13,6 +14,11 @@ export interface RuleAlert {
   messageEn: string;
   messageAr: string;
   relatedMetricKey: string | null;
+  // Added Executive Decision Intelligence redesign — which hotel function
+  // owns this, when applicable. Left null for alerts with no real
+  // department owner (e.g. data_quality is a data-integrity flag, not a
+  // hotel function's job) rather than guessed.
+  department: HotelDepartment | null;
 }
 
 export interface RuleRecommendation {
@@ -32,6 +38,18 @@ export interface RuleRecommendation {
   timeframe: string;
   expectedOutcomeEn: string;
   expectedOutcomeAr: string;
+  // Added Executive Decision Intelligence redesign — same discipline as the
+  // Phase 6 fields above: fixed per rule family, never free-form/AI-
+  // generated. department is which hotel function is accountable (distinct
+  // from owner, the internal HotelOS user role). severity only applies to
+  // category:'risk' rules (via classifySeverity()); opportunityValue only
+  // applies to category:'opportunity' rules (a fixed constant per rule
+  // family, not a formula — see rule call sites). decisionWindow answers
+  // "when must someone start acting," computed from priority + timeframe.
+  department: HotelDepartment;
+  severity: RiskSeverity | null;
+  opportunityValue: OpportunityValue | null;
+  decisionWindow: DecisionWindow;
 }
 
 function metric(points: MetricPoint[], key: string): MetricPoint | undefined {
@@ -99,6 +117,12 @@ export function evaluateRules(
       timeframe: 'Within 7 days',
       expectedOutcomeEn: `Occupancy above 40% (currently ${occ}%).`,
       expectedOutcomeAr: `نسبة إشغال أعلى من 40% (حالياً ${occ}%).`,
+      department: 'REVENUE_MANAGEMENT',
+      severity: classifySeverity(1, magnitudeRatio(40 - occupancy.value!, 40)),
+      opportunityValue: null,
+      // priority-1 risk: the right response starts today, independent of
+      // the 7-day timeframe above (which is when the *outcome* should land).
+      decisionWindow: 'IMMEDIATE',
     });
   } else if (occupancy && occupancy.value! > 85) {
     const occ = round(occupancy.value!, 1);
@@ -116,6 +140,14 @@ export function evaluateRules(
       timeframe: 'Within 3 days',
       expectedOutcomeEn: `Rate increase implemented while occupancy remains above 85% (currently ${occ}%).`,
       expectedOutcomeAr: `تنفيذ زيادة السعر مع استمرار نسبة الإشغال أعلى من 85% (حالياً ${occ}%).`,
+      department: 'REVENUE_MANAGEMENT',
+      severity: null,
+      // Fixed constant, not a formula — same-day rate-change action, no
+      // investment required, matches the Opportunity Matrix's "Quick Win"
+      // bucket definition. Revisit only when a second opportunity rule
+      // exists to compare against.
+      opportunityValue: 'QUICK_WIN',
+      decisionWindow: 'HOURS_72',
     });
   }
 
@@ -129,7 +161,10 @@ export function evaluateRules(
         messageEn: `Open balance is ${ratio !== null ? `${Math.round(ratio * 100)}% of total revenue` : `${round(openBalance.value!, 2)}`}.`,
         messageAr: `الرصيد المفتوح ${ratio !== null ? `يمثل ${Math.round(ratio * 100)}% من إجمالي الإيرادات` : `${round(openBalance.value!, 2)}`}.`,
         relatedMetricKey: 'open_balance',
+        department: 'FINANCE',
       });
+      const openBalanceMagnitude =
+        ratio !== null ? magnitudeRatio(ratio - 0.3, 0.3) : magnitudeRatio(openBalance.value! - 20000, 20000);
       recommendations.push({
         priority: 2,
         textEn: `Open balance is elevated${ratio !== null ? ` (${Math.round(ratio * 100)}% of total revenue)` : ''}.`,
@@ -149,6 +184,13 @@ export function evaluateRules(
           ratio !== null
             ? `خفض الرصيد المفتوح إلى أقل من 30% من إجمالي الإيرادات (حالياً ${Math.round(ratio * 100)}%).`
             : `خفض الرصيد المفتوح إلى أقل من 20,000 (حالياً ${round(openBalance.value!, 2)}).`,
+        // Collections is a finance function even though front-office staff
+        // often execute the follow-up (owner above) — department tracks
+        // accountability, not who dials the phone.
+        department: 'FINANCE',
+        severity: classifySeverity(2, openBalanceMagnitude),
+        opportunityValue: null,
+        decisionWindow: 'HOURS_72',
       });
     }
   }
@@ -160,6 +202,8 @@ export function evaluateRules(
       messageEn: `The source report for this date is only ${Math.round(completenessScore * 100)}% complete — verify figures against the original PDF.`,
       messageAr: `التقرير المصدر لهذا التاريخ مكتمل بنسبة ${Math.round(completenessScore * 100)}% فقط — تحقق من الأرقام مقابل ملف PDF الأصلي.`,
       relatedMetricKey: null,
+      // A data-integrity flag, not a hotel function's job — no department applies.
+      department: null,
     });
   }
 
@@ -185,6 +229,10 @@ export function evaluateRules(
           timeframe: 'Within 7 days',
           expectedOutcomeEn: `No-show rate reduced below 10% of arrivals (currently ${pct}%).`,
           expectedOutcomeAr: `خفض معدل عدم الحضور إلى أقل من 10% من الوافدين (حالياً ${pct}%).`,
+          department: 'FRONT_OFFICE',
+          severity: classifySeverity(2, magnitudeRatio(rate - 0.1, 0.1)),
+          opportunityValue: null,
+          decisionWindow: 'WEEK',
         });
       }
     }
@@ -205,6 +253,10 @@ export function evaluateRules(
           timeframe: 'Within 7 days',
           expectedOutcomeEn: `Cancellation rate reduced below 15% of arrivals (currently ${pct}%).`,
           expectedOutcomeAr: `خفض معدل الإلغاء إلى أقل من 15% من الوافدين (حالياً ${pct}%).`,
+          department: 'FRONT_OFFICE',
+          severity: classifySeverity(2, magnitudeRatio(rate - 0.15, 0.15)),
+          opportunityValue: null,
+          decisionWindow: 'WEEK',
         });
       }
     }
@@ -231,6 +283,10 @@ export function evaluateRules(
         timeframe: 'Within 14 days',
         expectedOutcomeEn: `Complimentary and house-use rooms reduced below 5% of available inventory (currently ${pct}%).`,
         expectedOutcomeAr: `خفض غرف المجاملة والاستخدام الداخلي إلى أقل من 5% من الغرف المتاحة (حالياً ${pct}%).`,
+        department: 'GENERAL_MANAGER',
+        severity: classifySeverity(3, magnitudeRatio(ratio - 0.05, 0.05)),
+        opportunityValue: null,
+        decisionWindow: 'MONTH',
       });
     }
   }
@@ -256,6 +312,14 @@ export function evaluateRules(
         timeframe: 'Within 14 days',
         expectedOutcomeEn: `Out-of-order/out-of-inventory rooms reduced below 10% of available inventory (currently ${pct}%).`,
         expectedOutcomeAr: `خفض الغرف خارج الخدمة/خارج المخزون إلى أقل من 10% من الغرف المتاحة (حالياً ${pct}%).`,
+        // Maintenance is the department that returns rooms to sellable
+        // inventory — owner stays GENERAL_MANAGER (accountable for
+        // follow-through). category:'action', not risk/opportunity, so no
+        // severity/opportunityValue classification applies.
+        department: 'MAINTENANCE',
+        severity: null,
+        opportunityValue: null,
+        decisionWindow: 'MONTH',
       });
     }
   }

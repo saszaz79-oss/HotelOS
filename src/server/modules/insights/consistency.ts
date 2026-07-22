@@ -72,6 +72,10 @@ export function checkMetricConsistency(points: MetricPoint[]): RuleAlert[] {
         messageEn: `ADR (${round(adr, 2)}) doesn't match Room Revenue / Rooms Sold (${round(expected, 2)}).`,
         messageAr: `متوسط سعر الغرفة (${round(adr, 2)}) لا يطابق إيرادات الغرف ÷ الغرف المباعة (${round(expected, 2)}).`,
         relatedMetricKey: 'adr',
+        // A normalization-path arithmetic check, not a hotel department's
+        // operational responsibility — left null honestly, same as the
+        // data_quality alert in rules.ts.
+        department: null,
       });
     }
   }
@@ -86,6 +90,7 @@ export function checkMetricConsistency(points: MetricPoint[]): RuleAlert[] {
         messageEn: `Cash + Card + City Ledger (${round(sum, 2)}) doesn't match Total Revenue (${round(totalRevenue, 2)}).`,
         messageAr: `نقدي + بطاقة + دفتر المدينة (${round(sum, 2)}) لا يطابق إجمالي الإيرادات (${round(totalRevenue, 2)}).`,
         relatedMetricKey: 'total_revenue',
+        department: null,
       });
     }
   }
@@ -100,6 +105,7 @@ export function checkMetricConsistency(points: MetricPoint[]): RuleAlert[] {
         messageEn: `Adults + Children (${round(sum, 0)}) doesn't match Total Guests (${round(totalGuests, 0)}).`,
         messageAr: `البالغون + الأطفال (${round(sum, 0)}) لا يطابق إجمالي النزلاء (${round(totalGuests, 0)}).`,
         relatedMetricKey: 'total_guests',
+        department: null,
       });
     }
   }

@@ -430,6 +430,11 @@ model Alert {
   relatedMetricKey String?
   status           AlertStatus   @default(open)
   createdAt        DateTime      @default(now())
+  // Added Executive Decision Intelligence redesign — nullable, never
+  // backfilled. Null for alerts with no real department owner (e.g. the
+  // data_quality category is a data-integrity flag, not a hotel function's
+  // responsibility) — left null honestly rather than guessed.
+  department       HotelDepartment?
 
   @@index([hotelId, createdAt])
   @@index([insightId])
@@ -439,6 +444,60 @@ enum RecommendationCategory {
   risk
   opportunity
   action
+}
+
+// Hotel department taxonomy (Executive Decision Intelligence redesign) —
+// explicitly distinct from HotelRole above: HotelRole is which internal
+// HotelOS *user* role should act on something; HotelDepartment is which
+// hotel *business function* is accountable for it. The two frequently
+// diverge (e.g. an out-of-order-room recommendation's owner stays
+// GENERAL_MANAGER — they're accountable for follow-through — while its
+// department is MAINTENANCE, the function that actually does the work).
+// SALES and CORPORATE_OFFICE exist for completeness but have no rule
+// mapped to them yet — never force-fit an existing rule into an unrelated
+// department just to use every enum value.
+enum HotelDepartment {
+  FRONT_OFFICE
+  REVENUE_MANAGEMENT
+  SALES
+  FINANCE
+  HOUSEKEEPING
+  MAINTENANCE
+  GENERAL_MANAGER
+  CORPORATE_OFFICE
+}
+
+// Deterministic Risk Matrix classification — see
+// insights/classification.ts's classifySeverity() for how this is computed
+// from a rule's existing priority + real magnitude-past-threshold. Never an
+// AI judgment call; risk-category recommendations only.
+enum RiskSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// Deterministic Opportunity Matrix classification — a fixed constant per
+// rule family (see insights/rules.ts), not a formula, since only one
+// opportunity rule exists today. Opportunity-category recommendations only.
+enum OpportunityValue {
+  QUICK_WIN
+  HIGH_ROI
+  LONG_TERM
+}
+
+// Decision Timeline bucket — answers "when must someone start acting,"
+// distinct from the existing free-text `timeframe` field below, which
+// answers "by when should the outcome be achieved." A priority-1 risk
+// always gets IMMEDIATE regardless of its timeframe string, since the
+// right response to a critical signal starts today even when the target
+// outcome has a longer runway.
+enum DecisionWindow {
+  IMMEDIATE
+  HOURS_72
+  WEEK
+  MONTH
 }
 
 model Recommendation {
@@ -477,6 +536,17 @@ model Recommendation {
   timeframe         String?
   expectedOutcomeEn String?
   expectedOutcomeAr String?
+  // Added Executive Decision Intelligence redesign — same discipline as the
+  // Phase 6 fields above: all nullable, never backfilled, populated
+  // deterministically by insights/rules.ts (department/decisionWindow on
+  // every rule) and insights/classification.ts's classifySeverity()
+  // (severity on risk-category rules, opportunityValue on opportunity-
+  // category rules — a recommendation only ever has one of the two, since
+  // `category` already determines which applies).
+  department        HotelDepartment?
+  severity          RiskSeverity?
+  opportunityValue  OpportunityValue?
+  decisionWindow    DecisionWindow?
 
   @@index([hotelId, createdAt])
   @@index([insightId])

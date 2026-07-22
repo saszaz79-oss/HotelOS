@@ -14,7 +14,7 @@ import { getLatestInsight } from '@/server/modules/insights/queries';
 import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
 import { computeExecutiveScoreBreakdown } from '@/server/modules/insights/scoring';
 import { resolveSupportingMetrics } from '@/server/modules/insights/evidence';
-import { ruleLikelihood, matrixRank, decisionBoxKind, type DecisionBoxKind } from '@/server/modules/insights/classification';
+import { ruleLikelihood, matrixRank, decisionBoxKind, type DecisionBoxKind, forecastConfidence, reportConfidence } from '@/server/modules/insights/classification';
 import { getOrRefreshExecutiveSummary, getOrRefreshExecutiveIntelligence } from '@/server/modules/ai-orchestration/commands';
 import { recordExport } from '@/server/modules/exports/commands';
 import { formatMetricValue } from '@/lib/format-metric';
@@ -247,6 +247,17 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
         { label: dict.executiveExport.morningBrief.dataQuality, score: scoreBreakdown.dataQuality.score, note: noteFor(scoreBreakdown.dataQuality) },
       ]
     : [];
+
+  // Executive Decision Summary (Phase 5, commercial release) — the report's
+  // final page. Every list here reuses data already computed above; nothing
+  // new is fetched or classified specifically for this section.
+  const immediateDecisions = (timelineBuckets.find((b) => b.key === 'IMMEDIATE')?.items ?? []).slice(0, 3);
+  const forecastPresentCount = FORECAST_METRIC_KEYS.filter((k) => metricByKey.get(k)?.value != null).length;
+  const forecastConfidenceTier = forecastConfidence(forecastPresentCount, FORECAST_METRIC_KEYS.length);
+  // No Budget/Target model exists anywhere in HotelOS today — always
+  // honestly "not configured", never an AI-estimated stand-in for a target
+  // that was never entered.
+  const reportConfidenceTier = reportConfidence(aiIntelligence.ok, avgQuality);
 
   const morningBrief = buildMorningBrief({
     hotelName: membership.hotel.name,
@@ -883,6 +894,188 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
             <p className="mt-1.5 text-xs">{sourceFilenames.join(', ')}</p>
           </details>
         ) : null}
+      </section>
+
+      {/* Executive Decision Summary (Phase 5, commercial release) — the
+          report's final page. Deliberately self-contained: everything here
+          is a condensed restatement of real facts already established
+          earlier in this document (score breakdown, classified
+          recommendations, forecast metrics), not a new investigation — the
+          whole point of this page is that a rushed executive can read only
+          this page and still know what to do. break-before-page forces it
+          onto its own printed sheet. */}
+      <section className="break-before-page space-y-3 border-t border-ink/10 pt-6 text-sm">
+        <div>
+          <h2 className="text-lg font-semibold text-ink">{dict.executiveExport.decisionSummary.title}</h2>
+          <p className="text-xs text-ink-muted">{dict.executiveExport.decisionSummary.subtitle}</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg border border-ink/10 p-2.5">
+            <p className="text-xs text-ink-muted">{dict.executiveExport.decisionSummary.executiveStatus}</p>
+            {overallStatusTone ? (
+              <StatusBadge tone={overallStatusTone} className="mt-1">
+                {overallStatusTone === 'positive'
+                  ? dict.executiveExport.morningBrief.statusHealthy
+                  : overallStatusTone === 'warning'
+                  ? dict.executiveExport.morningBrief.statusAttention
+                  : dict.executiveExport.morningBrief.statusCritical}
+              </StatusBadge>
+            ) : (
+              <p className="mt-1 text-ink-muted">{dict.executiveExport.morningBrief.notYetAnalyzed}</p>
+            )}
+          </div>
+          <div className="rounded-lg border border-ink/10 p-2.5">
+            <p className="text-xs text-ink-muted">{dict.executiveExport.decisionSummary.executiveScore}</p>
+            <p className="metric-value mt-1 text-lg font-semibold text-ink">
+              {healthScore !== null ? `${healthScore} ${dict.executiveExport.morningBrief.outOf100}` : dict.executiveExport.morningBrief.insufficientData}
+            </p>
+          </div>
+          <div className="rounded-lg border border-ink/10 p-2.5">
+            <p className="text-xs text-ink-muted">{dict.executiveExport.decisionSummary.overallHotelHealth}</p>
+            <ul className="mt-1 space-y-0.5">
+              {scoreTiles.map((t, i) => (
+                <li key={i} className="flex items-center justify-between gap-2 text-ink">
+                  <span className="text-ink-muted">{t.label}</span>
+                  <span className="metric-value">{t.score !== null ? t.score : '—'}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <h3 className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionSummary.topImmediateDecisions}</h3>
+            {immediateDecisions.length === 0 ? (
+              <p className="text-xs text-ink-muted">{dict.executiveExport.decisionSummary.noImmediateDecisions}</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {immediateDecisions.map((r) => (
+                  <li key={r.id} className="text-xs">
+                    <p className="text-ink">{locale === 'ar' ? r.textAr : r.textEn}</p>
+                    <RecommendationBadges r={r} dict={dict} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div>
+            <h3 className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionSummary.topRevenueOpportunities}</h3>
+            {topOpportunities.length === 0 ? (
+              <p className="text-xs text-ink-muted">{dict.executiveExport.morningBrief.noOpportunities}</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {topOpportunities.map((r) => (
+                  <li key={r.id} className="text-xs">
+                    <p className="text-ink">{locale === 'ar' ? r.textAr : r.textEn}</p>
+                    <RecommendationBadges r={r} dict={dict} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div>
+            <h3 className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionSummary.topBusinessRisks}</h3>
+            {topRisks.length === 0 ? (
+              <p className="text-xs text-ink-muted">{dict.executiveExport.morningBrief.noRisks}</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {topRisks.map((r) => (
+                  <li key={r.id} className="text-xs">
+                    <p className="text-ink">{locale === 'ar' ? r.textAr : r.textEn}</p>
+                    <RecommendationBadges r={r} dict={dict} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-1.5 text-xs font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionSummary.topOperationalPriorities}</h3>
+          {topPriorities.length === 0 ? (
+            <p className="text-xs text-ink-muted">{dict.executiveExport.morningBrief.noPriorities}</p>
+          ) : (
+            <ol className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              {topPriorities.map((r, i) => (
+                <li key={r.id} className="text-ink">
+                  <span className="metric-value text-ink-muted">{i + 1}.</span> {locale === 'ar' ? r.suggestedActionAr : r.suggestedActionEn}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-ink/10 p-2.5">
+            <p className="text-xs font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionSummary.expectedMonthEndPosition}</p>
+            {forecastPresentCount === 0 ? (
+              <p className="mt-1 text-xs text-ink-muted">{dict.executiveExport.decisionSummary.monthEndNotAvailable}</p>
+            ) : (
+              <ul className="mt-1 space-y-0.5 text-xs">
+                {FORECAST_METRIC_KEYS.map((key) => {
+                  const m = metricByKey.get(key);
+                  if (!m || m.value === null) return null;
+                  const label = locale === 'ar' ? m.metricDefinition.labelAr : m.metricDefinition.labelEn;
+                  return (
+                    <li key={key} className="flex items-center justify-between gap-2">
+                      <span className="text-ink-muted">{label}</span>
+                      <span className="metric-value text-ink">{formatMetricValue(m.value, m.metricDefinition.unit, membership.hotel.currency)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <div className="mt-2 flex items-center justify-between gap-2 border-t border-ink/10 pt-1.5 text-xs">
+              <span className="text-ink-muted">{dict.executiveExport.decisionSummary.forecastConfidenceLabel}</span>
+              <span className="text-ink">{dict.confidenceLevels[forecastConfidenceTier]}</span>
+            </div>
+          </div>
+          <div className="rounded-lg border border-ink/10 p-2.5">
+            <p className="text-xs font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionSummary.budgetConfidence}</p>
+            <p className="mt-1 text-xs text-ink-muted">{dict.executiveExport.decisionSummary.budgetNotConfigured}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg border border-ink/10 p-2.5">
+            <p className="text-xs font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionSummary.generalManagerRecommendation}</p>
+            <p className="mt-1 text-xs text-ink">
+              {aiIntelligence.ok ? aiIntelligence.audienceRecommendations.generalManager : dict.executiveExport.decisionSummary.recommendationNotAvailable}
+            </p>
+          </div>
+          <div className="rounded-lg border border-ink/10 p-2.5">
+            <p className="text-xs font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionSummary.ownerRecommendation}</p>
+            <p className="mt-1 text-xs text-ink">
+              {aiIntelligence.ok ? aiIntelligence.audienceRecommendations.owner : dict.executiveExport.decisionSummary.recommendationNotAvailable}
+            </p>
+          </div>
+          <div className="rounded-lg border border-ink/10 p-2.5">
+            <p className="text-xs font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionSummary.regionalDirectorRecommendation}</p>
+            <p className="mt-1 text-xs text-ink">
+              {aiIntelligence.ok ? aiIntelligence.audienceRecommendations.regionalDirector : dict.executiveExport.decisionSummary.recommendationNotAvailable}
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-ink/10 p-3">
+          <p className="text-xs font-semibold uppercase text-ink-muted">{dict.executiveExport.decisionSummary.closingStatementTitle}</p>
+          <div className="mt-1.5 space-y-1.5 text-sm">
+            {aiIntelligence.ok ? (
+              aiIntelligence.closingStatement
+                .split(/\n{2,}/)
+                .filter((p) => p.trim().length > 0)
+                .map((para, i) => <p key={i}>{para}</p>)
+            ) : (
+              <p className="text-xs text-ink-muted">{dict.executiveExport.decisionSummary.closingStatementNotAvailable}</p>
+            )}
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2 border-t border-ink/10 pt-1.5 text-xs">
+            <span className="text-ink-muted">{dict.executiveExport.decisionSummary.reportConfidenceLabel}</span>
+            <span className="text-ink">{dict.confidenceLevels[reportConfidenceTier]}</span>
+          </div>
+        </div>
       </section>
     </div>
   );

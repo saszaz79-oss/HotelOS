@@ -528,12 +528,42 @@
       "priorityMedium": "متوسطة",
       "priorityLow": "منخفضة",
       "noTimelineItems": "لا توجد عناصر في هذا الإطار الزمني."
+    },
+    "decisionSummary": {
+      "title": "ملخص القرار التنفيذي",
+      "subtitle": "كل ما يحتاجه المسؤول التنفيذي قبل إغلاق هذا التقرير.",
+      "executiveStatus": "الحالة التنفيذية",
+      "executiveScore": "المؤشر التنفيذي",
+      "overallHotelHealth": "الصحة العامة للفندق",
+      "topImmediateDecisions": "أهم القرارات الفورية",
+      "noImmediateDecisions": "لا توجد قرارات فورية لهذا التاريخ.",
+      "topRevenueOpportunities": "أهم فرص الإيرادات",
+      "topBusinessRisks": "أهم المخاطر التجارية",
+      "topOperationalPriorities": "أهم الأولويات التشغيلية",
+      "expectedMonthEndPosition": "الوضع المتوقع نهاية الشهر",
+      "monthEndNotAvailable": "غير متاح — لا تتوفر بيانات توقعات لهذا التاريخ.",
+      "budgetConfidence": "مستوى الثقة بالميزانية",
+      "budgetNotConfigured": "غير متاح — لا توجد ميزانية أو مستهدفات مُعدة لهذا الفندق.",
+      "forecastConfidenceLabel": "مستوى الثقة بالتوقعات",
+      "generalManagerRecommendation": "توصية المدير العام",
+      "ownerRecommendation": "توصية المالك",
+      "regionalDirectorRecommendation": "توصية المدير الإقليمي",
+      "recommendationNotAvailable": "غير متاح — السرد التنفيذي غير مُعد لهذا النشر.",
+      "closingStatementTitle": "البيان الختامي التنفيذي",
+      "closingStatementNotAvailable": "غير متاح — السرد التنفيذي غير مُعد لهذا النشر. تبقى الأرقام والتصنيفات في هذا التقرير حقيقية وغير متأثرة.",
+      "reportConfidenceLabel": "مستوى الثقة بالتقرير"
     }
   },
   "likelihoods": {
     "HIGH": "عالية",
     "MEDIUM": "متوسطة",
     "LOW": "منخفضة"
+  },
+  "confidenceLevels": {
+    "HIGH": "عالية",
+    "MEDIUM": "متوسطة",
+    "LOW": "منخفضة",
+    "UNAVAILABLE": "غير متاح"
   },
   "hotelDepartments": {
     "FRONT_OFFICE": "المكتب الأمامي",

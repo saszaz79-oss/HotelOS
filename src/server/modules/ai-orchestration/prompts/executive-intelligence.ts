@@ -4,7 +4,7 @@
  *
  * id: executive-intelligence
  * owner: HotelOS core team
- * version: 1
+ * version: see EXECUTIVE_INTELLIGENCE_PROMPT_VERSION below
  * language: en (system instructions are language-neutral; requested output
  *   language passed as a variable, matching executive-summary.ts's approach)
  * modelCompatibility: claude-sonnet-5 and later Claude models
@@ -33,14 +33,17 @@
  * opportunities the report ends up describing.
  */
 
-// v2 (Executive Decision Intelligence redesign, Phase 4): strengthened the
-// Cross-KPI Intelligence guidance with more real-pattern examples and made
-// the "what happened / why / why it matters / what to do" paragraph
-// structure an explicit, numbered requirement rather than an implicit
-// expectation folded into the voice-and-tone rule. Bumped so any
-// previously-cached content (prompted under v1's looser wording) is
-// regenerated rather than silently kept.
-export const EXECUTIVE_INTELLIGENCE_PROMPT_VERSION = 2;
+// v3 (Executive Decision Intelligence redesign, Phase 5 — commercial
+// release): added closingStatement (the report's final synthesis) and
+// audienceRecommendations (three short, audience-tailored recommendations
+// for the General Manager, the Owner, and the Regional Director — same
+// underlying data, three different real readers). Deliberately does NOT
+// ask the model to self-report a confidence level for the report as a
+// whole — that's computed deterministically from real signals (data
+// completeness, whether this call succeeded, rule-verified recommendation
+// count) in reports/export/page.tsx, never the model grading its own
+// output. Bumped so any v1/v2-cached content is regenerated.
+export const EXECUTIVE_INTELLIGENCE_PROMPT_VERSION = 3;
 
 interface ExecutiveIntelligencePromptInput {
   hotelName: string;
@@ -62,7 +65,9 @@ Non-negotiable rules (violating any of these is a critical failure):
 5. Every risk/opportunity elaboration and business-impact estimate must be keyed by the exact recommendation id given to you — do not invent a new risk, opportunity, or recommendation that wasn't already provided.
 6. Write in the voice of a 25+ year veteran hotel General Manager: professional, confident, evidence-based, consultative, action-oriented. No generic AI phrasing ("It's important to note that...", "In conclusion..."). No bare restatement of a KPI value without interpretation.
 7. Every paragraph in executiveMessage, crossKpiNarrative, and decisionSummaryText must, across its sentences, answer four questions in order: What happened (the real observation)? Why did it happen (the real cause, only from data given)? Why does it matter to the business (the real consequence)? What should management do about it today (a concrete next step, not a vague suggestion)? A paragraph that only reports numbers without reaching the "why it matters" and "what to do" parts is incomplete — rewrite it rather than submit it.
-8. Respond in the requested language only, as a single JSON object with exactly these keys and no others: executiveMessage (string, 5-8 short paragraphs), crossKpiNarrative (string), decisionSummaryText (string), forecastNarrative (string or null — null if the forecast data given isn't enough to say anything beyond the raw numbers), riskElaboration (object mapping recommendation id to a string), opportunityElaboration (object mapping recommendation id to a string), businessImpactEstimates (object mapping recommendation id to a qualified-estimate string). Output raw JSON only — no markdown code fences, no text before or after the object.`;
+8. closingStatement (1-2 short paragraphs) is the report's final word — it must answer, in order: what is the current business position (one real sentence grounded in the data given)? Is management moving in the right direction (only if the deltas given actually show a direction — say so plainly if the picture is mixed, never force a verdict the data doesn't support)? What requires immediate executive attention today? What should be watched over the next seven days? Never include a self-assessed confidence level or accuracy claim about this report itself — that is computed separately from real data, not asserted by you.
+9. audienceRecommendations has exactly three keys — generalManager, owner, regionalDirector — each a single short paragraph (2-4 sentences) built from the same real data above, but addressed to that reader's actual concern: generalManager gets today's concrete operational execution (which of the given recommendations to act on first and why); owner gets the financial/ROI framing (what this means for the property's near-term financial position, in the same qualified-estimate style as businessImpactEstimates); regionalDirector gets a portfolio/escalation framing (whether this property needs regional-level attention or is operating within normal variance, and why). All three must stay grounded in the exact metrics/recommendations given — never invent a comparison to other properties or a portfolio-wide figure you weren't given.
+10. Respond in the requested language only, as a single JSON object with exactly these keys and no others: executiveMessage (string, 5-8 short paragraphs), crossKpiNarrative (string), decisionSummaryText (string), forecastNarrative (string or null — null if the forecast data given isn't enough to say anything beyond the raw numbers), riskElaboration (object mapping recommendation id to a string), opportunityElaboration (object mapping recommendation id to a string), businessImpactEstimates (object mapping recommendation id to a qualified-estimate string), closingStatement (string), audienceRecommendations (object with exactly the keys generalManager, owner, regionalDirector, each a string). Output raw JSON only — no markdown code fences, no text before or after the object.`;
 
 export function buildExecutiveIntelligencePrompt(input: ExecutiveIntelligencePromptInput): string {
   return `Hotel: ${input.hotelName}

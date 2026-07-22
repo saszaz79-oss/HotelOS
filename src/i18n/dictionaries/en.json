@@ -528,12 +528,42 @@
       "priorityMedium": "Medium",
       "priorityLow": "Low",
       "noTimelineItems": "No items in this window."
+    },
+    "decisionSummary": {
+      "title": "Executive Decision Summary",
+      "subtitle": "Everything an executive needs before closing this report.",
+      "executiveStatus": "Executive Status",
+      "executiveScore": "Executive Score",
+      "overallHotelHealth": "Overall Hotel Health",
+      "topImmediateDecisions": "Top Immediate Decisions",
+      "noImmediateDecisions": "No immediate decisions for this date.",
+      "topRevenueOpportunities": "Top Revenue Opportunities",
+      "topBusinessRisks": "Top Business Risks",
+      "topOperationalPriorities": "Top Operational Priorities",
+      "expectedMonthEndPosition": "Expected Month-End Position",
+      "monthEndNotAvailable": "Not available — no forecast data for this date.",
+      "budgetConfidence": "Budget Confidence",
+      "budgetNotConfigured": "Not available — no budget or target configured for this hotel.",
+      "forecastConfidenceLabel": "Forecast Confidence",
+      "generalManagerRecommendation": "General Manager Recommendation",
+      "ownerRecommendation": "Owner Recommendation",
+      "regionalDirectorRecommendation": "Regional Director Recommendation",
+      "recommendationNotAvailable": "Not available — AI narrative not configured for this deployment.",
+      "closingStatementTitle": "Executive Closing Statement",
+      "closingStatementNotAvailable": "Not available — AI narrative not configured for this deployment. The figures and classifications throughout this report remain real and unaffected.",
+      "reportConfidenceLabel": "Report Confidence"
     }
   },
   "likelihoods": {
     "HIGH": "High",
     "MEDIUM": "Medium",
     "LOW": "Low"
+  },
+  "confidenceLevels": {
+    "HIGH": "High",
+    "MEDIUM": "Medium",
+    "LOW": "Low",
+    "UNAVAILABLE": "Not available"
   },
   "hotelDepartments": {
     "FRONT_OFFICE": "Front Office",

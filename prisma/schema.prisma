@@ -624,6 +624,22 @@ model AiExecutiveIntelligence {
   // isn't enough forecast data to say anything beyond the raw numbers
   // already shown elsewhere on the report.
   forecastNarrative       String?
+  // Executive Decision Intelligence redesign, Phase 5 — three short,
+  // audience-tailored recommendations (General Manager: today's operational
+  // execution; Owner: financial/ROI stewardship framing; Regional Director:
+  // portfolio/escalation framing) built from the exact same real
+  // classified data as executiveMessage, just addressed to three different
+  // real readers of the same report. Json rather than three columns since
+  // it's always read/written as one unit, never queried by sub-key.
+  audienceRecommendations Json     @default("{}")
+  // The report's final paragraph(s) — current business position, whether
+  // management is moving in the right direction, what needs immediate
+  // executive attention, what to monitor over the next 7 days. Deliberately
+  // excludes a self-reported "confidence in this report" claim (Phase 5's
+  // Executive Review requires that be a real computed signal, not the model
+  // grading its own output) — see reports/export/page.tsx's deterministic
+  // reportConfidence computation instead.
+  closingStatement        String
   model                   String
   promptVersion           Int
   analysisVersion         Int

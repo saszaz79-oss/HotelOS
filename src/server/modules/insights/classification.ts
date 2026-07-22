@@ -113,3 +113,43 @@ export function decisionBoxKind(r: { category: string; department: HotelDepartme
   }
   return 'operational_warning'; // category: 'action'
 }
+
+export type ForecastConfidence = 'HIGH' | 'MEDIUM' | 'LOW' | 'UNAVAILABLE';
+
+/**
+ * Executive Decision Summary's "Forecast Confidence" (Phase 5, commercial
+ * release) — HotelOS runs no forecasting model of its own; `forecast_*`
+ * values are read directly from the PMS's own History & Forecast report
+ * (EDI Phase 2.5). "Confidence" here can only honestly mean how complete
+ * those real inputs are for this date, never a statistical prediction
+ * interval HotelOS has no way to compute. `presentCount`/`totalCount` are
+ * real counts of how many of the forecast_* metric keys the caller actually
+ * found for this date.
+ */
+export function forecastConfidence(presentCount: number, totalCount: number): ForecastConfidence {
+  if (presentCount <= 0) return 'UNAVAILABLE';
+  const ratio = presentCount / totalCount;
+  if (ratio >= 1) return 'HIGH';
+  if (ratio >= 0.5) return 'MEDIUM';
+  return 'LOW';
+}
+
+export type ReportConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+
+/**
+ * Executive Decision Summary / Executive Closing Statement's "confidence
+ * level of this report" (Phase 5) — deliberately computed here from real
+ * signals, never asked of the AI model itself (a model grading its own
+ * output is not a real confidence signal — see prompts/executive-
+ * intelligence.ts's rule 8). HIGH requires both a working AI narrative for
+ * this date and source data that's at least 80% complete; MEDIUM requires
+ * either one; LOW is the honest floor when neither real signal is present
+ * (deterministic classification/scores are still real and unaffected —
+ * this only grades the *narrative* layer's completeness).
+ */
+export function reportConfidence(aiNarrativeAvailable: boolean, dataCompletenessScore: number | null): ReportConfidence {
+  const dataComplete = dataCompletenessScore !== null && dataCompletenessScore >= 0.8;
+  if (aiNarrativeAvailable && dataComplete) return 'HIGH';
+  if (aiNarrativeAvailable || dataComplete) return 'MEDIUM';
+  return 'LOW';
+}

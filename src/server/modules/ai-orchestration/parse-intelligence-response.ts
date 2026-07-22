@@ -7,6 +7,12 @@
  * process). No prisma, no server module imports — deliberately dependency-
  * free.
  */
+export interface AudienceRecommendations {
+  generalManager: string;
+  owner: string;
+  regionalDirector: string;
+}
+
 export interface ExecutiveIntelligenceContent {
   executiveMessage: string;
   crossKpiNarrative: string;
@@ -15,6 +21,8 @@ export interface ExecutiveIntelligenceContent {
   riskElaboration: Record<string, string>;
   opportunityElaboration: Record<string, string>;
   businessImpactEstimates: Record<string, string>;
+  closingStatement: string;
+  audienceRecommendations: AudienceRecommendations;
 }
 
 /**
@@ -40,7 +48,7 @@ export function parseIntelligenceResponse(text: string, validRecommendationIds: 
   if (typeof raw !== 'object' || raw === null) return null;
   const obj = raw as Record<string, unknown>;
 
-  const strings = ['executiveMessage', 'crossKpiNarrative', 'decisionSummaryText'] as const;
+  const strings = ['executiveMessage', 'crossKpiNarrative', 'decisionSummaryText', 'closingStatement'] as const;
   for (const key of strings) {
     if (typeof obj[key] !== 'string' || (obj[key] as string).trim().length === 0) return null;
   }
@@ -61,11 +69,29 @@ export function parseIntelligenceResponse(text: string, validRecommendationIds: 
     }
   }
 
+  // audienceRecommendations must have exactly these three real, non-empty
+  // strings — a partial object (e.g. the model omitting "regionalDirector")
+  // fails the whole response closed rather than silently rendering a blank
+  // recommendation for one of the three real readers.
+  const audience = obj.audienceRecommendations;
+  if (typeof audience !== 'object' || audience === null || Array.isArray(audience)) return null;
+  const audienceObj = audience as Record<string, unknown>;
+  const audienceKeys = ['generalManager', 'owner', 'regionalDirector'] as const;
+  for (const key of audienceKeys) {
+    if (typeof audienceObj[key] !== 'string' || (audienceObj[key] as string).trim().length === 0) return null;
+  }
+
   return {
     executiveMessage: obj.executiveMessage as string,
     crossKpiNarrative: obj.crossKpiNarrative as string,
     decisionSummaryText: obj.decisionSummaryText as string,
     forecastNarrative: (obj.forecastNarrative as string | null) ?? null,
+    closingStatement: obj.closingStatement as string,
+    audienceRecommendations: {
+      generalManager: audienceObj.generalManager as string,
+      owner: audienceObj.owner as string,
+      regionalDirector: audienceObj.regionalDirector as string,
+    },
     ...parsedMaps,
   };
 }

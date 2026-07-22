@@ -12,6 +12,12 @@ const validPayload = {
   riskElaboration: { rec1: 'Elaboration for rec1.' },
   opportunityElaboration: { rec2: 'Elaboration for rec2.' },
   businessImpactEstimates: { rec1: 'Estimated ADR improvement: +2-4%.' },
+  closingStatement: 'The property is trending positively this week; monitor open balance over the next seven days.',
+  audienceRecommendations: {
+    generalManager: 'Prioritize the open balance follow-up today.',
+    owner: 'Estimated ADR improvement of 2-4% supports near-term revenue.',
+    regionalDirector: 'This property is operating within normal variance — no escalation needed.',
+  },
 };
 
 test('parses a well-formed structured response', () => {
@@ -20,6 +26,28 @@ test('parses a well-formed structured response', () => {
   assert.equal(parsed!.executiveMessage, validPayload.executiveMessage);
   assert.equal(parsed!.riskElaboration.rec1, 'Elaboration for rec1.');
   assert.equal(parsed!.forecastNarrative, validPayload.forecastNarrative);
+  assert.equal(parsed!.closingStatement, validPayload.closingStatement);
+  assert.equal(parsed!.audienceRecommendations.generalManager, validPayload.audienceRecommendations.generalManager);
+  assert.equal(parsed!.audienceRecommendations.owner, validPayload.audienceRecommendations.owner);
+  assert.equal(parsed!.audienceRecommendations.regionalDirector, validPayload.audienceRecommendations.regionalDirector);
+});
+
+test('fails closed when closingStatement is missing', () => {
+  const { closingStatement: _omit, ...incomplete } = validPayload;
+  const parsed = parseIntelligenceResponse(JSON.stringify(incomplete), validIds);
+  assert.equal(parsed, null);
+});
+
+test('fails closed when audienceRecommendations is missing one of the three required readers', () => {
+  const payload = { ...validPayload, audienceRecommendations: { generalManager: 'x', owner: 'y' } };
+  const parsed = parseIntelligenceResponse(JSON.stringify(payload), validIds);
+  assert.equal(parsed, null);
+});
+
+test('fails closed when audienceRecommendations is an array instead of an object', () => {
+  const payload = { ...validPayload, audienceRecommendations: ['a', 'b', 'c'] };
+  const parsed = parseIntelligenceResponse(JSON.stringify(payload), validIds);
+  assert.equal(parsed, null);
 });
 
 test('tolerates a markdown code fence around the JSON (models sometimes add one despite instructions)', () => {

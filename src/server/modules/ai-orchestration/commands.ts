@@ -11,7 +11,7 @@ import {
 } from './prompts/executive-intelligence';
 import { ProviderUnavailableError } from './provider';
 import { getCachedExecutiveSummary, getCachedExecutiveIntelligence } from './queries';
-import { parseIntelligenceResponse, type ExecutiveIntelligenceContent } from './parse-intelligence-response';
+import { parseIntelligenceResponse, type ExecutiveIntelligenceContent, type AudienceRecommendations } from './parse-intelligence-response';
 
 // Real, checkable version for the generation/validation *logic* in this
 // file, independent of the prompt text's own version (Perf fix, Phase 1B).
@@ -267,7 +267,10 @@ export async function getOrRefreshExecutiveSummary(
 // structured JSON) is genuinely separate from the summary call's, so it
 // gets its own version to bump without touching the already-working
 // summary's cache.
-export const EXECUTIVE_INTELLIGENCE_ANALYSIS_VERSION = 1;
+// v2 (Phase 5, commercial release): response now includes closingStatement
+// and audienceRecommendations — bumped so a v1-cached row (missing those
+// fields) is regenerated rather than read back with undefined content.
+export const EXECUTIVE_INTELLIGENCE_ANALYSIS_VERSION = 2;
 
 const FORECAST_METRIC_KEYS = ['forecast_rooms_occupied', 'forecast_room_revenue', 'forecast_adr', 'forecast_occupancy_pct'];
 
@@ -357,7 +360,10 @@ export async function generateExecutiveIntelligence(
         { role: 'system', content: EXECUTIVE_INTELLIGENCE_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
-      { maxTokens: 4096, timeoutMs: 20000 }
+      // Phase 5 (commercial release) added closingStatement and three
+      // audienceRecommendations paragraphs to the same response — a real
+      // increase in expected output size, not headroom added speculatively.
+      { maxTokens: 6144, timeoutMs: 20000 }
     );
   } catch (err) {
     if (err instanceof ProviderUnavailableError) {
@@ -429,6 +435,8 @@ export async function getOrRefreshExecutiveIntelligence(
       riskElaboration: cached.riskElaboration as unknown as Record<string, string>,
       opportunityElaboration: cached.opportunityElaboration as unknown as Record<string, string>,
       businessImpactEstimates: cached.businessImpactEstimates as unknown as Record<string, string>,
+      closingStatement: cached.closingStatement,
+      audienceRecommendations: cached.audienceRecommendations as unknown as AudienceRecommendations,
       model: cached.model,
       sourceReportDocumentId: cached.sourceReportDocumentId,
     };
@@ -444,6 +452,8 @@ export async function getOrRefreshExecutiveIntelligence(
       riskElaboration: fresh.riskElaboration as unknown as Prisma.InputJsonValue,
       opportunityElaboration: fresh.opportunityElaboration as unknown as Prisma.InputJsonValue,
       businessImpactEstimates: fresh.businessImpactEstimates as unknown as Prisma.InputJsonValue,
+      closingStatement: fresh.closingStatement,
+      audienceRecommendations: fresh.audienceRecommendations as unknown as Prisma.InputJsonValue,
       model: fresh.model,
       promptVersion: EXECUTIVE_INTELLIGENCE_PROMPT_VERSION,
       analysisVersion: EXECUTIVE_INTELLIGENCE_ANALYSIS_VERSION,

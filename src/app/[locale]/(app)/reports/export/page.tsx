@@ -1,3 +1,4 @@
+import type { HotelDepartment, RiskSeverity, OpportunityValue, DecisionWindow } from '@prisma/client';
 import { redirect } from 'next/navigation';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { getCurrentUser } from '@/server/modules/auth/session';
@@ -11,15 +12,18 @@ import {
 } from '@/server/modules/metrics/queries';
 import { getLatestInsight } from '@/server/modules/insights/queries';
 import { buildMorningBrief } from '@/server/modules/insights/morning-brief';
+import { computeExecutiveScoreBreakdown } from '@/server/modules/insights/scoring';
 import { resolveSupportingMetrics } from '@/server/modules/insights/evidence';
-import { getOrRefreshExecutiveSummary } from '@/server/modules/ai-orchestration/commands';
+import { getOrRefreshExecutiveSummary, getOrRefreshExecutiveIntelligence } from '@/server/modules/ai-orchestration/commands';
 import { recordExport } from '@/server/modules/exports/commands';
 import { formatMetricValue } from '@/lib/format-metric';
 import { reportTypeLabel } from '@/lib/report-type-label';
+import { healthScoreTone, riskSeverityTone, opportunityValueTone, decisionWindowTone, departmentTone } from '@/lib/status-tone';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { KpiCard } from '@/components/ui/KpiCard';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { TableShell, tableHeadRowClass, tableHeadCellClass, tableRowClass, tableCellClass } from '@/components/ui/TableShell';
 import { TrendChart } from '@/components/ui/TrendChart';
 import { EvidenceDrawer } from '@/components/ui/EvidenceDrawer';
@@ -67,6 +71,38 @@ function buildReportReference(propertyCode: string | null, hotelId: string, date
   return `EIR-${code}-${datePart}`;
 }
 
+/**
+ * Renders whichever of department/severity/opportunityValue/decisionWindow
+ * are actually populated on a recommendation (Executive Decision
+ * Intelligence redesign) — a pre-Phase-1 row has all four null and simply
+ * renders no badges, honestly reflecting that it was never classified,
+ * rather than a placeholder badge.
+ */
+function RecommendationBadges({
+  r,
+  dict,
+}: {
+  r: {
+    department: HotelDepartment | null;
+    severity: RiskSeverity | null;
+    opportunityValue: OpportunityValue | null;
+    decisionWindow: DecisionWindow | null;
+  };
+  dict: ReturnType<typeof getDictionary>;
+}) {
+  if (!r.department && !r.severity && !r.opportunityValue && !r.decisionWindow) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-1.5">
+      {r.department ? <StatusBadge tone={departmentTone(r.department)}>{dict.hotelDepartments[r.department]}</StatusBadge> : null}
+      {r.severity ? <StatusBadge tone={riskSeverityTone(r.severity)}>{dict.riskSeverities[r.severity]}</StatusBadge> : null}
+      {r.opportunityValue ? (
+        <StatusBadge tone={opportunityValueTone(r.opportunityValue)}>{dict.opportunityValues[r.opportunityValue]}</StatusBadge>
+      ) : null}
+      {r.decisionWindow ? <StatusBadge tone={decisionWindowTone(r.decisionWindow)}>{dict.decisionWindows[r.decisionWindow]}</StatusBadge> : null}
+    </div>
+  );
+}
+
 export default async function ExecutiveExportPage(props: { params: Promise<{ locale: string }> }) {
   const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
@@ -107,7 +143,13 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
   const allMetrics = await getMetricsForDates(hotelId, recentDates);
   const metrics = allMetrics.filter((m) => m.metricDate.getTime() === latestDate.getTime());
   const previousMetrics = previousDate ? allMetrics.filter((m) => m.metricDate.getTime() === previousDate.getTime()) : [];
-  const aiSummary = await getOrRefreshExecutiveSummary(hotelId, locale, membership.hotel.name, { latestDate, metrics, previousMetrics });
+  // Both AI calls read through their own independent cache (Perf Phase 1B /
+  // EDI Phase 2) — run in parallel rather than sequentially, same as any
+  // other independent Promise.all in this pipeline.
+  const [aiSummary, aiIntelligence] = await Promise.all([
+    getOrRefreshExecutiveSummary(hotelId, locale, membership.hotel.name, { latestDate, metrics, previousMetrics }),
+    getOrRefreshExecutiveIntelligence(hotelId, locale, membership.hotel.name, { latestDate, metrics, previousMetrics }),
+  ]);
   const metricByKey = new Map(metrics.map((m) => [m.metricKey, m]));
   const previousByKey = new Map(previousMetrics.map((m) => [m.metricKey, m.value]));
 
@@ -115,6 +157,46 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
     .map((m) => m.sourceReportDocument?.completenessScore)
     .filter((s): s is number => s !== null && s !== undefined);
   const avgQuality = qualityScores.length > 0 ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length : null;
+
+  // Executive Score breakdown and classified Top Priorities/Risks/
+  // Opportunities (Executive Decision Intelligence redesign, Phase 3) only
+  // exist once an Insight row has actually been computed for this exact
+  // date, with a real health score on it — never fabricated when either is
+  // missing (e.g. immediately after upload, before the pipeline's
+  // insight-recompute step finishes). `healthScore` is nullable in schema
+  // even though recomputeInsight always sets it alongside the row in
+  // practice — this guard is what makes that a checked fact, not an
+  // assumption.
+  const healthScore = insight?.healthScore ?? null;
+  const scoreBreakdown =
+    healthScore !== null
+      ? computeExecutiveScoreBreakdown(
+          healthScore,
+          metrics.map((m) => ({ key: m.metricKey, value: m.value })),
+          previousMetrics.length > 0 ? previousMetrics.map((m) => ({ key: m.metricKey, value: m.value })) : null,
+          avgQuality
+        )
+      : null;
+  const allRecommendations = insight?.recommendations ?? [];
+  // Already ordered by priority ascending (getLatestInsight's own query
+  // order) — taking the first N is taking the N most urgent, not an
+  // arbitrary slice.
+  const topPriorities = allRecommendations.slice(0, 5);
+  const topRisks = allRecommendations.filter((r) => r.category === 'risk').slice(0, 3);
+  const topOpportunities = allRecommendations.filter((r) => r.category === 'opportunity').slice(0, 3);
+
+  const overallStatusTone = healthScore !== null ? healthScoreTone(healthScore) : null;
+  const noteFor = (cat: { noteEn: string; noteAr: string }) => (locale === 'ar' ? cat.noteAr : cat.noteEn);
+  const scoreTiles: { label: string; score: number | null; note: string | null }[] = scoreBreakdown
+    ? [
+        { label: dict.executiveExport.morningBrief.overallScore, score: scoreBreakdown.overallBusinessHealth, note: null },
+        { label: dict.executiveExport.morningBrief.financialHealth, score: scoreBreakdown.financialHealth.score, note: noteFor(scoreBreakdown.financialHealth) },
+        { label: dict.executiveExport.morningBrief.operationalHealth, score: scoreBreakdown.operationalHealth.score, note: noteFor(scoreBreakdown.operationalHealth) },
+        { label: dict.executiveExport.morningBrief.revenueHealth, score: scoreBreakdown.revenueHealth.score, note: noteFor(scoreBreakdown.revenueHealth) },
+        { label: dict.executiveExport.morningBrief.guestExperienceHealth, score: scoreBreakdown.guestExperienceHealth.score, note: noteFor(scoreBreakdown.guestExperienceHealth) },
+        { label: dict.executiveExport.morningBrief.dataQuality, score: scoreBreakdown.dataQuality.score, note: noteFor(scoreBreakdown.dataQuality) },
+      ]
+    : [];
 
   const morningBrief = buildMorningBrief({
     hotelName: membership.hotel.name,
@@ -226,6 +308,138 @@ export default async function ExecutiveExportPage(props: { params: Promise<{ loc
           </p>
         </div>
       </header>
+
+      {/* Executive Morning Brief (Executive Decision Intelligence redesign,
+          Phase 3) — the first thing a GM reads: real status, real 6-way
+          score breakdown, the real top-5/top-3 classified priorities/risks/
+          opportunities, and the AI narrative layer's executive message.
+          Degrades to an honest "not yet analyzed" line when no Insight
+          exists for this date yet, and to an honest unavailable reason for
+          the narrative when no AI provider is configured — the real
+          deterministic content above it is never blocked by either gap. */}
+      <section className="space-y-4 border-b border-ink/10 pb-6 print:pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-semibold text-ink">{dict.executiveExport.morningBrief.title}</h2>
+            <p className="text-xs text-ink-muted">{dict.executiveExport.morningBrief.subtitle}</p>
+          </div>
+          {overallStatusTone ? (
+            <StatusBadge tone={overallStatusTone}>
+              {overallStatusTone === 'positive'
+                ? dict.executiveExport.morningBrief.statusHealthy
+                : overallStatusTone === 'warning'
+                ? dict.executiveExport.morningBrief.statusAttention
+                : dict.executiveExport.morningBrief.statusCritical}
+            </StatusBadge>
+          ) : null}
+        </div>
+
+        {!scoreBreakdown ? (
+          <p className="text-sm text-ink-muted">{dict.executiveExport.morningBrief.notYetAnalyzed}</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 print:grid-cols-3">
+              {scoreTiles.map((t, i) => (
+                <KpiCard
+                  key={i}
+                  label={t.label}
+                  value={t.score !== null ? `${t.score} ${dict.executiveExport.morningBrief.outOf100}` : dict.executiveExport.morningBrief.insufficientData}
+                  tone={t.score === null ? 'neutral' : healthScoreTone(t.score)}
+                  trend={t.note ? <span>{t.note}</span> : null}
+                />
+              ))}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <h3 className="mb-2 text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.morningBrief.topPriorities}</h3>
+                {topPriorities.length === 0 ? (
+                  <p className="text-sm text-ink-muted">{dict.executiveExport.morningBrief.noPriorities}</p>
+                ) : (
+                  <ol className="space-y-3">
+                    {topPriorities.map((r, i) => {
+                      const impact = aiIntelligence.ok ? aiIntelligence.businessImpactEstimates[r.id] : undefined;
+                      return (
+                        <li key={r.id} className="rounded-lg border border-ink/10 p-3 text-sm">
+                          <p className="text-ink">
+                            <span className="metric-value me-1.5 text-ink-muted">{i + 1}.</span>
+                            {locale === 'ar' ? r.textAr : r.textEn}
+                          </p>
+                          <p className="mt-1 text-ink-muted">{locale === 'ar' ? r.suggestedActionAr : r.suggestedActionEn}</p>
+                          <RecommendationBadges r={r} dict={dict} />
+                          {impact ? (
+                            <p className="mt-1.5 text-xs italic text-ink-muted">
+                              {dict.executiveExport.morningBrief.estimatedImpact}: {impact}
+                            </p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.morningBrief.topRisks}</h3>
+                {topRisks.length === 0 ? (
+                  <p className="text-sm text-ink-muted">{dict.executiveExport.morningBrief.noRisks}</p>
+                ) : (
+                  <ul className="space-y-3">
+                    {topRisks.map((r) => {
+                      const elaboration = aiIntelligence.ok ? aiIntelligence.riskElaboration[r.id] : undefined;
+                      return (
+                        <li key={r.id} className="rounded-lg border border-ink/10 p-3 text-sm">
+                          <p className="text-ink">{locale === 'ar' ? r.textAr : r.textEn}</p>
+                          <RecommendationBadges r={r} dict={dict} />
+                          {elaboration ? <p className="mt-1.5 text-xs text-ink-muted">{elaboration}</p> : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-sm font-semibold uppercase text-ink-muted">{dict.executiveExport.morningBrief.topOpportunities}</h3>
+                {topOpportunities.length === 0 ? (
+                  <p className="text-sm text-ink-muted">{dict.executiveExport.morningBrief.noOpportunities}</p>
+                ) : (
+                  <ul className="space-y-3">
+                    {topOpportunities.map((r) => {
+                      const elaboration = aiIntelligence.ok ? aiIntelligence.opportunityElaboration[r.id] : undefined;
+                      return (
+                        <li key={r.id} className="rounded-lg border border-ink/10 p-3 text-sm">
+                          <p className="text-ink">{locale === 'ar' ? r.textAr : r.textEn}</p>
+                          <RecommendationBadges r={r} dict={dict} />
+                          {elaboration ? <p className="mt-1.5 text-xs text-ink-muted">{elaboration}</p> : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <Card className="print:border-0 print:p-0 print:shadow-none">
+              <CardHeader>
+                <CardTitle>{dict.executiveExport.morningBrief.executiveMessage}</CardTitle>
+              </CardHeader>
+              {aiIntelligence.ok ? (
+                <div className="space-y-2 text-sm">
+                  {aiIntelligence.executiveMessage
+                    .split(/\n{2,}/)
+                    .filter((p) => p.trim().length > 0)
+                    .map((para, i) => (
+                      <p key={i}>{para}</p>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-xs text-ink-muted">{dict.executiveExport.morningBrief.executiveMessageUnavailable[aiIntelligence.reason]}</p>
+              )}
+            </Card>
+          </>
+        )}
+      </section>
 
       <Card className="print:border-0 print:p-0 print:shadow-none">
         <CardHeader>

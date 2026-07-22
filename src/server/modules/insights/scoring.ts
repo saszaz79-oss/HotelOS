@@ -100,7 +100,8 @@ export interface ExecutiveScoreCategory {
   /** 0-100, or null when there's no honest way to compute a number at all (Guest Experience — no data source exists). */
   score: number | null;
   status: 'ok' | 'insufficient_data';
-  note: string;
+  noteEn: string;
+  noteAr: string;
 }
 
 export interface ExecutiveScoreBreakdown {
@@ -139,25 +140,30 @@ export function computeExecutiveScoreBreakdown(
   const totalRevenue = val('total_revenue');
   let financialScore = 0;
   let financialStatus: 'ok' | 'insufficient_data' = 'insufficient_data';
-  const financialNotes: string[] = [];
+  const financialNotesEn: string[] = [];
+  const financialNotesAr: string[] = [];
   if (openBalance !== null && totalRevenue !== null && totalRevenue > 0) {
     const ratio = openBalance / totalRevenue;
     financialScore += clamp(50 - ratio * 100, 0, 50);
-    financialNotes.push(`Open balance ${(ratio * 100).toFixed(0)}% of total revenue`);
+    financialNotesEn.push(`Open balance ${(ratio * 100).toFixed(0)}% of total revenue`);
+    financialNotesAr.push(`الرصيد المفتوح ${(ratio * 100).toFixed(0)}% من إجمالي الإيرادات`);
     financialStatus = 'ok';
   } else {
     financialScore += 25;
-    financialNotes.push('Open balance/revenue ratio not available');
+    financialNotesEn.push('Open balance/revenue ratio not available');
+    financialNotesAr.push('نسبة الرصيد المفتوح إلى الإيرادات غير متاحة');
   }
   const revPrev = prevVal('total_revenue');
   if (totalRevenue !== null && revPrev !== null && revPrev > 0) {
     const pctDelta = (totalRevenue - revPrev) / revPrev;
     financialScore += clamp(25 + pctDelta * 100, 0, 50);
-    financialNotes.push(`Revenue ${pctDelta >= 0 ? '+' : ''}${(pctDelta * 100).toFixed(1)}% vs previous available date`);
+    financialNotesEn.push(`Revenue ${pctDelta >= 0 ? '+' : ''}${(pctDelta * 100).toFixed(1)}% vs previous available date`);
+    financialNotesAr.push(`الإيرادات ${pctDelta >= 0 ? '+' : ''}${(pctDelta * 100).toFixed(1)}% مقارنة بآخر تاريخ متاح`);
     financialStatus = 'ok';
   } else {
     financialScore += 25;
-    financialNotes.push('No prior revenue to compare against');
+    financialNotesEn.push('No prior revenue to compare against');
+    financialNotesAr.push('لا توجد إيرادات سابقة للمقارنة');
   }
 
   // Operational Health = OOO/OOI inverted ratio (0-50) + no-show/cancellation inverted rate (0-50).
@@ -166,15 +172,18 @@ export function computeExecutiveScoreBreakdown(
   const ooi = val('out_of_inventory_rooms');
   let operationalScore = 0;
   let operationalStatus: 'ok' | 'insufficient_data' = 'insufficient_data';
-  const operationalNotes: string[] = [];
+  const operationalNotesEn: string[] = [];
+  const operationalNotesAr: string[] = [];
   if (roomsAvailable !== null && roomsAvailable > 0 && (ooo !== null || ooi !== null)) {
     const downRatio = ((ooo ?? 0) + (ooi ?? 0)) / roomsAvailable;
     operationalScore += invertRatioToScore(downRatio / 0.1, 50);
-    operationalNotes.push(`${(downRatio * 100).toFixed(1)}% of inventory out of order/service`);
+    operationalNotesEn.push(`${(downRatio * 100).toFixed(1)}% of inventory out of order/service`);
+    operationalNotesAr.push(`${(downRatio * 100).toFixed(1)}% من الغرف خارج الخدمة أو خارج المخزون`);
     operationalStatus = 'ok';
   } else {
     operationalScore += 25;
-    operationalNotes.push('Out-of-order/service ratio not available');
+    operationalNotesEn.push('Out-of-order/service ratio not available');
+    operationalNotesAr.push('نسبة الغرف خارج الخدمة غير متاحة');
   }
   const arrivals = val('arrivals');
   const noShows = val('no_shows');
@@ -182,11 +191,13 @@ export function computeExecutiveScoreBreakdown(
   if (arrivals !== null && arrivals > 0 && (noShows !== null || cancellations !== null)) {
     const badRatio = ((noShows ?? 0) + (cancellations ?? 0)) / arrivals;
     operationalScore += invertRatioToScore(badRatio / 0.25, 50);
-    operationalNotes.push(`${(badRatio * 100).toFixed(1)}% of arrivals no-showed or cancelled`);
+    operationalNotesEn.push(`${(badRatio * 100).toFixed(1)}% of arrivals no-showed or cancelled`);
+    operationalNotesAr.push(`${(badRatio * 100).toFixed(1)}% من الوافدين لم يحضروا أو ألغوا حجزهم`);
     operationalStatus = 'ok';
   } else {
     operationalScore += 25;
-    operationalNotes.push('No-show/cancellation rate not available');
+    operationalNotesEn.push('No-show/cancellation rate not available');
+    operationalNotesAr.push('معدل عدم الحضور/الإلغاء غير متاح');
   }
 
   // Revenue Health = occupancy (0-50) + ADR trend (0-50), same shape as computeHealthScore's own factors, rescaled.
@@ -194,28 +205,34 @@ export function computeExecutiveScoreBreakdown(
   const occPrev = prevVal('occupancy_pct');
   let revenueScore = 0;
   let revenueStatus: 'ok' | 'insufficient_data' = 'insufficient_data';
-  const revenueNotes: string[] = [];
+  const revenueNotesEn: string[] = [];
+  const revenueNotesAr: string[] = [];
   if (occ !== null && occPrev !== null) {
     revenueScore += clamp(25 + (occ - occPrev) * 0.83, 0, 50);
-    revenueNotes.push(`Occupancy ${occ}% vs ${occPrev}% previous available date`);
+    revenueNotesEn.push(`Occupancy ${occ}% vs ${occPrev}% previous available date`);
+    revenueNotesAr.push(`الإشغال ${occ}% مقابل ${occPrev}% في آخر تاريخ متاح`);
     revenueStatus = 'ok';
   } else if (occ !== null) {
     revenueScore += clamp((occ / 100) * 50, 0, 50);
-    revenueNotes.push(`Occupancy ${occ}% — no prior date to compare against`);
+    revenueNotesEn.push(`Occupancy ${occ}% — no prior date to compare against`);
+    revenueNotesAr.push(`الإشغال ${occ}% — لا يوجد تاريخ سابق للمقارنة`);
   } else {
     revenueScore += 25;
-    revenueNotes.push('Occupancy not available');
+    revenueNotesEn.push('Occupancy not available');
+    revenueNotesAr.push('نسبة الإشغال غير متاحة');
   }
   const adr = val('adr');
   const adrPrev = prevVal('adr');
   if (adr !== null && adrPrev !== null && adrPrev > 0) {
     const pctDelta = (adr - adrPrev) / adrPrev;
     revenueScore += clamp(25 + pctDelta * 100, 0, 50);
-    revenueNotes.push(`ADR ${pctDelta >= 0 ? '+' : ''}${(pctDelta * 100).toFixed(1)}% vs previous available date`);
+    revenueNotesEn.push(`ADR ${pctDelta >= 0 ? '+' : ''}${(pctDelta * 100).toFixed(1)}% vs previous available date`);
+    revenueNotesAr.push(`متوسط سعر الغرفة ${pctDelta >= 0 ? '+' : ''}${(pctDelta * 100).toFixed(1)}% مقارنة بآخر تاريخ متاح`);
     revenueStatus = 'ok';
   } else {
     revenueScore += 25;
-    revenueNotes.push('No prior ADR to compare against');
+    revenueNotesEn.push('No prior ADR to compare against');
+    revenueNotesAr.push('لا يوجد متوسط سعر غرفة سابق للمقارنة');
   }
 
   return {
@@ -226,7 +243,8 @@ export function computeExecutiveScoreBreakdown(
       labelAr: 'الصحة المالية',
       score: Math.round(financialScore),
       status: financialStatus,
-      note: financialNotes.join('; '),
+      noteEn: financialNotesEn.join('; '),
+      noteAr: financialNotesAr.join('؛ '),
     },
     operationalHealth: {
       key: 'operational',
@@ -234,7 +252,8 @@ export function computeExecutiveScoreBreakdown(
       labelAr: 'الصحة التشغيلية',
       score: Math.round(operationalScore),
       status: operationalStatus,
-      note: operationalNotes.join('; '),
+      noteEn: operationalNotesEn.join('; '),
+      noteAr: operationalNotesAr.join('؛ '),
     },
     revenueHealth: {
       key: 'revenue',
@@ -242,7 +261,8 @@ export function computeExecutiveScoreBreakdown(
       labelAr: 'صحة الإيرادات',
       score: Math.round(revenueScore),
       status: revenueStatus,
-      note: revenueNotes.join('; '),
+      noteEn: revenueNotesEn.join('; '),
+      noteAr: revenueNotesAr.join('؛ '),
     },
     guestExperienceHealth: {
       key: 'guest_experience',
@@ -250,7 +270,8 @@ export function computeExecutiveScoreBreakdown(
       labelAr: 'صحة تجربة النزيل',
       score: null,
       status: 'insufficient_data',
-      note: 'No guest-satisfaction data source exists in HotelOS today.',
+      noteEn: 'No guest-satisfaction data source exists in HotelOS today.',
+      noteAr: 'لا يتوفر أي مصدر بيانات لرضا النزلاء في HotelOS حالياً.',
     },
     dataQuality: {
       key: 'data_quality',
@@ -258,7 +279,8 @@ export function computeExecutiveScoreBreakdown(
       labelAr: 'جودة البيانات',
       score: completenessScore !== null ? Math.round(completenessScore * 100) : null,
       status: completenessScore !== null ? 'ok' : 'insufficient_data',
-      note: completenessScore !== null ? `Source report ${Math.round(completenessScore * 100)}% complete` : 'No source report completeness score available',
+      noteEn: completenessScore !== null ? `Source report ${Math.round(completenessScore * 100)}% complete` : 'No source report completeness score available',
+      noteAr: completenessScore !== null ? `التقرير المصدر مكتمل بنسبة ${Math.round(completenessScore * 100)}%` : 'لا تتوفر نسبة اكتمال للتقرير المصدر',
     },
   };
 }

@@ -460,7 +460,65 @@
     "yearToDate": "Year-to-Date",
     "forecast": "Forecast (upcoming period)",
     "forecastNote": "Covers the currently queried forward-looking window, not a single business date.",
-    "periodMetricsNote": "These figures cover a different period than the day's KPIs above — shown separately rather than compared day-over-day, since the two aren't the same measurement."
+    "periodMetricsNote": "These figures cover a different period than the day's KPIs above — shown separately rather than compared day-over-day, since the two aren't the same measurement.",
+    "morningBrief": {
+      "title": "Executive Morning Brief",
+      "subtitle": "Everything a General Manager needs before the first briefing of the day.",
+      "statusHealthy": "Healthy",
+      "statusAttention": "Attention Required",
+      "statusCritical": "Critical",
+      "notYetAnalyzed": "This business date has not been analyzed yet — no Insight has been computed.",
+      "overallScore": "Overall Business Health",
+      "financialHealth": "Financial Health",
+      "operationalHealth": "Operational Health",
+      "revenueHealth": "Revenue Health",
+      "guestExperienceHealth": "Guest Experience Health",
+      "dataQuality": "Data Quality",
+      "insufficientData": "Not available",
+      "outOf100": "/ 100",
+      "topPriorities": "Today's Top Priorities",
+      "noPriorities": "No priorities flagged for this date.",
+      "topRisks": "Top Business Risks",
+      "noRisks": "No risks currently flagged.",
+      "topOpportunities": "Top Revenue Opportunities",
+      "noOpportunities": "No opportunities currently flagged.",
+      "estimatedImpact": "Estimated business impact",
+      "executiveMessage": "Executive Message",
+      "executiveMessageUnavailable": {
+        "NO_DATA": "No finalized metrics yet — the executive narrative will generate once a report is finalized.",
+        "NOT_CONFIGURED": "The executive narrative is not available — no AI provider is configured for this deployment. The figures and classifications above remain real and unaffected.",
+        "PROVIDER_ERROR": "The executive narrative could not be generated right now. Try again shortly — the figures and classifications above remain real and unaffected."
+      },
+      "department": "Department",
+      "decisionWindow": "Decision window"
+    }
+  },
+  "hotelDepartments": {
+    "FRONT_OFFICE": "Front Office",
+    "REVENUE_MANAGEMENT": "Revenue Management",
+    "SALES": "Sales",
+    "FINANCE": "Finance",
+    "HOUSEKEEPING": "Housekeeping",
+    "MAINTENANCE": "Maintenance",
+    "GENERAL_MANAGER": "General Manager",
+    "CORPORATE_OFFICE": "Corporate Office"
+  },
+  "riskSeverities": {
+    "CRITICAL": "Critical",
+    "HIGH": "High",
+    "MEDIUM": "Medium",
+    "LOW": "Low"
+  },
+  "opportunityValues": {
+    "QUICK_WIN": "Quick Win",
+    "HIGH_ROI": "High ROI",
+    "LONG_TERM": "Long-Term"
+  },
+  "decisionWindows": {
+    "IMMEDIATE": "Immediate (Today)",
+    "HOURS_72": "Next 72 Hours",
+    "WEEK": "This Week",
+    "MONTH": "This Month"
   },
   "timeline": {
     "title": "Mission Timeline",

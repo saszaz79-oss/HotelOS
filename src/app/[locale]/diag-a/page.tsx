@@ -10,6 +10,17 @@ export default async function DiagAPage(props: { params: Promise<{ locale: strin
   const __start = performance.now();
   const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
-  trace('page.diag-a.total', { ms: Math.round((performance.now() - __start) * 100) / 100 });
-  return <div>diag-a ok {locale} {new Date().toISOString()}</div>;
+  const ms = Math.round((performance.now() - __start) * 100) / 100;
+  trace('page.diag-a.total', { ms });
+  return (
+    <div style={{ fontFamily: 'monospace', padding: 32, maxWidth: 640, lineHeight: 1.8 }}>
+      <h1 style={{ fontSize: 20, marginBottom: 16 }}>Diagnostic Route: diag-a (Test A)</h1>
+      <p>Locale: {locale}</p>
+      <p>Authentication used: NO</p>
+      <p>Database access used: NO</p>
+      <p>Shared (app) layout: NO</p>
+      <p style={{ fontWeight: 'bold', marginTop: 16 }}>Server render time: {ms}ms</p>
+      <p style={{ marginTop: 16, color: '#666' }}>Rendered at {new Date().toISOString()}</p>
+    </div>
+  );
 }

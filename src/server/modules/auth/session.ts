@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
+import { timed } from '@/lib/perf-trace'; // TEMPORARY (production incident diagnostic)
 
 const SESSION_COOKIE = 'hotelos_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -50,10 +51,12 @@ export const getCurrentUser = cache(async () => {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const session = await prisma.session.findUnique({
-    where: { id: token },
-    include: { user: true },
-  });
+  const session = await timed('getCurrentUser.sessionLookup', () =>
+    prisma.session.findUnique({
+      where: { id: token },
+      include: { user: true },
+    })
+  );
 
   if (!session || session.expiresAt < new Date()) {
     if (session) await prisma.session.delete({ where: { id: token } });

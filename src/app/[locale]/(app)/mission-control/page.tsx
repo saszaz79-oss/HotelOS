@@ -29,6 +29,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { KpiCard } from '@/components/ui/KpiCard';
 import { EvidenceDrawer } from '@/components/ui/EvidenceDrawer';
 import { reportStatusTone } from '@/lib/status-tone';
+import { trace } from '@/lib/perf-trace'; // TEMPORARY (production incident diagnostic)
 
 const KEY_METRIC_KEYS = [
   'occupancy_pct',
@@ -49,6 +50,7 @@ function dataQualityTone(score: number): 'positive' | 'warning' | 'critical' {
 }
 
 export default async function MissionControlPage(props: { params: Promise<{ locale: string }> }) {
+  const __pageStart = performance.now(); // TEMPORARY (production incident diagnostic)
   const params = await props.params;
   const locale = (locales.includes(params.locale as Locale) ? params.locale : defaultLocale) as Locale;
   const dict = getDictionary(locale);
@@ -162,6 +164,9 @@ export default async function MissionControlPage(props: { params: Promise<{ loca
     avgDataQuality: avgQuality,
     currency: membership.hotel.currency,
   });
+
+  // TEMPORARY (production incident diagnostic)
+  trace('page.mission-control.total', { ms: Math.round((performance.now() - __pageStart) * 100) / 100 });
 
   return (
     <div className="max-w-5xl space-y-8">

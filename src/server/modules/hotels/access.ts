@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 import { audit } from '@/server/modules/audit';
+import { timed } from '@/lib/perf-trace'; // TEMPORARY (production incident diagnostic)
 import type { User } from '@prisma/client';
 
 /**
@@ -44,10 +45,12 @@ export async function resolveHotelScope(user: User): Promise<HotelScope> {
  * every request, with no prop-drilling path between them (M7 audit).
  */
 export const getActiveMembership = cache(async (userId: string) => {
-  return prisma.hotelMembership.findFirst({
-    where: { userId, status: 'active', hotel: { status: 'active' } },
-    include: { hotel: true },
-  });
+  return timed('getActiveMembership', () =>
+    prisma.hotelMembership.findFirst({
+      where: { userId, status: 'active', hotel: { status: 'active' } },
+      include: { hotel: true },
+    })
+  );
 });
 
 /** Throws if the resolved scope does not include hotelId. */

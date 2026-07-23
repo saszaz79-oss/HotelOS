@@ -4,6 +4,7 @@ import { getActiveMembership } from '@/server/modules/hotels/access';
 import { getDictionary, locales, defaultLocale, type Locale } from '@/i18n/config';
 import { listAgentsForRole } from '@/server/modules/agents/registry';
 import { countUnreadNotifications } from '@/server/modules/notifications/queries';
+import { trace } from '@/lib/perf-trace'; // TEMPORARY (production incident diagnostic)
 import { AppShell } from './AppShell';
 import { logoutAction } from './actions';
 
@@ -13,6 +14,7 @@ export default async function AppLayout(
     params: Promise<{ locale: string }>;
   }
 ) {
+  const __layoutStart = performance.now(); // TEMPORARY (production incident diagnostic)
   const params = await props.params;
 
   const {
@@ -41,6 +43,10 @@ export default async function AppLayout(
   ]);
 
   const agents = membership ? listAgentsForRole(membership.role) : [];
+
+  // TEMPORARY (production incident diagnostic) — total layout-to-this-point
+  // time, on every single navigation within the app shell.
+  trace('layout.total', { ms: Math.round((performance.now() - __layoutStart) * 100) / 100, userId: user.id });
 
   return (
     <AppShell

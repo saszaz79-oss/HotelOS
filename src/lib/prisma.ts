@@ -83,12 +83,33 @@ const POOL_MAX_CONNECTIONS = 1;
 function getRealClient(): PrismaClient {
   if (!globalForPrisma.__hotelosPrisma) {
     const { connectionString, ssl } = resolveConnection();
+    // TEMPORARY (production incident diagnostic, Zero-Lag Sprint) — logs
+    // only host/port, never the credential, once per cold isolate. Confirms
+    // which pooler mode is actually live in production. Remove alongside
+    // the query-event logging below once the bottleneck is confirmed.
+    try {
+      const u = new URL(connectionString);
+      console.log(`[PERF] ${new Date().toISOString()} prisma.cold_start ${JSON.stringify({ host: u.hostname, port: u.port })}`);
+    } catch {
+      // ignore
+    }
     const adapter = new PrismaPg({
       connectionString,
       ...(ssl !== undefined ? { ssl } : {}),
       max: POOL_MAX_CONNECTIONS,
     });
-    globalForPrisma.__hotelosPrisma = new PrismaClient({ adapter });
+    const client = new PrismaClient({
+      adapter,
+      log: [{ emit: 'event', level: 'query' }],
+    });
+    // TEMPORARY (production incident diagnostic) — real per-query duration
+    // and count, straight from Prisma's own instrumentation. Remove this
+    // listener (and the `log` option above) once the bottleneck is
+    // confirmed and fixed.
+    client.$on('query' as never, (e: { query: string; duration: number }) => {
+      console.log(`[PERF] ${new Date().toISOString()} prisma.query ${JSON.stringify({ ms: e.duration, query: e.query.slice(0, 120) })}`);
+    });
+    globalForPrisma.__hotelosPrisma = client;
   }
   return globalForPrisma.__hotelosPrisma;
 }

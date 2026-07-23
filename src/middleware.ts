@@ -4,7 +4,17 @@ import { locales, defaultLocale } from '@/i18n/locales';
 const PUBLIC_FILE = /\.(.*)$/;
 
 export function middleware(request: NextRequest) {
+  const __start = Date.now();
   const { pathname } = request.nextUrl;
+  // TEMPORARY (production incident diagnostic) — remove with the rest of
+  // src/lib/perf-trace.ts's usages once the bottleneck is confirmed.
+  console.log(`[PERF] ${new Date().toISOString()} middleware.entry ${JSON.stringify({ pathname })}`);
+  const __result = middlewareImpl(request, pathname);
+  console.log(`[PERF] ${new Date().toISOString()} middleware.exit ${JSON.stringify({ pathname, ms: Date.now() - __start })}`);
+  return __result;
+}
+
+function middlewareImpl(request: NextRequest, pathname: string) {
 
   if (
     pathname.startsWith('/_next') ||

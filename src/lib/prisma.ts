@@ -108,6 +108,12 @@ function getRealClient(): PrismaClient {
     // confirmed and fixed.
     client.$on('query' as never, (e: { query: string; duration: number }) => {
       console.log(`[PERF] ${new Date().toISOString()} prisma.query ${JSON.stringify({ ms: e.duration, query: e.query.slice(0, 120) })}`);
+      // Guard against infinite recursion: this INSERT is itself a query,
+      // which would re-fire this same listener forever if not excluded.
+      if (e.query.startsWith('INSERT INTO "_PerfEvent"')) return;
+      client.$executeRaw`INSERT INTO "_PerfEvent" (req_id, label, ms, extra) VALUES (${null}, 'prisma.query', ${e.duration}, ${JSON.stringify({ query: e.query.slice(0, 200) })}::jsonb)`.catch(() => {
+        // Never let diagnostic logging break or slow the real request.
+      });
     });
     globalForPrisma.__hotelosPrisma = client;
   }
